@@ -1,15 +1,43 @@
 // app/orders/page.tsx
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import OrdersTable from "./OrdersTable.client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Server-only Supabase (Service Role) — NU e expus în browser
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function EnvError({ token }: { token: string }) {
+  return (
+    <main style={{ padding: 40 }}>
+      <h1 style={{ marginBottom: 8 }}>Orders</h1>
+      <p style={{ color: "#ffb4b4" }}>Server env problem (no crash mode).</p>
+      <pre style={{ opacity: 0.85 }}>
+        {JSON.stringify(
+          {
+            hasUrl: !!supabaseUrl,
+            hasServiceRole: !!supabaseServiceKey,
+            urlPreview: supabaseUrl ? supabaseUrl.slice(0, 35) + "..." : null,
+            tokenPreview: token ? token.slice(0, 8) + "..." : null,
+          },
+          null,
+          2
+        )}
+      </pre>
+      <p style={{ opacity: 0.7 }}>
+        If hasServiceRole is false → set SUPABASE_SERVICE_ROLE_KEY in Vercel
+        (Production) and redeploy.
+      </p>
+    </main>
+  );
+}
+
+const supabase =
+  supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
 type Partner = {
   id: string;
@@ -42,7 +70,10 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  // 1) Găsim partner_id din token
+  // ✅ no-crash: show env status instead of throwing
+  if (!supabase) return <EnvError token={token} />;
+
+  // 1) token -> partner_id
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("partner_access_tokens")
     .select("partner_id, active")
@@ -55,14 +86,16 @@ export default async function OrdersPage(props: any) {
       <main style={{ padding: 40 }}>
         <h1 style={{ marginBottom: 8 }}>Orders</h1>
         <p>Invalid token or token is inactive.</p>
-        <p style={{ opacity: 0.7, marginTop: 8 }}>Please use the link you received.</p>
+        <p style={{ opacity: 0.7, marginTop: 8 }}>
+          Please use the link you received.
+        </p>
       </main>
     );
   }
 
   const partnerId = tokenRow.partner_id as string;
 
-  // 2) Datele partenerului (header)
+  // 2) partner header
   const { data: partner, error: partnerErr } = await supabase
     .from("partners")
     .select("id,name,email,pickup_address_line1,pickup_postal_code")
@@ -78,10 +111,12 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  // 3) Comenzile DOAR ale partenerului
+  // 3) orders by partner_id
   const { data: orders, error: ordersErr } = await supabase
     .from("orders")
-    .select("id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at")
+    .select(
+      "id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at"
+    )
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -133,92 +168,11 @@ export default async function OrdersPage(props: any) {
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 22,
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12,
-          overflow: "hidden",
-          maxWidth: 1100,
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "220px 160px 140px 160px 1fr",
-            padding: "12px 14px",
-            fontWeight: 700,
-            borderBottom: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(255,255,255,0.03)",
-          }}
-        >
-          <div>Order</div>
-          <div>Status</div>
-          <div>Postal</div>
-          <div>Date</div>
-          <div style={{ textAlign: "right" }}>Actions</div>
-        </div>
+      <OrdersTable orders={rows} />
 
-        {rows.length === 0 ? (
-          <div style={{ padding: 16, opacity: 0.8 }}>No orders yet.</div>
-        ) : (
-          rows.map((o) => (
-            <div
-              key={o.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "220px 160px 140px 160px 1fr",
-                padding: "12px 14px",
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ fontWeight: 700 }}>{o.shopify_order_number ?? "-"}</div>
-              <div style={{ opacity: 0.9 }}>{o.partner_status ?? "-"}</div>
-              <div style={{ opacity: 0.9 }}>{o.delivery_postal_code ?? "-"}</div>
-              <div style={{ opacity: 0.9 }}>
-                {o.created_at ? new Date(o.created_at).toLocaleString() : "-"}
-              </div>
-
-              <div style={{ textAlign: "right", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    background: "transparent",
-                    color: "white",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                  onClick={() => alert("Print placeholder")}
-                >
-                  Print
-                </button>
-
-                <button
-                  type="button"
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    background: "rgba(255,255,255,0.08)",
-                    color: "white",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                  onClick={() => alert("Reprint placeholder")}
-                >
-                  Reprint
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+      <div style={{ marginTop: 14, opacity: 0.7 }}>
+        Showing {rows.length} order(s).
       </div>
-
-      <div style={{ marginTop: 14, opacity: 0.7 }}>Showing {rows.length} order(s).</div>
     </main>
   );
 }
