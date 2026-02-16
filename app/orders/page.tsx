@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// ✅ Supabase (anon) — trebuie să existe în Vercel Env Vars
+// Server-only Supabase (Service Role) — NU e expus în browser
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 type Partner = {
   id: string;
@@ -42,40 +42,27 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-
   // 1) Găsim partner_id din token
- const { data: tokenRow, error: tokenErr } = await supabase
-  .from("partner_access_tokens")
-  .select("partner_id, active, token")
-  .eq("token", token)
-  .maybeSingle();
-
+  const { data: tokenRow, error: tokenErr } = await supabase
+    .from("partner_access_tokens")
+    .select("partner_id, active")
+    .eq("token", token)
+    .eq("active", true)
+    .maybeSingle();
 
   if (tokenErr || !tokenRow?.partner_id) {
-  return (
-    <main style={{ padding: 40 }}>
-      <h1 style={{ marginBottom: 8 }}>Orders</h1>
-      <p>Invalid token (debug mode).</p>
-      <pre style={{ opacity: 0.85, whiteSpace: "pre-wrap" }}>
-{JSON.stringify(
-  {
-    tokenReceived: token,
-    tokenErr: tokenErr?.message ?? null,
-    tokenRow: tokenRow ?? null,
-    supabaseUrl: supabaseUrl?.slice(0, 35) + "...",
-  },
-  null,
-  2
-)}
-      </pre>
-    </main>
-  );
-}
-
+    return (
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
+        <p>Invalid token or token is inactive.</p>
+        <p style={{ opacity: 0.7, marginTop: 8 }}>Please use the link you received.</p>
+      </main>
+    );
+  }
 
   const partnerId = tokenRow.partner_id as string;
 
-  // 2) Luăm datele partenerului (pentru header)
+  // 2) Datele partenerului (header)
   const { data: partner, error: partnerErr } = await supabase
     .from("partners")
     .select("id,name,email,pickup_address_line1,pickup_postal_code")
@@ -91,12 +78,10 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  // 3) Luăm comenzile DOAR ale partenerului
+  // 3) Comenzile DOAR ale partenerului
   const { data: orders, error: ordersErr } = await supabase
     .from("orders")
-    .select(
-      "id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at"
-    )
+    .select("id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at")
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -115,7 +100,6 @@ export default async function OrdersPage(props: any) {
 
   return (
     <main style={{ padding: 40 }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Link
           href={`/?token=${encodeURIComponent(token)}`}
@@ -149,7 +133,6 @@ export default async function OrdersPage(props: any) {
         </div>
       </div>
 
-      {/* Table */}
       <div
         style={{
           marginTop: 22,
@@ -163,7 +146,6 @@ export default async function OrdersPage(props: any) {
           style={{
             display: "grid",
             gridTemplateColumns: "220px 160px 140px 160px 1fr",
-            gap: 0,
             padding: "12px 14px",
             fontWeight: 700,
             borderBottom: "1px solid rgba(255,255,255,0.10)",
@@ -186,22 +168,18 @@ export default async function OrdersPage(props: any) {
               style={{
                 display: "grid",
                 gridTemplateColumns: "220px 160px 140px 160px 1fr",
-                gap: 0,
                 padding: "12px 14px",
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
                 alignItems: "center",
               }}
             >
-              <div style={{ fontWeight: 700 }}>
-                {o.shopify_order_number ?? "-"}
-              </div>
+              <div style={{ fontWeight: 700 }}>{o.shopify_order_number ?? "-"}</div>
               <div style={{ opacity: 0.9 }}>{o.partner_status ?? "-"}</div>
               <div style={{ opacity: 0.9 }}>{o.delivery_postal_code ?? "-"}</div>
               <div style={{ opacity: 0.9 }}>
                 {o.created_at ? new Date(o.created_at).toLocaleString() : "-"}
               </div>
 
-              {/* Actions (placeholder: Print/Reprint) */}
               <div style={{ textAlign: "right", display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button
                   type="button"
@@ -214,10 +192,7 @@ export default async function OrdersPage(props: any) {
                     cursor: "pointer",
                     fontWeight: 700,
                   }}
-                  onClick={() => {
-                    // placeholder (client-side needed for real print)
-                    alert("Print placeholder. Next step: implement print route/API.");
-                  }}
+                  onClick={() => alert("Print placeholder")}
                 >
                   Print
                 </button>
@@ -233,9 +208,7 @@ export default async function OrdersPage(props: any) {
                     cursor: "pointer",
                     fontWeight: 700,
                   }}
-                  onClick={() => {
-                    alert("Reprint placeholder. Next step: implement print history/status.");
-                  }}
+                  onClick={() => alert("Reprint placeholder")}
                 >
                   Reprint
                 </button>
@@ -245,9 +218,7 @@ export default async function OrdersPage(props: any) {
         )}
       </div>
 
-      <div style={{ marginTop: 14, opacity: 0.7 }}>
-        Showing {rows.length} order(s).
-      </div>
+      <div style={{ marginTop: 14, opacity: 0.7 }}>Showing {rows.length} order(s).</div>
     </main>
   );
 }
