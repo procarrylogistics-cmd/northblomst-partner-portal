@@ -1,132 +1,246 @@
+// app/orders/page.tsx
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// ✅ Supabase (anon) — trebuie să existe în Vercel Env Vars
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+type Partner = {
+  id: string;
+  name: string;
+  email: string | null;
+  pickup_address_line1: string | null;
+  pickup_postal_code: string | null;
+};
+
+type OrderRow = {
+  id: string;
+  shopify_order_number: string | null;
+  shopify_order_id: number | null;
+  partner_status: string | null;
+  delivery_postal_code: string | null;
+  created_at: string | null;
+};
+
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: { token?: string };
+  searchParams: { token?: string | string[] };
 }) {
-  const token = (searchParams?.token ?? "").trim();
+  // ✅ Token parsing corect (același stil ca pe homepage)
+  const tokenRaw = searchParams?.token;
+  const token = (Array.isArray(tokenRaw) ? tokenRaw[0] : tokenRaw ?? "").trim();
 
   if (!token) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>Orders</h1>
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
         <p>Missing token. Please use the link you received.</p>
       </main>
     );
   }
 
-  // SERVER SIDE ONLY (service role)
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // 1) validate token -> partner_id
+  // 1) Găsim partner_id din token
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("partner_access_tokens")
-    .select("partner_id")
+    .select("partner_id, active")
     .eq("token", token)
     .eq("active", true)
     .maybeSingle();
 
   if (tokenErr || !tokenRow?.partner_id) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>Orders</h1>
-        <p>Invalid or revoked token.</p>
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
+        <p>Invalid token or token is inactive.</p>
+        <p style={{ opacity: 0.7, marginTop: 8 }}>
+          Please use the link you received.
+        </p>
       </main>
     );
   }
 
-  const partnerId = tokenRow.partner_id;
+  const partnerId = tokenRow.partner_id as string;
 
-  // 2) load partner (header)
-  const { data: partner } = await supabase
+  // 2) Luăm datele partenerului (pentru header)
+  const { data: partner, error: partnerErr } = await supabase
     .from("partners")
-    .select("id,name,email")
+    .select("id,name,email,pickup_address_line1,pickup_postal_code")
     .eq("id", partnerId)
-    .maybeSingle();
+    .maybeSingle<Partner>();
 
-  // 3) load ONLY this partner's orders (using YOUR real columns)
+  if (partnerErr || !partner) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
+        <p>Partner not found for this token.</p>
+      </main>
+    );
+  }
+
+  // 3) Luăm comenzile DOAR ale partenerului
   const { data: orders, error: ordersErr } = await supabase
     .from("orders")
     .select(
-      "id, shopify_order_id, shopify_order_number, shopify_created_at, paid_at, partner_status, partner_id"
+      "id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at"
     )
     .eq("partner_id", partnerId)
-    .order("shopify_created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (ordersErr) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
+        <p>Could not load orders.</p>
+        <pre style={{ opacity: 0.8 }}>{ordersErr.message}</pre>
+      </main>
+    );
+  }
+
+  const rows = (orders ?? []) as OrderRow[];
 
   return (
-    <main style={{ padding: 24 }}>
+    <main style={{ padding: 40 }}>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <h1 style={{ margin: 0 }}>Orders</h1>
         <Link
           href={`/?token=${encodeURIComponent(token)}`}
-          style={{ marginLeft: "auto", textDecoration: "none" }}
+          style={{
+            display: "inline-block",
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.15)",
+            textDecoration: "none",
+          }}
         >
           ← Back
         </Link>
+        <h1 style={{ margin: 0 }}>Orders</h1>
       </div>
 
-      <p style={{ opacity: 0.75 }}>
-        Partner: <b>{partner?.name ?? "Partner"}</b>
-        {partner?.email ? ` — ${partner.email}` : ""}
-      </p>
+      <div
+        style={{
+          marginTop: 16,
+          padding: 16,
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12,
+          maxWidth: 900,
+        }}
+      >
+        <div style={{ fontWeight: 800, fontSize: 20 }}>{partner.name}</div>
+        <div style={{ opacity: 0.85, marginTop: 4 }}>{partner.email}</div>
+        <div style={{ opacity: 0.85, marginTop: 8 }}>
+          {partner.pickup_address_line1}{" "}
+          {partner.pickup_postal_code ? `, ${partner.pickup_postal_code}` : ""}
+        </div>
+      </div>
 
-      {ordersErr && (
-        <p style={{ color: "tomato" }}>Orders query error: {ordersErr.message}</p>
-      )}
-
-      {!ordersErr && (!orders || orders.length === 0) && (
-        <p style={{ opacity: 0.8 }}>No orders found yet.</p>
-      )}
-
-      {orders && orders.length > 0 && (
+      {/* Table */}
+      <div
+        style={{
+          marginTop: 22,
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12,
+          overflow: "hidden",
+          maxWidth: 1100,
+        }}
+      >
         <div
           style={{
-            marginTop: 12,
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 12,
-            overflow: "hidden",
+            display: "grid",
+            gridTemplateColumns: "220px 160px 140px 160px 1fr",
+            gap: 0,
+            padding: "12px 14px",
+            fontWeight: 700,
+            borderBottom: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(255,255,255,0.03)",
           }}
         >
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ background: "rgba(255,255,255,0.04)" }}>
-              <tr>
-                <th style={{ textAlign: "left", padding: 12 }}>Shopify Order</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Created</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Paid</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o: any) => (
-                <tr key={o.id}>
-                  <td style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    {o.shopify_order_number ?? o.shopify_order_id ?? o.id}
-                  </td>
-                  <td style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    {o.shopify_created_at
-                      ? new Date(o.shopify_created_at).toLocaleString("da-DK")
-                      : "-"}
-                  </td>
-                  <td style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    {o.paid_at ? new Date(o.paid_at).toLocaleString("da-DK") : "-"}
-                  </td>
-                  <td style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    {o.partner_status ?? "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div>Order</div>
+          <div>Status</div>
+          <div>Postal</div>
+          <div>Date</div>
+          <div style={{ textAlign: "right" }}>Actions</div>
         </div>
-      )}
+
+        {rows.length === 0 ? (
+          <div style={{ padding: 16, opacity: 0.8 }}>No orders yet.</div>
+        ) : (
+          rows.map((o) => (
+            <div
+              key={o.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "220px 160px 140px 160px 1fr",
+                gap: 0,
+                padding: "12px 14px",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                {o.shopify_order_number ?? "-"}
+              </div>
+              <div style={{ opacity: 0.9 }}>{o.partner_status ?? "-"}</div>
+              <div style={{ opacity: 0.9 }}>{o.delivery_postal_code ?? "-"}</div>
+              <div style={{ opacity: 0.9 }}>
+                {o.created_at ? new Date(o.created_at).toLocaleString() : "-"}
+              </div>
+
+              {/* Actions (placeholder: Print/Reprint) */}
+              <div style={{ textAlign: "right", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "transparent",
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                  onClick={() => {
+                    // placeholder (client-side needed for real print)
+                    alert("Print placeholder. Next step: implement print route/API.");
+                  }}
+                >
+                  Print
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.08)",
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                  onClick={() => {
+                    alert("Reprint placeholder. Next step: implement print history/status.");
+                  }}
+                >
+                  Reprint
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ marginTop: 14, opacity: 0.7 }}>
+        Showing {rows.length} order(s).
+      </div>
     </main>
   );
 }
