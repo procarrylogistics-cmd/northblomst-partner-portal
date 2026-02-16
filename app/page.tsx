@@ -4,13 +4,10 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams?: { token?: string };
-}) {
-  const token = (searchParams?.token ?? "").trim();
-
+export default async function Home(props: any) {
+  const sp = await Promise.resolve(props.searchParams ?? {});
+  const tokenRaw = sp?.token;
+  const token = (Array.isArray(tokenRaw) ? tokenRaw[0] : tokenRaw ?? "").trim();
 
   if (!token) {
     return (
