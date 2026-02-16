@@ -1,39 +1,16 @@
 // app/orders/page.tsx
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import OrdersTable from "./OrdersTable.client";
+import OrdersTable, { type OrderRow } from "./OrdersTable.client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// ENV (server)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-function EnvError({ token }: { token: string }) {
-  return (
-    <main style={{ padding: 40 }}>
-      <h1 style={{ marginBottom: 8 }}>Orders</h1>
-      <p style={{ color: "#ffb4b4" }}>Server env problem (no crash mode).</p>
-      <pre style={{ opacity: 0.85 }}>
-        {JSON.stringify(
-          {
-            hasUrl: !!supabaseUrl,
-            hasServiceRole: !!supabaseServiceKey,
-            urlPreview: supabaseUrl ? supabaseUrl.slice(0, 35) + "..." : null,
-            tokenPreview: token ? token.slice(0, 8) + "..." : null,
-          },
-          null,
-          2
-        )}
-      </pre>
-      <p style={{ opacity: 0.7 }}>
-        If hasServiceRole is false → set SUPABASE_SERVICE_ROLE_KEY in Vercel
-        (Production) and redeploy.
-      </p>
-    </main>
-  );
-}
-
+// Supabase client (server) — service role (bypasses RLS)
 const supabase =
   supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey)
@@ -47,14 +24,30 @@ type Partner = {
   pickup_postal_code: string | null;
 };
 
-type OrderRow = {
-  id: string;
-  shopify_order_number: string | null;
-  shopify_order_id: number | null;
-  partner_status: string | null;
-  delivery_postal_code: string | null;
-  created_at: string | null;
-};
+function EnvError({ token }: { token: string }) {
+  return (
+    <main style={{ padding: 40 }}>
+      <h1 style={{ marginBottom: 8 }}>Orders</h1>
+      <p style={{ color: "#ffb4b4" }}>Server env problem (no crash mode).</p>
+      <pre style={{ opacity: 0.85 }}>
+        {JSON.stringify(
+          {
+            hasUrl: !!supabaseUrl,
+            hasServiceRole: !!supabaseServiceKey,
+            urlPreview: supabaseUrl ? supabaseUrl.slice(0, 35) + "..." : null,
+            tokenPreview: token ? token.slice(0, 12) + "..." : null,
+          },
+          null,
+          2
+        )}
+      </pre>
+      <p style={{ opacity: 0.7 }}>
+        If hasServiceRole is false → set <b>SUPABASE_SERVICE_ROLE_KEY</b> in
+        Vercel (Production) and redeploy.
+      </p>
+    </main>
+  );
+}
 
 export default async function OrdersPage(props: any) {
   const sp = await Promise.resolve(props.searchParams ?? {});
@@ -70,7 +63,6 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  // ✅ no-crash: show env status instead of throwing
   if (!supabase) return <EnvError token={token} />;
 
   // 1) token -> partner_id
@@ -89,6 +81,17 @@ export default async function OrdersPage(props: any) {
         <p style={{ opacity: 0.7, marginTop: 8 }}>
           Please use the link you received.
         </p>
+        <pre style={{ opacity: 0.8, marginTop: 12 }}>
+          {JSON.stringify(
+            {
+              tokenReceived: token,
+              tokenErr: tokenErr?.message ?? null,
+              tokenRow: tokenRow ?? null,
+            },
+            null,
+            2
+          )}
+        </pre>
       </main>
     );
   }
@@ -107,6 +110,17 @@ export default async function OrdersPage(props: any) {
       <main style={{ padding: 40 }}>
         <h1 style={{ marginBottom: 8 }}>Orders</h1>
         <p>Partner not found for this token.</p>
+        <pre style={{ opacity: 0.8, marginTop: 12 }}>
+          {JSON.stringify(
+            {
+              partnerId,
+              partnerErr: partnerErr?.message ?? null,
+              partner: partner ?? null,
+            },
+            null,
+            2
+          )}
+        </pre>
       </main>
     );
   }
@@ -131,7 +145,7 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  const rows = (orders ?? []) as OrderRow[];
+  const rows: OrderRow[] = (orders ?? []) as OrderRow[];
 
   return (
     <main style={{ padding: 40 }}>
