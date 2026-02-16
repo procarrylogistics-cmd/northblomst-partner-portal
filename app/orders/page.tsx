@@ -44,24 +44,34 @@ export default async function OrdersPage(props: any) {
 
 
   // 1) Găsim partner_id din token
-  const { data: tokenRow, error: tokenErr } = await supabase
-    .from("partner_access_tokens")
-    .select("partner_id, active")
-    .eq("token", token)
-    .eq("active", true)
-    .maybeSingle();
+ const { data: tokenRow, error: tokenErr } = await supabase
+  .from("partner_access_tokens")
+  .select("partner_id, active, token")
+  .eq("token", token)
+  .maybeSingle();
+
 
   if (tokenErr || !tokenRow?.partner_id) {
-    return (
-      <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p>Invalid token or token is inactive.</p>
-        <p style={{ opacity: 0.7, marginTop: 8 }}>
-          Please use the link you received.
-        </p>
-      </main>
-    );
-  }
+  return (
+    <main style={{ padding: 40 }}>
+      <h1 style={{ marginBottom: 8 }}>Orders</h1>
+      <p>Invalid token (debug mode).</p>
+      <pre style={{ opacity: 0.85, whiteSpace: "pre-wrap" }}>
+{JSON.stringify(
+  {
+    tokenReceived: token,
+    tokenErr: tokenErr?.message ?? null,
+    tokenRow: tokenRow ?? null,
+    supabaseUrl: supabaseUrl?.slice(0, 35) + "...",
+  },
+  null,
+  2
+)}
+      </pre>
+    </main>
+  );
+}
+
 
   const partnerId = tokenRow.partner_id as string;
 
