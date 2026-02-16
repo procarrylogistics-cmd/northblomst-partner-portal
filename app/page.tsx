@@ -1,27 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 
-type Partner = {
-  id: string;
-  name: string;
-  email: string;
-  trackpod_shipper_name: string;
-  pickup_address_line1: string;
-  pickup_postal_code: string;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Home({
   searchParams,
 }: {
   searchParams: { token?: string };
 }) {
-  const token = searchParams.token;
+  const token = (searchParams?.token ?? "").trim();
 
   if (!token) {
     return (
       <main style={{ padding: 40 }}>
         <h1>Northblomst Partner Portal</h1>
-        <p>Access denied</p>
+        <p>Missing token. Please use the link you received.</p>
       </main>
     );
   }
@@ -31,35 +25,33 @@ export default async function Home({
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 🔹 1. Validăm token
-  const { data: tokenRow } = await supabase
+  const { data: tokenRow, error: tokenErr } = await supabase
     .from("partner_access_tokens")
     .select("partner_id")
     .eq("token", token)
     .eq("active", true)
-    .single();
+    .maybeSingle();
 
-  if (!tokenRow) {
+  if (tokenErr || !tokenRow?.partner_id) {
     return (
       <main style={{ padding: 40 }}>
         <h1>Northblomst Partner Portal</h1>
-        <p>Invalid or expired token</p>
+        <p>Invalid or revoked token.</p>
       </main>
     );
   }
 
-  // 🔹 2. Luăm partenerul corect
-  const { data: partner } = await supabase
+  const { data: partner, error: partnerErr } = await supabase
     .from("partners")
-    .select("*")
+    .select("id,name,email,pickup_address_line1,pickup_postal_code,pickup_city,trackpod_shipper_name")
     .eq("id", tokenRow.partner_id)
-    .single();
+    .maybeSingle();
 
-  if (!partner) {
+  if (partnerErr || !partner?.id) {
     return (
       <main style={{ padding: 40 }}>
         <h1>Northblomst Partner Portal</h1>
-        <p>No partner found</p>
+        <p>Partner not found.</p>
       </main>
     );
   }
@@ -68,24 +60,12 @@ export default async function Home({
     <main style={{ padding: 40 }}>
       <h1>Northblomst Partner Portal</h1>
 
-      <div
-        style={{
-          marginTop: 20,
-          padding: 16,
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 12,
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 18 }}>
-          {partner.name}
-        </div>
-
-        <div style={{ marginTop: 6, opacity: 0.8 }}>
-          {partner.email}
-        </div>
-
-        <div style={{ marginTop: 6, opacity: 0.8 }}>
-          {partner.pickup_address_line1}, {partner.pickup_postal_code}
+      <div style={{ marginTop: 20, padding: 16, border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, maxWidth: 720 }}>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>{partner.name ?? "Partner"}</div>
+        <div style={{ marginTop: 6, opacity: 0.85 }}>{partner.email ?? ""}</div>
+        <div style={{ marginTop: 6, opacity: 0.75, fontSize: 13 }}>{partner.trackpod_shipper_name ?? ""}</div>
+        <div style={{ marginTop: 6, opacity: 0.75 }}>
+          {partner.pickup_address_line1 ?? ""}, {partner.pickup_postal_code ?? ""} {partner.pickup_city ?? ""}
         </div>
 
         <Link
@@ -97,7 +77,7 @@ export default async function Home({
             background: "white",
             color: "black",
             borderRadius: 8,
-            fontWeight: 600,
+            fontWeight: 700,
             textDecoration: "none",
           }}
         >
