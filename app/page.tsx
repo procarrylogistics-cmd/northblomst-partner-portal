@@ -7,9 +7,10 @@ export const revalidate = 0;
 export default async function Home({
   searchParams,
 }: {
-  searchParams: { token?: string };
+  searchParams?: { token?: string };
 }) {
   const token = (searchParams?.token ?? "").trim();
+
 
   if (!token) {
     return (
