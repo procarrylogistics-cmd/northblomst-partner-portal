@@ -6,11 +6,9 @@ import OrdersTable, { type OrderRow } from "./OrdersTable.client";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// ENV (server)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-// Supabase client (server) — service role (bypasses RLS)
 const supabase =
   supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey)
@@ -24,28 +22,75 @@ type Partner = {
   pickup_postal_code: string | null;
 };
 
-function EnvError({ token }: { token: string }) {
+function dkDateISO(offsetDays = 0) {
+  // YYYY-MM-DD în timezone DK
+  const now = new Date();
+  const dk = new Date(now.getTime() + offsetDays * 86400000);
+  return dk.toLocaleDateString("en-CA", { timeZone: "Europe/Copenhagen" }); // en-CA => YYYY-MM-DD
+}
+
+function FilterBar({ token, selectedDate }: { token: string; selectedDate: string }) {
+  const base = `/orders?token=${encodeURIComponent(token)}`;
   return (
-    <main style={{ padding: 40 }}>
-      <h1 style={{ marginBottom: 8 }}>Orders</h1>
-      <p style={{ color: "#ffb4b4" }}>Server env problem (no crash mode).</p>
-      <pre style={{ opacity: 0.85 }}>
-        {JSON.stringify(
-          {
-            hasUrl: !!supabaseUrl,
-            hasServiceRole: !!supabaseServiceKey,
-            urlPreview: supabaseUrl ? supabaseUrl.slice(0, 35) + "..." : null,
-            tokenPreview: token ? token.slice(0, 12) + "..." : null,
-          },
-          null,
-          2
-        )}
-      </pre>
-      <p style={{ opacity: 0.7 }}>
-        If hasServiceRole is false → set <b>SUPABASE_SERVICE_ROLE_KEY</b> in
-        Vercel (Production) and redeploy.
-      </p>
-    </main>
+    <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+      <Link
+        href={`${base}&when=today`}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 10,
+          border: "1px solid rgba(255,255,255,0.18)",
+          textDecoration: "none",
+        }}
+      >
+        Today
+      </Link>
+
+      <Link
+        href={`${base}&when=tomorrow`}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 10,
+          border: "1px solid rgba(255,255,255,0.18)",
+          textDecoration: "none",
+        }}
+      >
+        Tomorrow
+      </Link>
+
+      <form
+        action="/orders"
+        method="GET"
+        style={{ display: "flex", gap: 10, alignItems: "center" }}
+      >
+        <input type="hidden" name="token" value={token} />
+        <input
+          type="date"
+          name="date"
+          defaultValue={selectedDate}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "transparent",
+            color: "white",
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(255,255,255,0.08)",
+            color: "white",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          Show
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -63,7 +108,32 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  if (!supabase) return <EnvError token={token} />;
+  if (!supabase) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1 style={{ marginBottom: 8 }}>Orders</h1>
+        <p style={{ color: "#ffb4b4" }}>Server env missing.</p>
+        <pre style={{ opacity: 0.85 }}>
+          {JSON.stringify(
+            {
+              hasUrl: !!supabaseUrl,
+              hasServiceRole: !!supabaseServiceKey,
+            },
+            null,
+            2
+          )}
+        </pre>
+      </main>
+    );
+  }
+
+  // choose filter date
+  const when = (Array.isArray(sp?.when) ? sp.when[0] : sp?.when) as string | undefined;
+  const dateParam = (Array.isArray(sp?.date) ? sp.date[0] : sp?.date) as string | undefined;
+
+  let selectedDate = dkDateISO(0);
+  if (when === "tomorrow") selectedDate = dkDateISO(1);
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) selectedDate = dateParam;
 
   // 1) token -> partner_id
   const { data: tokenRow, error: tokenErr } = await supabase
@@ -78,20 +148,6 @@ export default async function OrdersPage(props: any) {
       <main style={{ padding: 40 }}>
         <h1 style={{ marginBottom: 8 }}>Orders</h1>
         <p>Invalid token or token is inactive.</p>
-        <p style={{ opacity: 0.7, marginTop: 8 }}>
-          Please use the link you received.
-        </p>
-        <pre style={{ opacity: 0.8, marginTop: 12 }}>
-          {JSON.stringify(
-            {
-              tokenReceived: token,
-              tokenErr: tokenErr?.message ?? null,
-              tokenRow: tokenRow ?? null,
-            },
-            null,
-            2
-          )}
-        </pre>
       </main>
     );
   }
@@ -110,28 +166,37 @@ export default async function OrdersPage(props: any) {
       <main style={{ padding: 40 }}>
         <h1 style={{ marginBottom: 8 }}>Orders</h1>
         <p>Partner not found for this token.</p>
-        <pre style={{ opacity: 0.8, marginTop: 12 }}>
-          {JSON.stringify(
-            {
-              partnerId,
-              partnerErr: partnerErr?.message ?? null,
-              partner: partner ?? null,
-            },
-            null,
-            2
-          )}
-        </pre>
       </main>
     );
   }
 
-  // 3) orders by partner_id
+  // 3) orders by partner_id + delivery_date filter
   const { data: orders, error: ordersErr } = await supabase
     .from("orders")
     .select(
-      "id, shopify_order_number, shopify_order_id, partner_status, delivery_postal_code, created_at"
+      [
+        "id",
+        "shopify_order_number",
+        "shopify_order_id",
+        "partner_status",
+        "delivery_postal_code",
+        "created_at",
+
+        // for filtering + print layout
+        "delivery_date",
+        "delivery_window_start",
+        "delivery_window_end",
+        "recipient_name",
+        "recipient_phone",
+        "delivery_address1",
+        "delivery_address2",
+        "delivery_city",
+        "delivery_country",
+        "notes",
+      ].join(",")
     )
     .eq("partner_id", partnerId)
+    .eq("delivery_date", selectedDate)
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -145,7 +210,7 @@ export default async function OrdersPage(props: any) {
     );
   }
 
-  const rows: OrderRow[] = (orders ?? []) as OrderRow[];
+  const rows = (orders ?? []) as OrderRow[];
 
   return (
     <main style={{ padding: 40 }}>
@@ -180,9 +245,14 @@ export default async function OrdersPage(props: any) {
           {partner.pickup_address_line1}{" "}
           {partner.pickup_postal_code ? `, ${partner.pickup_postal_code}` : ""}
         </div>
+
+        <FilterBar token={token} selectedDate={selectedDate} />
+        <div style={{ marginTop: 10, opacity: 0.75 }}>
+          Showing date: <b>{selectedDate}</b>
+        </div>
       </div>
 
-      <OrdersTable orders={rows} />
+      <OrdersTable orders={rows} token={token} />
 
       <div style={{ marginTop: 14, opacity: 0.7 }}>
         Showing {rows.length} order(s).

@@ -7,9 +7,36 @@ export type OrderRow = {
   partner_status: string | null;
   delivery_postal_code: string | null;
   created_at: string | null;
+
+  // extra (pt print + filtre, dacă există în DB)
+  delivery_date?: string | null;
+  delivery_window_start?: string | null;
+  delivery_window_end?: string | null;
+
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
+  delivery_address1?: string | null;
+  delivery_address2?: string | null;
+  delivery_city?: string | null;
+  delivery_country?: string | null;
+
+  notes?: string | null;
 };
 
-export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
+export default function OrdersTable({
+  orders,
+  token,
+}: {
+  orders: OrderRow[];
+  token: string;
+}) {
+  const openPrint = (orderId: string) => {
+    const url = `/orders/print/${encodeURIComponent(orderId)}?token=${encodeURIComponent(
+      token
+    )}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div
       style={{
@@ -51,9 +78,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
               alignItems: "center",
             }}
           >
-            <div style={{ fontWeight: 700 }}>
-              {o.shopify_order_number ?? "-"}
-            </div>
+            <div style={{ fontWeight: 700 }}>{o.shopify_order_number ?? "-"}</div>
             <div style={{ opacity: 0.9 }}>{o.partner_status ?? "-"}</div>
             <div style={{ opacity: 0.9 }}>{o.delivery_postal_code ?? "-"}</div>
             <div style={{ opacity: 0.9 }}>
@@ -79,7 +104,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
-                onClick={() => alert(`Print: ${o.shopify_order_number ?? o.id}`)}
+                onClick={() => openPrint(o.id)}
               >
                 Print
               </button>
@@ -95,9 +120,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
                   cursor: "pointer",
                   fontWeight: 700,
                 }}
-                onClick={() =>
-                  alert(`Reprint: ${o.shopify_order_number ?? o.id}`)
-                }
+                onClick={() => alert(`Reprint (placeholder): ${o.shopify_order_number ?? o.id}`)}
               >
                 Reprint
               </button>
