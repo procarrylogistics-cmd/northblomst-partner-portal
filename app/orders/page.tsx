@@ -38,11 +38,10 @@ export default async function OrdersPage({
 
   // 🔐 1) validate token
   const { data: tokenRow } = await supabase
-    .from("partner_access_tokens")
-    .select("partner_id")
-    .eq("token", token)
-    .eq("active", true)
-    .maybeSingle();
+  .from("partner_access_tokens")
+  .select("partner_id")
+  .eq("token", token)
+  .maybeSingle();
 
   if (!tokenRow?.partner_id) {
     return (
