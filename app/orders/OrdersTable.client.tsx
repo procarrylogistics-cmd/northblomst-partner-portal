@@ -1,26 +1,11 @@
 "use client";
 
-export type OrderRow = {
+type OrderRow = {
   id: string;
   shopify_order_number: string | null;
-  shopify_order_id: number | null;
   partner_status: string | null;
   delivery_postal_code: string | null;
   created_at: string | null;
-
-  // extra (pt print + filtre, dacă există în DB)
-  delivery_date?: string | null;
-  delivery_window_start?: string | null;
-  delivery_window_end?: string | null;
-
-  recipient_name?: string | null;
-  recipient_phone?: string | null;
-  delivery_address1?: string | null;
-  delivery_address2?: string | null;
-  delivery_city?: string | null;
-  delivery_country?: string | null;
-
-  notes?: string | null;
 };
 
 export default function OrdersTable({
@@ -30,13 +15,6 @@ export default function OrdersTable({
   orders: OrderRow[];
   token: string;
 }) {
-  const openPrint = (orderId: string) => {
-    const url = `/orders/print/${encodeURIComponent(orderId)}?token=${encodeURIComponent(
-      token
-    )}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div
       style={{
@@ -54,76 +32,64 @@ export default function OrdersTable({
           padding: "12px 14px",
           fontWeight: 700,
           borderBottom: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(255,255,255,0.03)",
         }}
       >
         <div>Order</div>
         <div>Status</div>
         <div>Postal</div>
         <div>Date</div>
-        <div style={{ textAlign: "right" }}>Actions</div>
+        <div style={{ textAlign: "right" }}>Action</div>
       </div>
 
       {orders.length === 0 ? (
-        <div style={{ padding: 16, opacity: 0.8 }}>No orders yet.</div>
+        <div style={{ padding: 16, opacity: 0.8 }}>
+          No orders.
+        </div>
       ) : (
         orders.map((o) => (
           <div
             key={o.id}
             style={{
               display: "grid",
-              gridTemplateColumns: "220px 160px 140px 180px 1fr",
+              gridTemplateColumns:
+                "220px 160px 140px 180px 1fr",
               padding: "12px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              borderBottom:
+                "1px solid rgba(255,255,255,0.06)",
               alignItems: "center",
             }}
           >
-            <div style={{ fontWeight: 700 }}>{o.shopify_order_number ?? "-"}</div>
-            <div style={{ opacity: 0.9 }}>{o.partner_status ?? "-"}</div>
-            <div style={{ opacity: 0.9 }}>{o.delivery_postal_code ?? "-"}</div>
-            <div style={{ opacity: 0.9 }}>
-              {o.created_at ? new Date(o.created_at).toLocaleString() : "-"}
+            <div style={{ fontWeight: 700 }}>
+              {o.shopify_order_number ?? "-"}
             </div>
 
-            <div
-              style={{
-                textAlign: "right",
-                display: "flex",
-                gap: 10,
-                justifyContent: "flex-end",
-              }}
-            >
-              <button
-                type="button"
+            <div>{o.partner_status ?? "-"}</div>
+
+            <div>{o.delivery_postal_code ?? "-"}</div>
+
+            <div>
+              {o.created_at
+                ? new Date(o.created_at).toLocaleString()
+                : "-"}
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <a
+                href={`/orders/print/${o.id}?token=${encodeURIComponent(
+                  token
+                )}`}
+                target="_blank"
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "transparent",
-                  color: "white",
-                  cursor: "pointer",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border:
+                    "1px solid rgba(255,255,255,0.25)",
+                  textDecoration: "none",
                   fontWeight: 700,
                 }}
-                onClick={() => openPrint(o.id)}
               >
                 Print
-              </button>
-
-              <button
-                type="button"
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
-                onClick={() => alert(`Reprint (placeholder): ${o.shopify_order_number ?? o.id}`)}
-              >
-                Reprint
-              </button>
+              </a>
             </div>
           </div>
         ))

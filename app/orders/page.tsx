@@ -1,255 +1,136 @@
 // app/orders/page.tsx
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import OrdersTable, { type OrderRow } from "./OrdersTable.client";
+import OrdersTable from "./OrdersTable.client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const supabase =
-  supabaseUrl && supabaseServiceKey
-    ? createClient(supabaseUrl, supabaseServiceKey)
-    : null;
+const supabase = createClient(supabaseUrl, serviceRole);
 
-type Partner = {
+type OrderRow = {
   id: string;
-  name: string;
-  email: string | null;
-  pickup_address_line1: string | null;
-  pickup_postal_code: string | null;
+  shopify_order_number: string | null;
+  partner_status: string | null;
+  delivery_postal_code: string | null;
+  created_at: string | null;
 };
 
-function dkDateISO(offsetDays = 0) {
-  // YYYY-MM-DD în timezone DK
-  const now = new Date();
-  const dk = new Date(now.getTime() + offsetDays * 86400000);
-  return dk.toLocaleDateString("en-CA", { timeZone: "Europe/Copenhagen" }); // en-CA => YYYY-MM-DD
-}
-
-function FilterBar({ token, selectedDate }: { token: string; selectedDate: string }) {
-  const base = `/orders?token=${encodeURIComponent(token)}`;
-  return (
-    <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-      <Link
-        href={`${base}&when=today`}
-        style={{
-          padding: "8px 12px",
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.18)",
-          textDecoration: "none",
-        }}
-      >
-        Today
-      </Link>
-
-      <Link
-        href={`${base}&when=tomorrow`}
-        style={{
-          padding: "8px 12px",
-          borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.18)",
-          textDecoration: "none",
-        }}
-      >
-        Tomorrow
-      </Link>
-
-      <form
-        action="/orders"
-        method="GET"
-        style={{ display: "flex", gap: 10, alignItems: "center" }}
-      >
-        <input type="hidden" name="token" value={token} />
-        <input
-          type="date"
-          name="date"
-          defaultValue={selectedDate}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "transparent",
-            color: "white",
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.08)",
-            color: "white",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          Show
-        </button>
-      </form>
-    </div>
-  );
-}
-
-export default async function OrdersPage(props: any) {
-  const sp = await Promise.resolve(props.searchParams ?? {});
-  const tokenRaw = sp?.token;
-  const token = (Array.isArray(tokenRaw) ? tokenRaw[0] : tokenRaw ?? "").trim();
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: { token?: string; days?: string };
+}) {
+  const token = (searchParams?.token ?? "").trim();
+  const days = Number(searchParams?.days ?? "7");
 
   if (!token) {
     return (
       <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p>Missing token. Please use the link you received.</p>
+        <h1>Orders</h1>
+        <p>Missing token.</p>
       </main>
     );
   }
 
-  if (!supabase) {
-    return (
-      <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p style={{ color: "#ffb4b4" }}>Server env missing.</p>
-        <pre style={{ opacity: 0.85 }}>
-          {JSON.stringify(
-            {
-              hasUrl: !!supabaseUrl,
-              hasServiceRole: !!supabaseServiceKey,
-            },
-            null,
-            2
-          )}
-        </pre>
-      </main>
-    );
-  }
-
-  // choose filter date
-  const when = (Array.isArray(sp?.when) ? sp.when[0] : sp?.when) as string | undefined;
-  const dateParam = (Array.isArray(sp?.date) ? sp.date[0] : sp?.date) as string | undefined;
-
-  let selectedDate = dkDateISO(0);
-  if (when === "tomorrow") selectedDate = dkDateISO(1);
-  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) selectedDate = dateParam;
-
-  // 1) token -> partner_id
-  const { data: tokenRow, error: tokenErr } = await supabase
+  // 🔐 1) validate token
+  const { data: tokenRow } = await supabase
     .from("partner_access_tokens")
-    .select("partner_id, active")
+    .select("partner_id")
     .eq("token", token)
     .eq("active", true)
     .maybeSingle();
 
-  if (tokenErr || !tokenRow?.partner_id) {
+  if (!tokenRow?.partner_id) {
     return (
       <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p>Invalid token or token is inactive.</p>
+        <h1>Orders</h1>
+        <p>Invalid token.</p>
       </main>
     );
   }
 
-  const partnerId = tokenRow.partner_id as string;
+  const partnerId = tokenRow.partner_id;
 
-  // 2) partner header
-  const { data: partner, error: partnerErr } = await supabase
+  // 👤 2) load partner
+  const { data: partner } = await supabase
     .from("partners")
     .select("id,name,email,pickup_address_line1,pickup_postal_code")
     .eq("id", partnerId)
-    .maybeSingle<Partner>();
+    .maybeSingle();
 
-  if (partnerErr || !partner) {
-    return (
-      <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p>Partner not found for this token.</p>
-      </main>
-    );
-  }
+  // 📅 3) days filter
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - days);
 
-  // 3) orders by partner_id + delivery_date filter
-  const { data: orders, error: ordersErr } = await supabase
+  const { data: orders } = await supabase
     .from("orders")
     .select(
-      [
-        "id",
-        "shopify_order_number",
-        "shopify_order_id",
-        "partner_status",
-        "delivery_postal_code",
-        "created_at",
-
-        // for filtering + print layout
-        "delivery_date",
-        "delivery_window_start",
-        "delivery_window_end",
-        "recipient_name",
-        "recipient_phone",
-        "delivery_address1",
-        "delivery_address2",
-        "delivery_city",
-        "delivery_country",
-        "notes",
-      ].join(",")
+      "id, shopify_order_number, partner_status, delivery_postal_code, created_at"
     )
     .eq("partner_id", partnerId)
-    .eq("delivery_date", selectedDate)
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (ordersErr) {
-    return (
-      <main style={{ padding: 40 }}>
-        <h1 style={{ marginBottom: 8 }}>Orders</h1>
-        <p>Could not load orders.</p>
-        <pre style={{ opacity: 0.8 }}>{ordersErr.message}</pre>
-      </main>
-    );
-  }
+    .gte("created_at", fromDate.toISOString())
+    .order("created_at", { ascending: false });
 
   const rows = (orders ?? []) as OrderRow[];
 
   return (
     <main style={{ padding: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <Link
           href={`/?token=${encodeURIComponent(token)}`}
-          style={{
-            display: "inline-block",
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.15)",
-            textDecoration: "none",
-          }}
+          style={{ textDecoration: "none" }}
         >
           ← Back
         </Link>
         <h1 style={{ margin: 0 }}>Orders</h1>
       </div>
 
+      {/* Partner card */}
       <div
         style={{
-          marginTop: 16,
+          marginTop: 20,
           padding: 16,
-          border: "1px solid rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.15)",
           borderRadius: 12,
           maxWidth: 900,
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 20 }}>{partner.name}</div>
-        <div style={{ opacity: 0.85, marginTop: 4 }}>{partner.email}</div>
-        <div style={{ opacity: 0.85, marginTop: 8 }}>
-          {partner.pickup_address_line1}{" "}
-          {partner.pickup_postal_code ? `, ${partner.pickup_postal_code}` : ""}
+        <div style={{ fontWeight: 800, fontSize: 20 }}>
+          {partner?.name}
         </div>
+        <div style={{ opacity: 0.8 }}>{partner?.email}</div>
+        <div style={{ opacity: 0.8 }}>
+          {partner?.pickup_address_line1},{" "}
+          {partner?.pickup_postal_code}
+        </div>
+      </div>
 
-        <FilterBar token={token} selectedDate={selectedDate} />
-        <div style={{ marginTop: 10, opacity: 0.75 }}>
-          Showing date: <b>{selectedDate}</b>
-        </div>
+      {/* Days filter */}
+      <div style={{ marginTop: 20 }}>
+        {[1, 3, 7, 14, 30].map((d) => (
+          <Link
+            key={d}
+            href={`/orders?token=${encodeURIComponent(
+              token
+            )}&days=${d}`}
+            style={{
+              marginRight: 10,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border:
+                d === days
+                  ? "1px solid white"
+                  : "1px solid rgba(255,255,255,0.2)",
+              textDecoration: "none",
+            }}
+          >
+            {d}d
+          </Link>
+        ))}
       </div>
 
       <OrdersTable orders={rows} token={token} />
