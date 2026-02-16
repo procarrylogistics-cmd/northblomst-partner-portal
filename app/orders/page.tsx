@@ -28,13 +28,9 @@ type OrderRow = {
   created_at: string | null;
 };
 
-export default async function OrdersPage({
-  searchParams,
-}: {
-  searchParams: { token?: string | string[] };
-}) {
-  // ✅ Token parsing corect (același stil ca pe homepage)
-  const tokenRaw = searchParams?.token;
+export default async function OrdersPage(props: any) {
+  const sp = await Promise.resolve(props.searchParams ?? {});
+  const tokenRaw = sp?.token;
   const token = (Array.isArray(tokenRaw) ? tokenRaw[0] : tokenRaw ?? "").trim();
 
   if (!token) {
@@ -45,6 +41,7 @@ export default async function OrdersPage({
       </main>
     );
   }
+
 
   // 1) Găsim partner_id din token
   const { data: tokenRow, error: tokenErr } = await supabase
