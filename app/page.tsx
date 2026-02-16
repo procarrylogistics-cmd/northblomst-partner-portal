@@ -1,87 +1,109 @@
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 
-export default async function Home() {
-  const supabase = createClient();
+type Partner = {
+  id: string;
+  name: string;
+  email: string;
+  trackpod_shipper_name: string;
+  pickup_address_line1: string;
+  pickup_postal_code: string;
+};
 
-  const { data: partners, error } = await supabase
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { token?: string };
+}) {
+  const token = searchParams.token;
+
+  if (!token) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Northblomst Partner Portal</h1>
+        <p>Access denied</p>
+      </main>
+    );
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // 🔹 1. Validăm token
+  const { data: tokenRow } = await supabase
+    .from("partner_access_tokens")
+    .select("partner_id")
+    .eq("token", token)
+    .eq("active", true)
+    .single();
+
+  if (!tokenRow) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Northblomst Partner Portal</h1>
+        <p>Invalid or expired token</p>
+      </main>
+    );
+  }
+
+  // 🔹 2. Luăm partenerul corect
+  const { data: partner } = await supabase
     .from("partners")
-    .select(
-      "id, name, email, trackpod_shipper_name, pickup_address_line1, pickup_postal_code, pickup_city, active, created_at"
-    )
-    .order("created_at", { ascending: false });
+    .select("*")
+    .eq("id", tokenRow.partner_id)
+    .single();
 
-  // Debug info (appears in Vercel logs, not in browser console)
-  const debug = {
-    hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    error: error ? { message: error.message, details: (error as any).details } : null,
-    count: partners?.length ?? 0,
-  };
+  if (!partner) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Northblomst Partner Portal</h1>
+        <p>No partner found</p>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ fontSize: 26, marginBottom: 8 }}>Northblomst Partner Portal</h1>
+    <main style={{ padding: 40 }}>
+      <h1>Northblomst Partner Portal</h1>
 
-      {/* DEBUG BOX (remove later) */}
       <div
         style={{
-          background: "#111",
-          color: "#0f0",
-          padding: 12,
-          borderRadius: 8,
-          marginBottom: 20,
-          fontSize: 12,
-          whiteSpace: "pre-wrap",
+          marginTop: 20,
+          padding: 16,
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 12,
         }}
       >
-        DEBUG: {JSON.stringify(debug, null, 2)}
-      </div>
+        <div style={{ fontWeight: 700, fontSize: 18 }}>
+          {partner.name}
+        </div>
 
-      {error && (
-        <div
+        <div style={{ marginTop: 6, opacity: 0.8 }}>
+          {partner.email}
+        </div>
+
+        <div style={{ marginTop: 6, opacity: 0.8 }}>
+          {partner.pickup_address_line1}, {partner.pickup_postal_code}
+        </div>
+
+        <Link
+          href={`/orders?token=${encodeURIComponent(token)}`}
           style={{
-            background: "#2a0000",
-            color: "#ffb4b4",
-            padding: 12,
+            display: "inline-block",
+            marginTop: 14,
+            padding: "8px 16px",
+            background: "white",
+            color: "black",
             borderRadius: 8,
-            marginBottom: 20,
+            fontWeight: 600,
+            textDecoration: "none",
           }}
         >
-          <strong>Supabase error:</strong> {error.message}
-        </div>
-      )}
-
-      {!partners || partners.length === 0 ? (
-        <p style={{ opacity: 0.8 }}>No partners found…</p>
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          {partners.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                background: "#111",
-                color: "#fff",
-                borderRadius: 10,
-                padding: 16,
-                border: "1px solid #222",
-              }}
-            >
-              <div style={{ fontSize: 18, fontWeight: 700 }}>{p.name}</div>
-              <div style={{ opacity: 0.9 }}>{p.email}</div>
-              <div style={{ marginTop: 8, opacity: 0.85 }}>
-                <strong>Track-POD shipper:</strong> {p.trackpod_shipper_name}
-              </div>
-              <div style={{ marginTop: 8, opacity: 0.85 }}>
-                <strong>Pickup:</strong>{" "}
-                {p.pickup_address_line1}, {p.pickup_postal_code} {p.pickup_city}
-              </div>
-              <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
-                Active: {String(p.active)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          Open Orders →
+        </Link>
+      </div>
     </main>
   );
 }
