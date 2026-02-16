@@ -1,24 +1,12 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname;
-
-  // lasă public: homepage + auth
-  if (path === "/" || path.startsWith("/auth")) return NextResponse.next();
-
-  // protejăm orders (și orice altă pagină privată pe viitor)
-  if (path.startsWith("/orders")) {
-    const cookie = req.cookies.get("nb_partner_token")?.value;
-    if (!cookie) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-  }
-
+export function middleware(_req: NextRequest) {
   return NextResponse.next();
 }
 
+// IMPORTANT: if you had a matcher before, keep it simple.
+// You can even delete config completely, but this is safe:
 export const config = {
-  matcher: ["/orders/:path*"],
+  matcher: ["/((?!_next|favicon.ico).*)"],
 };
