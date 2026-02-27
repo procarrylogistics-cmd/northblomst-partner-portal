@@ -1,17 +1,17 @@
 /**
  * Shopify webhook receiver – orders/create.
- * Uses SHOPIFY_WEBHOOK_SECRET (Webhook Signing Secret), NOT SHOPIFY_API_SECRET.
+ * Uses SHOPIFY_WEBHOOK_SECRET (Webhook Signing Secret from Shopify Admin).
  */
 
 const express = require('express');
 const crypto = require('crypto');
-const ShopifyOrder = require('../models/ShopifyOrder');
+const ShopifyWebhook = require('../models/ShopifyWebhook');
 
 const router = express.Router();
 
 /** GET /webhooks/ping – quick reachability check */
 router.get('/ping', (req, res) => {
-  res.json({ ok: true });
+  res.status(200).send('OK');
 });
 
 /**
@@ -25,7 +25,6 @@ router.post(
     const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || '';
     const shop = req.get('X-Shopify-Shop-Domain') || '';
     const topic = req.get('X-Shopify-Topic') || 'orders/create';
-    const webhookId = req.get('X-Shopify-Webhook-Id') || '';
 
     const secret = (process.env.SHOPIFY_WEBHOOK_SECRET || '').trim();
     if (!secret) {
@@ -52,17 +51,17 @@ router.post(
       return res.status(400).send('Invalid JSON');
     }
 
-    const orderId = payload.id != null ? String(payload.id) : '';
-    const orderNumber = payload.order_number != null
-      ? String(payload.order_number)
-      : (payload.name != null ? String(payload.name) : '');
+    console.log('[webhook orders/create]', {
+      orderId: payload.id,
+      orderName: payload.name,
+      created_at: payload.created_at,
+      total_price: payload.total_price,
+      email: payload.email || (payload.customer && payload.customer.email)
+    });
 
-    await ShopifyOrder.create({
-      shop,
-      topic,
-      webhookId,
-      orderId,
-      orderNumber,
+    await ShopifyWebhook.create({
+      topic: topic || 'orders/create',
+      shop: shop || '',
       payload
     });
 
