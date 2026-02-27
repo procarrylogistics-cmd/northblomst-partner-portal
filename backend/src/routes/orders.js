@@ -1,6 +1,5 @@
 const express = require('express');
 const Order = require('../models/Order');
-const OrderRecord = require('../models/OrderRecord');
 const User = require('../models/User');
 const { requireRole } = require('../middleware/auth');
 const { triggerZapierForOrder } = require('../services/zapier');
@@ -75,65 +74,38 @@ async function assignPartnerIfMatch(order) {
   return null;
 }
 
-/** GET /api/orders/latest – ultimele 10 comenzi din order_records (webhook-uri) */
-router.get('/latest', async (req, res) => {
-  const orders = await OrderRecord.find()
+/** GET /api/orders/partner – partner sees only assigned orders (partner-only) */
+router.get('/partner', async (req, res) => {
+  if (!req.user || req.user.role !== 'partner') {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  const { status } = req.query;
+  const query = { partner: req.user.id };
+  if (status) query.status = status;
+  const orders = await Order.find(query)
+    .populate('partner', 'name email')
     .sort({ createdAt: -1 })
-    .limit(10)
-    .populate('assignedPartnerId', 'name email')
-    .lean();
+    .limit(200);
   res.json(orders);
 });
 
-/** POST /api/orders/:orderId/assign – setează assignedPartnerId și status ASSIGNED */
-router.post('/:orderId/assign', async (req, res) => {
-  const orderId = parseInt(req.params.orderId, 10);
-  const { partnerId } = req.body || {};
-  const shop = (req.query.shop || req.body?.shop || '').trim();
-
-  if (!partnerId) {
-    return res.status(400).json({ error: 'partnerId required in body' });
-  }
-
-  const query = { orderId };
-  if (shop) query.shop = shop;
-  const order = await OrderRecord.findOne(query);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  const partner = await User.findById(partnerId);
-  if (!partner || partner.role !== 'partner') {
-    return res.status(404).json({ error: 'Partner not found' });
-  }
-
-  order.assignedPartnerId = partner._id;
-  order.status = 'ASSIGNED';
-  await order.save();
-  await order.populate('assignedPartnerId', 'name email');
-  res.json(order);
-});
-
-// Admin: list all orders with filters
+// Admin: list all orders (assigned and unassigned), sorted by createdAt DESC
 router.get('/admin', requireRole('admin'), async (req, res) => {
   const { status, postalCode, partnerId, deliveryPreset, deliveryDate, from, to } = req.query;
   const query = {};
-
   if (status) query.status = status;
   if (postalCode) query.$or = [
     { 'shippingAddress.postalCode': postalCode },
     { postcode: postalCode }
   ];
   if (partnerId) query.partner = partnerId;
-
   const deliveryQuery = buildDeliveryDateQuery(deliveryPreset, deliveryDate, from, to);
   if (deliveryQuery) Object.assign(query, deliveryQuery);
 
   const orders = await Order.find(query)
     .populate('partner', 'name email')
-    .sort({ deliveryDate: 1, createdAt: 1 })
+    .sort({ createdAt: -1 })
     .limit(200);
-
   res.json(orders);
 });
 
@@ -361,35 +333,44 @@ async function ensureUniqueOrderNumber() {
   return num;
 }
 
-// Admin: assign order to partner (manual override)
-router.patch('/:id/assign', requireRole('admin'), async (req, res) => {
+async function handleAssignOrder(req, res) {
   const { partnerId } = req.body;
   if (!partnerId) {
-    return res.status(400).json({ message: 'partnerId required' });
+    res.status(400).json({ message: 'partnerId required' });
+    return null;
   }
-
   const order = await Order.findById(req.params.id);
-  if (!order) return res.status(404).json({ message: 'Order not found' });
-
+  if (!order) {
+    res.status(404).json({ message: 'Order not found' });
+    return null;
+  }
   const partner = await User.findById(partnerId);
   if (!partner || partner.role !== 'partner') {
-    return res.status(404).json({ message: 'Partner not found' });
+    res.status(404).json({ message: 'Partner not found' });
+    return null;
   }
-
   order.partner = partner._id;
+  order.assignedAt = new Date();
+  order.status = 'assigned';
   await order.save();
 
-  // Trigger Zapier / TrackPOD
   triggerZapierForOrder(order, partner).catch((err) =>
     console.error('Zapier trigger failed', err)
   );
-
-  // Email partner about new assignment (async, non-blocking)
   sendOrderAssignedToPartner(partner, order).catch((err) =>
     console.error('Order assignment email failed', err)
   );
+  return order;
+}
 
-  res.json(order);
+router.patch('/:id/assign', requireRole('admin'), async (req, res) => {
+  const order = await handleAssignOrder(req, res);
+  if (order) res.json(order);
+});
+
+router.post('/:id/assign', requireRole('admin'), async (req, res) => {
+  const order = await handleAssignOrder(req, res);
+  if (order) res.json(order);
 });
 
 // Admin / Partner: set tracking info manual (doar în DB)

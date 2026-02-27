@@ -194,6 +194,7 @@ export default function AdminDashboard() {
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">Alle statusser</option>
             <option value="new">Ny</option>
+            <option value="assigned">Tildelt</option>
             <option value="in_production">I produktion</option>
             <option value="ready">Klar til levering</option>
             <option value="fulfilled">Leveret</option>

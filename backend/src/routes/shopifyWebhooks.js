@@ -1,12 +1,12 @@
 /**
  * Shopify webhook receiver – orders/create.
- * Uses SHOPIFY_WEBHOOK_SECRET (Webhook Signing Secret from Shopify Admin).
+ * Validates HMAC, parses payload, upserts Order in Mongo.
  */
 
 const express = require('express');
 const crypto = require('crypto');
-const OrderRecord = require('../models/OrderRecord');
-const { fetchOrderFromShopify, mapOrderDetails, buildPrintableData } = require('../services/shopifyOrder');
+const Order = require('../models/Order');
+const ShopifyStore = require('../models/ShopifyStore');
 
 const router = express.Router();
 
@@ -15,10 +15,60 @@ router.get('/ping', (req, res) => {
   res.status(200).send('OK');
 });
 
+function mapWebhookPayloadToOrder(payload, effectiveShop) {
+  const ship = payload.shipping_address || {};
+  const cust = payload.customer || {};
+  const customerName =
+    ship.name || `${(ship.first_name || '')} ${(ship.last_name || '')}`.trim() ||
+    `${(cust.first_name || '')} ${(cust.last_name || '')}`.trim() || '';
+  const email = payload.email || cust.email || '';
+  const phone = ship.phone || cust.phone || '';
+  const products = (payload.line_items || []).map((li) => ({
+    sku: li.sku,
+    name: li.title || li.name,
+    quantity: li.quantity || 1
+  }));
+  return {
+    shop: effectiveShop,
+    shopifyOrderId: payload.id != null ? String(payload.id) : null,
+    shopifyOrderName: payload.name,
+    shopifyOrderNumber: payload.order_number != null ? String(payload.order_number) : undefined,
+    receivedAt: payload.created_at ? new Date(payload.created_at) : new Date(),
+    orderDate: payload.created_at ? new Date(payload.created_at) : new Date(),
+    deliveryDate: payload.estimated_delivery_at ? new Date(payload.estimated_delivery_at) : new Date(payload.created_at || Date.now()),
+    status: 'new',
+    partner: null,
+    createdByRole: 'shopify',
+    recipientName: customerName,
+    phone,
+    customer: { name: customerName, email, phone, message: payload.note || '' },
+    shippingAddress: {
+      address1: ship.address1,
+      address2: ship.address2,
+      postalCode: ship.zip,
+      city: ship.city,
+      country: ship.country
+    },
+    address: ship.address1,
+    postcode: ship.zip,
+    city: ship.city,
+    notes: payload.note,
+    tags: payload.tags,
+    products,
+    totalPrice: payload.total_price,
+    raw: {
+      id: payload.id,
+      name: payload.name,
+      created_at: payload.created_at,
+      email: payload.email,
+      order_number: payload.order_number
+    }
+  };
+}
+
 /**
  * POST /webhooks/orders_create
- * Validates HMAC, extracts shop/orderId, returns 200 fast.
- * Uses setImmediate to fetch order from Shopify and save to Mongo.
+ * Validates HMAC, parses payload, upserts Order. Returns 200 fast.
  */
 router.post('/orders_create', async (req, res) => {
   const received = req.get('x-shopify-hmac-sha256') || '';
@@ -28,7 +78,7 @@ router.post('/orders_create', async (req, res) => {
     return res.status(500).send('SHOPIFY_WEBHOOK_SECRET not configured');
   }
   if (!Buffer.isBuffer(req.body)) {
-    console.error('WEBHOOK HMAC FAIL', { received, bodyIsBuffer: false, contentType: req.get('content-type') });
+    console.error('WEBHOOK HMAC FAIL', { bodyIsBuffer: false, contentType: req.get('content-type') });
     return res.status(400).send('Invalid body');
   }
 
@@ -36,14 +86,7 @@ router.post('/orders_create', async (req, res) => {
   const bufA = Buffer.from(computed, 'utf8');
   const bufB = Buffer.from(received, 'utf8');
   if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
-    console.error('WEBHOOK HMAC FAIL', {
-      received,
-      computed,
-      secretLength: secret.length,
-      bodyIsBuffer: true,
-      bodyLength: req.body.length,
-      contentType: req.get('content-type')
-    });
+    console.error('WEBHOOK HMAC FAIL', { bodyIsBuffer: true, bodyLength: req.body.length });
     return res.status(401).send('Invalid webhook signature');
   }
 
@@ -54,11 +97,9 @@ router.post('/orders_create', async (req, res) => {
     return res.status(400).send('Invalid JSON');
   }
 
-  const shop = (req.get('x-shopify-shop-domain') || (payload.shop_domain) || '').trim();
-  const orderId = payload.id ? parseInt(String(payload.id), 10) : null;
-  const orderGid = payload.admin_graphql_api_id || null;
-  const name = payload.name || (orderId ? `#${orderId}` : '');
-  const createdAt = payload.created_at ? new Date(payload.created_at) : new Date();
+  const shop = (req.get('x-shopify-shop-domain') || payload.shop_domain || process.env.SHOPIFY_SHOP || '').trim();
+  const shopifyOrderId = payload.id != null ? String(payload.id) : null;
+  const name = payload.name || (payload.order_number ? `#${payload.order_number}` : '');
 
   res.status(200).send('OK');
 
@@ -66,48 +107,25 @@ router.post('/orders_create', async (req, res) => {
     try {
       let effectiveShop = shop;
       if (!effectiveShop) {
-        const ShopifyStore = require('../models/ShopifyStore');
         const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
         effectiveShop = store?.shop || '';
       }
-      if (!effectiveShop || !orderId) {
-        console.error('Webhook orders/create: missing shop or orderId', { shop: effectiveShop, orderId });
+      if (!effectiveShop || !shopifyOrderId) {
+        console.error('Webhook orders/create: missing shop or shopifyOrderId');
         return;
       }
 
-      const result = await fetchOrderFromShopify(effectiveShop, orderId);
-      if (!result.success) {
-        console.error('Webhook: failed to fetch order from Shopify', { shop: effectiveShop, orderId, error: result.error });
-        return;
-      }
+      const doc = mapWebhookPayloadToOrder(payload, effectiveShop);
 
-      const orderDetails = mapOrderDetails(result.data);
-      const printableData = buildPrintableData(orderDetails);
-
-      const raw = {
-        payload: { id: payload.id, name: payload.name, created_at: payload.created_at, email: payload.email },
-        orderDetails
-      };
-
-      await OrderRecord.findOneAndUpdate(
-        { shop: effectiveShop, orderId },
-        {
-          shop: effectiveShop,
-          orderId,
-          orderGid: orderGid || orderDetails?.id,
-          name: name || orderDetails?.name || `#${orderId}`,
-          createdAt: createdAt || (orderDetails?.createdAt ? new Date(orderDetails.createdAt) : new Date()),
-          raw,
-          status: 'NEW',
-          assignedPartnerId: null,
-          printableData
-        },
+      await Order.findOneAndUpdate(
+        { shop: effectiveShop, shopifyOrderId },
+        { $set: doc },
         { upsert: true, new: true }
       );
 
-      console.log('order saved', { shop: effectiveShop, orderId, name: name || orderDetails?.name });
+      console.log('order saved', { shop: effectiveShop, shopifyOrderId, name });
     } catch (err) {
-      console.error('Webhook orders/create processing error', err);
+      console.error('Webhook orders/create processing error', err.message);
     }
   });
 });

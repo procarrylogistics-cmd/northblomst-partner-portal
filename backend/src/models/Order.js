@@ -33,6 +33,7 @@ const AddressSchema = new mongoose.Schema(
 
 const OrderSchema = new mongoose.Schema(
   {
+    shop: { type: String, index: true },
     orderNumber: { type: String, unique: true, sparse: true },
     receivedAt: { type: Date, default: Date.now },
     shopifyOrderId: { type: String, index: true },
@@ -61,10 +62,14 @@ const OrderSchema = new mongoose.Schema(
       ref: 'User',
       default: null
     },
+    assignedAt: { type: Date },
+    tags: String,
+    totalPrice: { type: mongoose.Schema.Types.Mixed },
+    raw: { type: mongoose.Schema.Types.Mixed },
 
     status: {
       type: String,
-      enum: ['new', 'in_production', 'ready', 'fulfilled', 'cancelled'],
+      enum: ['new', 'assigned', 'in_production', 'ready', 'fulfilled', 'cancelled'],
       default: 'new',
       index: true
     },
@@ -95,6 +100,8 @@ const OrderSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+OrderSchema.index({ shop: 1, shopifyOrderId: 1 }, { unique: true, sparse: true }); // for webhook upsert
 
 module.exports = mongoose.model('Order', OrderSchema);
 

@@ -35,7 +35,7 @@ export default function PartnerDashboard() {
     if (statusFilter) params.status = statusFilter;
     const isoDate = getDeliveryDateParam();
     if (isoDate) params.deliveryDate = isoDate;
-    const res = await axios.get(`${API_BASE}/orders/my`, { params });
+    const res = await axios.get(`${API_BASE}/orders/partner`, { params });
     setOrders(res.data);
     setSelectedOrder((prev) => {
       const selectId = location.state?.selectOrderId;
@@ -73,6 +73,7 @@ export default function PartnerDashboard() {
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">Alle statusser</option>
             <option value="new">Ny</option>
+            <option value="assigned">Tildelt</option>
             <option value="in_production">I produktion</option>
             <option value="ready">Klar til levering</option>
             <option value="fulfilled">Leveret</option>

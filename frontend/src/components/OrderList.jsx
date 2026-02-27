@@ -12,7 +12,9 @@ export default function OrderList({ orders, onSelect, selectedId, showPartner = 
           <div className="order-main">
             <div className="order-name">{o.orderNumber || o.shopifyOrderName || o.shopifyOrderNumber}</div>
             <div className="order-badges-inline">
-              <span className={`status status-${o.status}`}>{o.status === 'cancelled' ? 'Annulleret' : o.status}</span>
+              <span className={`status status-${o.status}`}>
+                {o.status === 'cancelled' ? 'Annulleret' : o.status === 'assigned' ? 'Tildelt' : o.status}
+              </span>
               {(o.updateCount || 0) > 0 && (
                 <span className="badge-inline" title={o.updatedAt ? new Date(o.updatedAt).toLocaleString('da-DK') : ''}>Opdateret</span>
               )}
