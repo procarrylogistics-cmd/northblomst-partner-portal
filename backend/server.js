@@ -8,7 +8,9 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const path = require('path');
 
+const axios = require('axios');
 const User = require('./src/models/User');
+const ShopifyStore = require('./src/models/ShopifyStore');
 const authRoutes = require('./src/routes/auth');
 const partnerRoutes = require('./src/routes/partners');
 const orderRoutes = require('./src/routes/orders');
@@ -18,6 +20,7 @@ const emailRoutes = require('./src/routes/email');
 const reportsRoutes = require('./src/routes/reports');
 const setupRoutes = require('./src/routes/setup');
 const shopifyProxyRoutes = require('./src/routes/shopifyProxy');
+const shopifyOAuthRoutes = require('./src/routes/shopifyOAuth');
 
 const { authMiddleware } = require('./src/middleware/auth');
 
@@ -40,12 +43,43 @@ app.get('/healthz', (req, res) => res.status(200).send('OK'));
 app.get('/health', (req, res) => res.json({ ok: true }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' }));
 
+// Shopify OAuth stored-token test (public, for verification)
+app.get('/api/shopify/test', async (req, res) => {
+  try {
+    const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
+    if (!store) {
+      return res.json({ success: false, error: 'No Shopify store connected. Run OAuth first.' });
+    }
+    const { data } = await axios.post(
+      `https://${store.shop}/admin/api/2024-01/graphql.json`,
+      { query: '{ shop { name } }' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': store.accessToken
+        }
+      }
+    );
+    res.json({
+      success: true,
+      shopName: data?.data?.shop?.name || 'N/A',
+      shop: store.shop
+    });
+  } catch (err) {
+    res.status(502).json({
+      success: false,
+      error: err.response?.data?.errors?.[0]?.message || err.message || 'GraphQL request failed'
+    });
+  }
+});
+
 // Email config check (public)
 app.get('/api/email/check', (req, res) => {
   res.json({ configured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS) });
 });
 
-// Public routes
+// Public routes – OAuth with full paths, mount at root
+app.use(shopifyOAuthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/webhooks/zapier', zapierRoutes);
 
