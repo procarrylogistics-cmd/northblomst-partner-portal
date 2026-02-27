@@ -30,9 +30,26 @@ const app = express();
 // Webhooks FIRST – raw body before any body-parser (must precede express.json)
 app.use('/webhooks', express.raw({ type: 'application/json' }), shopifyWebhooksRoutes);
 
-const isDev = process.env.NODE_ENV !== 'production';
-const corsOrigin = process.env.CORS_ORIGIN || (isDev ? 'http://localhost:5173' : process.env.FRONTEND_ORIGIN || 'http://localhost:5173');
-app.use(cors({ origin: corsOrigin, credentials: true }));
+// CORS – allow local dev + production frontend on Render
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://northblomst-partner-portal-frontend.onrender.com',
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean) : [])
+];
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // e.g. same-origin, Postman
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (/^https:\/\/[\w-]+\.onrender\.com$/.test(origin)) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
