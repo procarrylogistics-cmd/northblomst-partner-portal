@@ -120,8 +120,7 @@ router.get('/auth/shopify/callback', async (req, res) => {
       { accessToken, installedAt: new Date() },
       { upsert: true, new: true }
     );
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'https://northblomst-partner-portal.vercel.app';
-    res.redirect(`${frontendUrl}?shopify=connected`);
+    res.status(200).send('Shopify connected successfully');
   } catch (err) {
     console.error('Shopify OAuth callback error:', err);
     res.status(500).send(err.response?.data || err.message || 'OAuth callback failed');
