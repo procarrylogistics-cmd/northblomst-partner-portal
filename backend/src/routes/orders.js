@@ -1,5 +1,6 @@
 const express = require('express');
 const Order = require('../models/Order');
+const OrderRecord = require('../models/OrderRecord');
 const User = require('../models/User');
 const { requireRole } = require('../middleware/auth');
 const { triggerZapierForOrder } = require('../services/zapier');
@@ -73,6 +74,45 @@ async function assignPartnerIfMatch(order) {
   }
   return null;
 }
+
+/** GET /api/orders/latest – ultimele 10 comenzi din order_records (webhook-uri) */
+router.get('/latest', async (req, res) => {
+  const orders = await OrderRecord.find()
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .populate('assignedPartnerId', 'name email')
+    .lean();
+  res.json(orders);
+});
+
+/** POST /api/orders/:orderId/assign – setează assignedPartnerId și status ASSIGNED */
+router.post('/:orderId/assign', async (req, res) => {
+  const orderId = parseInt(req.params.orderId, 10);
+  const { partnerId } = req.body || {};
+  const shop = (req.query.shop || req.body?.shop || '').trim();
+
+  if (!partnerId) {
+    return res.status(400).json({ error: 'partnerId required in body' });
+  }
+
+  const query = { orderId };
+  if (shop) query.shop = shop;
+  const order = await OrderRecord.findOne(query);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const partner = await User.findById(partnerId);
+  if (!partner || partner.role !== 'partner') {
+    return res.status(404).json({ error: 'Partner not found' });
+  }
+
+  order.assignedPartnerId = partner._id;
+  order.status = 'ASSIGNED';
+  await order.save();
+  await order.populate('assignedPartnerId', 'name email');
+  res.json(order);
+});
 
 // Admin: list all orders with filters
 router.get('/admin', requireRole('admin'), async (req, res) => {

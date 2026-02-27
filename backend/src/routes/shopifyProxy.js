@@ -5,12 +5,36 @@
 const express = require('express');
 const { getShopInfo, SHOPIFY_PROXY } = require('../utils/shopifyProxy');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { fetchOrderFromShopify, mapOrderDetails } = require('../services/shopifyOrder');
+const ShopifyStore = require('../models/ShopifyStore');
 
 const router = express.Router();
 
 // Toate rutele necesită auth + admin
 router.use(authMiddleware);
 router.use(requireRole('admin'));
+
+/**
+ * GET /api/shopify/order/:orderId?shop=
+ * Returnează detaliile comenzii din Shopify (live) folosind tokenul din Mongo.
+ */
+router.get('/order/:orderId', async (req, res) => {
+  const orderId = req.params.orderId;
+  let shop = (req.query.shop || '').trim();
+  if (!shop) {
+    const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
+    shop = store?.shop || '';
+  }
+  if (!shop) {
+    return res.status(400).json({ error: 'No shop. Provide ?shop= or connect a store first.' });
+  }
+  const result = await fetchOrderFromShopify(shop, orderId);
+  if (!result.success) {
+    return res.status(404).json({ error: result.error || 'Order not found' });
+  }
+  const details = mapOrderDetails(result.data);
+  res.json({ order: result.data, orderDetails: details });
+});
 
 /**
  * GET /api/shopify/test-proxy
