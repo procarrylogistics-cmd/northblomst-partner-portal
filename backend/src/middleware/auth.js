@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const PUBLIC_PATHS = ['/auth/shopify', '/api/shopify/test'];
+const PUBLIC_PATHS = ['/auth/shopify', '/api/shopify/test', '/webhooks'];
 
 async function authMiddleware(req, res, next) {
   const path = req.originalUrl || req.path || '';

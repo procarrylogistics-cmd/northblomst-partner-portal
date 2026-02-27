@@ -33,8 +33,8 @@ app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Webhook routes – mount BEFORE express.json so raw body is available for HMAC
-app.use('/webhooks', shopifyWebhooksRoutes);
+// Webhook routes – express.raw for /webhooks BEFORE express.json so HMAC works on raw body
+app.use('/webhooks', express.raw({ type: 'application/json' }), shopifyWebhooksRoutes);
 app.use('/api/webhooks/shopify', express.raw({ type: '*/*' }), shopifyRoutes);
 
 app.use(express.json({ limit: '2mb' }));

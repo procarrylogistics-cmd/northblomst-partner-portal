@@ -18,11 +18,8 @@ router.get('/ping', (req, res) => {
  * POST /webhooks/orders_create
  * Validates HMAC, stores payload in MongoDB, responds 200 fast.
  */
-router.post(
-  '/orders_create',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || '';
+router.post('/orders_create', async (req, res) => {
+    const hmacHeader = (req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256') || '').trim();
     const shop = req.get('X-Shopify-Shop-Domain') || '';
     const topic = req.get('X-Shopify-Topic') || 'orders/create';
 
@@ -41,7 +38,7 @@ router.post(
     const bufA = Buffer.from(computed, 'utf8');
     const bufB = Buffer.from(hmacHeader, 'utf8');
     if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
-      return res.status(401).send('Invalid webhook HMAC');
+      return res.status(401).send('Invalid webhook signature');
     }
 
     let payload;
@@ -51,12 +48,11 @@ router.post(
       return res.status(400).send('Invalid JSON');
     }
 
-    console.log('[webhook orders/create]', {
+    console.log('Webhook orders/create received', {
       orderId: payload.id,
-      orderName: payload.name,
-      created_at: payload.created_at,
-      total_price: payload.total_price,
-      email: payload.email || (payload.customer && payload.customer.email)
+      name: payload.name,
+      email: payload.email || (payload.customer && payload.customer.email),
+      total_price: payload.total_price
     });
 
     await ShopifyWebhook.create({
@@ -66,7 +62,6 @@ router.post(
     });
 
     res.status(200).send('OK');
-  }
-);
+});
 
 module.exports = router;
