@@ -35,7 +35,7 @@ router.get('/auth/shopify', (req, res) => {
     }
     const apiKey = getEnv('SHOPIFY_API_KEY');
     const scopes = (process.env.SHOPIFY_SCOPES || 'read_orders').replace(/\s/g, '');
-    const appUrl = getEnv('SHOPIFY_APP_URL').replace(/\/$/, '');
+    const appUrl = (process.env.SHOPIFY_APP_URL || '').trim();
     const redirectUri = `${appUrl}/auth/shopify/callback`;
     const state = crypto.randomBytes(16).toString('hex');
     const authUrl = `https://${shop}/admin/oauth/authorize?client_id=${apiKey}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
