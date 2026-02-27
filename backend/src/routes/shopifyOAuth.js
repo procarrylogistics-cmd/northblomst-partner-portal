@@ -35,8 +35,8 @@ router.get('/auth/shopify', (req, res) => {
     }
     const apiKey = getEnv('SHOPIFY_API_KEY');
     const scopes = (process.env.SHOPIFY_SCOPES || 'read_orders').replace(/\s/g, '');
-    const appUrl = (process.env.SHOPIFY_APP_URL || '').trim();
-    const redirectUri = `${appUrl}/auth/shopify/callback`;
+    const appUrl = (process.env.SHOPIFY_APP_URL || '').trim().replace(/\/$/, '');
+    const redirectUri = `${appUrl}/auth/shopify/callback`.trim();
     const state = crypto.randomBytes(16).toString('hex');
     const authUrl = `https://${shop}/admin/oauth/authorize?client_id=${apiKey}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
     res.redirect(authUrl);
@@ -47,36 +47,62 @@ router.get('/auth/shopify', (req, res) => {
 });
 
 /**
- * Validate HMAC from Shopify callback
+ * Validate HMAC from Shopify OAuth callback.
+ * Uses req.originalUrl query string, URLSearchParams, sorted params, HMAC-SHA256.
  */
-function validateHmac(queryParams, secret) {
-  const hmac = queryParams.hmac;
-  const params = { ...queryParams };
-  delete params.hmac;
-  const message = Object.keys(params)
-    .sort()
-    .map((k) => `${k}=${params[k]}`)
-    .join('&');
-  const digest = crypto.createHmac('sha256', secret).update(message).digest('base64');
-  const a = Buffer.from(digest, 'utf8');
-  const b = Buffer.from(hmac || '', 'utf8');
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+function validateHmac(req, secret) {
+  const rawUrl = req.originalUrl || '';
+  const qs = rawUrl.includes('?') ? rawUrl.slice(rawUrl.indexOf('?') + 1) : '';
+  const params = new URLSearchParams(qs);
+
+  const receivedHmac = params.get('hmac') || '';
+  params.delete('hmac');
+  params.delete('signature');
+
+  const entries = Array.from(params.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  const message = entries.map(([k, v]) => `${k}=${v}`).join('&');
+
+  const secretTrimmed = String(secret || '').trim();
+  const computedHmac = crypto
+    .createHmac('sha256', secretTrimmed)
+    .update(message)
+    .digest('hex');
+
+  const bufReceived = Buffer.from(receivedHmac.toLowerCase(), 'utf8');
+  const bufComputed = Buffer.from(computedHmac.toLowerCase(), 'utf8');
+  const valid =
+    bufReceived.length === bufComputed.length &&
+    crypto.timingSafeEqual(bufReceived, bufComputed);
+
+  if (!valid) {
+    console.error('HMAC validation failed:', {
+      receivedHmac,
+      computedHmac,
+      message,
+      secretLength: secretTrimmed.length
+    });
+  }
+  return valid;
 }
 
 /**
  * GET /auth/shopify/callback?code=...&hmac=...&shop=...&state=...&timestamp=...
+ * Public route – no auth middleware.
  */
 router.get('/auth/shopify/callback', async (req, res) => {
   try {
-    const { code, hmac, shop, state, timestamp } = req.query;
+    const { code, shop } = req.query;
     const shopNorm = normalizeShop(shop);
     if (!shopNorm || !code) {
       return res.status(400).send('Missing shop or code');
     }
-    const apiSecret = getEnv('SHOPIFY_API_SECRET');
-    const params = { code, shop: shopNorm, state: state || '', timestamp: timestamp || '' };
-    if (!validateHmac({ ...params }, apiSecret)) {
-      return res.status(403).send('Invalid HMAC');
+    const apiSecret = (process.env.SHOPIFY_API_SECRET || '').trim();
+    if (!apiSecret) {
+      return res.status(500).send('SHOPIFY_API_SECRET not configured');
+    }
+    if (!validateHmac(req, apiSecret)) {
+      return res.status(401).send('Invalid HMAC');
     }
     const apiKey = getEnv('SHOPIFY_API_KEY');
     const tokenUrl = `https://${shopNorm}/admin/oauth/access_token`;
