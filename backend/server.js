@@ -27,14 +27,15 @@ const { authMiddleware } = require('./src/middleware/auth');
 
 const app = express();
 
+// Webhooks FIRST – raw body before any body-parser (must precede express.json)
+app.use('/webhooks', express.raw({ type: 'application/json' }), shopifyWebhooksRoutes);
+
 const isDev = process.env.NODE_ENV !== 'production';
 const corsOrigin = process.env.CORS_ORIGIN || (isDev ? 'http://localhost:5173' : process.env.FRONTEND_ORIGIN || 'http://localhost:5173');
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Webhook routes – express.raw for /webhooks BEFORE express.json so HMAC works on raw body
-app.use('/webhooks', express.raw({ type: 'application/json' }), shopifyWebhooksRoutes);
 app.use('/api/webhooks/shopify', express.raw({ type: '*/*' }), shopifyRoutes);
 
 app.use(express.json({ limit: '2mb' }));

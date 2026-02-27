@@ -4,6 +4,7 @@ const User = require('../models/User');
 const PUBLIC_PATHS = ['/auth/shopify', '/api/shopify/test', '/webhooks'];
 
 async function authMiddleware(req, res, next) {
+  if ((req.originalUrl || '').startsWith('/webhooks')) return next();
   const path = req.originalUrl || req.path || '';
   if (PUBLIC_PATHS.some((p) => path.startsWith(p))) return next();
 
