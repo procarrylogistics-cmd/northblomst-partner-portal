@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const path = require('path');
 
+const User = require('./src/models/User');
 const authRoutes = require('./src/routes/auth');
 const partnerRoutes = require('./src/routes/partners');
 const orderRoutes = require('./src/routes/orders');
@@ -33,7 +34,9 @@ app.use('/api/webhooks/shopify', express.raw({ type: '*/*' }), shopifyRoutes);
 
 app.use(express.json({ limit: '2mb' }));
 
-// Health check (Render/Vercel prefer /health)
+// Health checks
+app.get('/', (req, res) => res.status(200).send('OK'));
+app.get('/healthz', (req, res) => res.status(200).send('OK'));
 app.get('/health', (req, res) => res.json({ ok: true }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' }));
 
@@ -65,23 +68,33 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-async function start() {
-  try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/northblomst';
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 15000
+async function ensureAdminUser() {
+  const count = await User.countDocuments();
+  if (count === 0) {
+    await User.create({
+      name: 'Northblomst Admin',
+      email: 'admin@northblomst.dk',
+      passwordHash: await User.hashPassword('admin123'),
+      role: 'admin'
     });
-    console.log('MongoDB connected');
-
-    app.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('Failed to start server', err);
-    process.exit(1);
+    console.log('Created default admin: admin@northblomst.dk / admin123');
   }
 }
 
-start();
+mongoose
+  .connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
+  .then(async () => {
+    console.log('MongoDB connected');
+    if (process.env.NODE_ENV !== 'production') {
+      await ensureAdminUser();
+    }
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 module.exports = app;
