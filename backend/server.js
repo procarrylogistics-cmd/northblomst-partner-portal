@@ -21,6 +21,7 @@ const reportsRoutes = require('./src/routes/reports');
 const setupRoutes = require('./src/routes/setup');
 const shopifyProxyRoutes = require('./src/routes/shopifyProxy');
 const shopifyOAuthRoutes = require('./src/routes/shopifyOAuth');
+const shopifyWebhooksRoutes = require('./src/routes/shopifyWebhooks');
 
 const { authMiddleware } = require('./src/middleware/auth');
 
@@ -32,7 +33,8 @@ app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Webhook Shopify – raw body pentru HMAC; înainte de express.json
+// Webhook routes – mount BEFORE express.json so raw body is available for HMAC
+app.use('/webhooks', shopifyWebhooksRoutes);
 app.use('/api/webhooks/shopify', express.raw({ type: '*/*' }), shopifyRoutes);
 
 app.use(express.json({ limit: '2mb' }));
