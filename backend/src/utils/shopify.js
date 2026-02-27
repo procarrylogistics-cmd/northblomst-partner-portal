@@ -1,31 +1,46 @@
 /**
  * Shopify Admin API utilities: token, webhooks (create, list, delete).
- * Uses REST Admin API. For client_credentials flow, extend getShopifyAccessToken.
+ * Uses OAuth token from ShopifyStore (DB) by default; env SHOPIFY_ACCESS_TOKEN as fallback.
  */
 
 const axios = require('axios');
+const ShopifyStore = require('../models/ShopifyStore');
 
 const API_VERSION = '2024-10';
-const SHOP = process.env.SHOPIFY_STORE_DOMAIN || 'northblomst-dev.myshopify.com';
+
+const NOT_CONNECTED_MSG = 'Shop not connected. Please run /auth/shopify first.';
 
 /**
- * Returnează access token pentru Shopify Admin API.
- * Folosește SHOPIFY_ACCESS_TOKEN (custom app: Settings > Apps > Develop apps > API credentials).
- * Pentru client_credentials: poți extinde cu token refresh (Shopify OAuth docs).
- * @returns {Promise<string>}
+ * Returnează { shop, token } pentru Shopify Admin API.
+ * Prioritate: 1) ShopifyStore (accessToken din DB), 2) SHOPIFY_ACCESS_TOKEN din env.
+ * @returns {Promise<{ shop: string, token: string } | null>}
  */
-async function getShopifyAccessToken() {
-  const token = process.env.SHOPIFY_ACCESS_TOKEN;
-  if (!token) {
-    throw new Error(
-      'SHOPIFY_ACCESS_TOKEN lipsește. Custom app: Settings > Apps > Develop apps > Admin API access token.'
-    );
+async function getShopifyCredentials() {
+  const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
+  if (store && store.accessToken) {
+    return { shop: store.shop, token: store.accessToken };
   }
-  return token;
+  const envToken = process.env.SHOPIFY_ACCESS_TOKEN;
+  const envShop = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || 'northblomst-dev.myshopify.com';
+  if (envToken && envShop) {
+    return { shop: envShop, token: envToken };
+  }
+  return null;
 }
 
-function getBaseUrl() {
-  return `https://${SHOP}/admin/api/${API_VERSION}`;
+function getBaseUrl(shop) {
+  return `https://${shop}/admin/api/${API_VERSION}`;
+}
+
+/**
+ * @deprecated Use getShopifyCredentials(). Preferat: token din DB.
+ */
+async function getShopifyAccessToken() {
+  const creds = await getShopifyCredentials();
+  if (!creds) {
+    throw new Error(NOT_CONNECTED_MSG);
+  }
+  return creds.token;
 }
 
 /**
@@ -35,8 +50,12 @@ function getBaseUrl() {
  * @returns {Promise<object>} webhook creat
  */
 async function createWebhook(topic, address) {
-  const token = await getShopifyAccessToken();
-  const url = `${getBaseUrl()}/webhooks.json`;
+  const creds = await getShopifyCredentials();
+  if (!creds) {
+    throw new Error(NOT_CONNECTED_MSG);
+  }
+  const token = creds.token;
+  const url = `${getBaseUrl(creds.shop)}/webhooks.json`;
   const { data } = await axios.post(
     url,
     {
@@ -61,10 +80,13 @@ async function createWebhook(topic, address) {
  * @returns {Promise<object[]>}
  */
 async function getWebhooks() {
-  const token = await getShopifyAccessToken();
-  const url = `${getBaseUrl()}/webhooks.json?limit=250`;
+  const creds = await getShopifyCredentials();
+  if (!creds) {
+    throw new Error(NOT_CONNECTED_MSG);
+  }
+  const url = `${getBaseUrl(creds.shop)}/webhooks.json?limit=250`;
   const { data } = await axios.get(url, {
-    headers: { 'X-Shopify-Access-Token': token }
+    headers: { 'X-Shopify-Access-Token': creds.token }
   });
   return data.webhooks || [];
 }
@@ -75,10 +97,13 @@ async function getWebhooks() {
  * @returns {Promise<void>}
  */
 async function deleteWebhook(id) {
-  const token = await getShopifyAccessToken();
-  const url = `${getBaseUrl()}/webhooks/${id}.json`;
+  const creds = await getShopifyCredentials();
+  if (!creds) {
+    throw new Error(NOT_CONNECTED_MSG);
+  }
+  const url = `${getBaseUrl(creds.shop)}/webhooks/${id}.json`;
   await axios.delete(url, {
-    headers: { 'X-Shopify-Access-Token': token }
+    headers: { 'X-Shopify-Access-Token': creds.token }
   });
 }
 
@@ -97,11 +122,11 @@ function webhookExists(topic, address, webhooks) {
 
 module.exports = {
   getShopifyAccessToken,
+  getShopifyCredentials,
   createWebhook,
   getWebhooks,
   deleteWebhook,
   webhookExists,
   getBaseUrl,
-  API_VERSION,
-  SHOP
+  API_VERSION
 };

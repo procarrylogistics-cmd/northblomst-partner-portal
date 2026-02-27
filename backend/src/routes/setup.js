@@ -54,15 +54,18 @@ router.post('/setup-webhooks', requireRole('admin'), async (req, res) => {
     const data = err.response?.data;
     let msg = err.message;
 
+    if (msg === 'Shop not connected. Please run /auth/shopify first.') {
+      return res.status(400).json({ message: msg });
+    }
     if (status === 403 || (data && /access|scope/i.test(JSON.stringify(data)))) {
       msg =
         'Scopes insuficiente. În Shopify: Dev Dashboard > Settings > API scopes > adaugă read_orders, write_orders (dacă e nevoie) > release new version > reinstall app.';
     }
     if (status === 401) {
-      msg = 'SHOPIFY_ACCESS_TOKEN invalid sau expirat. Verifică .env.';
+      msg = 'Token invalid sau expirat. Reconectează shop-ul prin /auth/shopify.';
     }
 
-    console.error('Setup webhooks error:', err.response?.data || err.message);
+    console.error('Setup webhooks error:', err.response?.data?.errors || err.message);
     res.status(status || 500).json({ message: msg, details: data });
   }
 });
@@ -75,14 +78,17 @@ router.get('/webhooks', requireRole('admin'), async (req, res) => {
   } catch (err) {
     const status = err.response?.status;
     let msg = err.message;
+    if (msg === 'Shop not connected. Please run /auth/shopify first.') {
+      return res.status(400).json({ message: msg });
+    }
     if (status === 403) {
       msg =
         'Scopes insuficiente. Adaugă read_orders (și write pentru create) în API scopes.';
     }
     if (status === 401) {
-      msg = 'SHOPIFY_ACCESS_TOKEN invalid. Verifică .env.';
+      msg = 'Token invalid. Reconectează shop-ul prin /auth/shopify.';
     }
-    console.error('Get webhooks error:', err.response?.data || err.message);
+    console.error('Get webhooks error:', err.response?.data?.errors || err.message);
     res.status(status || 500).json({ message: msg });
   }
 });
@@ -94,7 +100,10 @@ router.delete('/webhooks/:id', requireRole('admin'), async (req, res) => {
     res.json({ success: true, message: 'Webhook șters' });
   } catch (err) {
     const status = err.response?.status;
-    console.error('Delete webhook error:', err.response?.data || err.message);
+    if (err.message === 'Shop not connected. Please run /auth/shopify first.') {
+      return res.status(400).json({ message: err.message });
+    }
+    console.error('Delete webhook error:', err.response?.data?.errors || err.message);
     res.status(status || 500).json({ message: err.message });
   }
 });
