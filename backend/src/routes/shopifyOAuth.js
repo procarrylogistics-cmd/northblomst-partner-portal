@@ -115,9 +115,10 @@ router.get('/auth/shopify/callback', async (req, res) => {
     if (!accessToken) {
       return res.status(500).send('No access token in response');
     }
+    const now = new Date();
     await ShopifyStore.findOneAndUpdate(
       { shop: shopNorm },
-      { accessToken, installedAt: new Date() },
+      { accessToken, installedAt: now, lastVerifiedAt: now },
       { upsert: true, new: true }
     );
     res.status(200).send('Shopify connected successfully');

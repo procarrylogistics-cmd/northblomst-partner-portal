@@ -16,6 +16,43 @@ router.use(authMiddleware);
 router.use(requireRole('admin'));
 
 /**
+ * GET /api/shopify/status
+ * Returns Shopify connection status. Used by Admin to show reconnect banner.
+ */
+router.get('/status', async (req, res) => {
+  try {
+    const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
+    if (!store?.accessToken || !store?.shop) {
+      return res.json({
+        shop: store?.shop || '',
+        connected: false,
+        reason: 'TOKEN_INVALID'
+      });
+    }
+    await axios.get(
+      `https://${store.shop}/admin/oauth/access_scopes.json`,
+      { headers: { 'X-Shopify-Access-Token': store.accessToken } }
+    );
+    const baseUrl = (process.env.SHOPIFY_APP_URL || '').trim().replace(/\/$/, '');
+    return res.json({
+      shop: store.shop,
+      connected: true,
+      reconnectUrl: `${baseUrl}/auth/shopify?shop=${store.shop}`
+    });
+  } catch (err) {
+    const store = await ShopifyStore.findOne().sort({ installedAt: -1 });
+    const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
+    const baseUrl = (process.env.SHOPIFY_APP_URL || '').trim().replace(/\/$/, '');
+    return res.json({
+      shop: shop || '',
+      connected: false,
+      reason: 'TOKEN_INVALID',
+      reconnectUrl: shop ? `${baseUrl}/auth/shopify?shop=${shop}` : null
+    });
+  }
+});
+
+/**
  * GET /api/shopify/scopes
  * Returns Shopify OAuth access scopes. Confirms read_products is present.
  * If read_products is missing, returns message that reinstall is required.

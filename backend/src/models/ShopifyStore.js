@@ -4,7 +4,8 @@ const ShopifyStoreSchema = new mongoose.Schema(
   {
     shop: { type: String, required: true, unique: true },
     accessToken: { type: String, required: true },
-    installedAt: { type: Date, default: Date.now }
+    installedAt: { type: Date, default: Date.now },
+    lastVerifiedAt: { type: Date }
   },
   { timestamps: true }
 );

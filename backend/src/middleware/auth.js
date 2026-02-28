@@ -17,14 +17,14 @@ async function authMiddleware(req, res, next) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('Auth 401: missing token', { hasHeader: !!fromHeader, hasCookie: !!fromCookie, path: req.originalUrl });
     }
-    return res.status(401).json({ message: 'Missing authorization token' });
+    return res.status(401).json({ code: 'AUTH_INVALID', message: 'Missing authorization token' });
   }
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
     const user = await User.findById(payload.sub);
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ code: 'AUTH_INVALID', message: 'User not found' });
     }
     req.user = {
       id: user._id,
@@ -39,7 +39,7 @@ async function authMiddleware(req, res, next) {
     } else {
       console.error('Auth error', err.message);
     }
-    return res.status(401).json({ message: 'Invalid token' });
+    return res.status(401).json({ code: 'AUTH_INVALID', message: 'Invalid token' });
   }
 }
 

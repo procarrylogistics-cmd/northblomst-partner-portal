@@ -40,21 +40,36 @@ if (typeof window !== 'undefined' && !interceptorsConfigured) {
   axios.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error?.response?.status === 401) {
-        if (import.meta.env.DEV) {
-          console.warn('Auth: 401 received', { url: error.config?.url, hasToken: !!getStoredToken() });
-        }
-        setStoredToken(null);
-        try {
-          window.localStorage.removeItem('nb_user');
-          window.localStorage.removeItem('northblomst_auth');
-          window.sessionStorage.removeItem('nb_token');
-          window.sessionStorage.removeItem('nb_user');
-        } catch (e) {
-          /* ignore */
-        }
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+      const url = error?.config?.url || '';
+
+      if (status === 502 && data?.code === 'SHOPIFY_TOKEN_INVALID') {
+        window.dispatchEvent(new CustomEvent('shopify-disconnected', { detail: data }));
+        return Promise.reject(error);
+      }
+
+      if (status === 401) {
+        const isAuthMe = typeof url === 'string' && url.includes('/api/auth/me');
+        const isAuthInvalid = data?.code === 'AUTH_INVALID';
+        const shouldLogout = isAuthMe || isAuthInvalid;
+
+        if (shouldLogout) {
+          if (import.meta.env.DEV) {
+            console.warn('Auth: 401 logout', { url, hasToken: !!getStoredToken() });
+          }
+          setStoredToken(null);
+          try {
+            window.localStorage.removeItem('nb_user');
+            window.localStorage.removeItem('northblomst_auth');
+            window.sessionStorage.removeItem('nb_token');
+            window.sessionStorage.removeItem('nb_user');
+          } catch (e) {
+            /* ignore */
+          }
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
       }
       return Promise.reject(error);

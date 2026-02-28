@@ -41,6 +41,8 @@ export default function AdminDashboard() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [proxyTestMsg, setProxyTestMsg] = useState('');
+  const [shopifyDisconnected, setShopifyDisconnected] = useState(false);
+  const [shopifyReconnectUrl, setShopifyReconnectUrl] = useState(null);
 
   const getDeliveryDateParam = () => {
     if (deliveryPreset === 'date' && deliveryDate) return deliveryDate;
@@ -84,6 +86,29 @@ export default function AdminDashboard() {
     loadWebhooks();
   }, []);
 
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/shopify/status`);
+        const ok = res.data?.connected === true;
+        setShopifyDisconnected(!ok);
+        if (!ok && res.data?.reconnectUrl) setShopifyReconnectUrl(res.data.reconnectUrl);
+        else if (ok) setShopifyReconnectUrl(null);
+      } catch {
+        setShopifyDisconnected(true);
+        setShopifyReconnectUrl(null);
+      }
+    };
+    checkStatus();
+
+    const onDisconnected = (e) => {
+      setShopifyDisconnected(true);
+      if (e?.detail?.reconnectUrl) setShopifyReconnectUrl(e.detail.reconnectUrl);
+    };
+    window.addEventListener('shopify-disconnected', onDisconnected);
+    return () => window.removeEventListener('shopify-disconnected', onDisconnected);
+  }, []);
+
   const handleOrderCreated = (order) => {
     setShowCreateOrder(false);
     loadOrders().then(() => {
@@ -95,9 +120,15 @@ export default function AdminDashboard() {
     try {
       const res = await axios.get(`${API_BASE}/webhooks`);
       setWebhooks(Array.isArray(res.data) ? res.data : []);
+      setWebhookMsg('');
     } catch (e) {
       setWebhooks([]);
-      setWebhookMsg(e.response?.data?.message || 'Kunne ikke hente webhooks');
+      const d = e.response?.data;
+      if (d?.code === 'SHOPIFY_TOKEN_INVALID') {
+        setShopifyDisconnected(true);
+        if (d.reconnectUrl) setShopifyReconnectUrl(d.reconnectUrl);
+      }
+      setWebhookMsg(d?.message || e.response?.data?.message || 'Kunne ikke hente webhooks');
     }
   };
 
@@ -156,6 +187,41 @@ export default function AdminDashboard() {
 
   return (
     <div className="dashboard admin">
+      {shopifyDisconnected && (
+        <div
+          style={{
+            background: '#c62828',
+            color: 'white',
+            padding: '10px 16px',
+            marginBottom: '1rem',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10
+          }}
+        >
+          <span>Shopify disconnected. Reconnect required.</span>
+          {shopifyReconnectUrl ? (
+            <button
+              type="button"
+              onClick={() => { window.location.href = shopifyReconnectUrl; }}
+              style={{
+                background: 'white',
+                color: '#c62828',
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Reconnect Shopify
+            </button>
+          ) : null}
+        </div>
+      )}
       <div className="dashboard-header">
         <h2>Admin oversigt</h2>
         <div className="header-actions">

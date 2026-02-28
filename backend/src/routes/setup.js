@@ -17,6 +17,25 @@ const router = express.Router();
 
 const SHOPIFY_WEBHOOK_TOPICS = ['orders/create', 'orders/updated', 'orders/cancelled'];
 
+function shopifyTokenInvalidResponse(shop) {
+  const baseUrl = (process.env.SHOPIFY_APP_URL || '').trim().replace(/\/$/, '');
+  return {
+    code: 'SHOPIFY_TOKEN_INVALID',
+    message: 'Shopify disconnected. Reconnect required.',
+    reconnectUrl: shop ? `${baseUrl}/auth/shopify?shop=${shop}` : null
+  };
+}
+
+function isShopifyTokenError(err) {
+  const status = err?.response?.status;
+  const body = err?.response?.data;
+  return (
+    status === 401 ||
+    (typeof body === 'string' && /invalid.*token|access token/i.test(body)) ||
+    (body && /invalid.*token|access token/i.test(JSON.stringify(body)))
+  );
+}
+
 /** POST /api/setup-webhooks - creează webhooks în Shopify (admin only) */
 router.post('/setup-webhooks', requireRole('admin'), async (req, res) => {
   const baseUrl = process.env.SHOPIFY_WEBHOOK_BASE_URL;
@@ -54,8 +73,14 @@ router.post('/setup-webhooks', requireRole('admin'), async (req, res) => {
   } catch (err) {
     const status = err.response?.status;
     const data = err.response?.data;
-    let msg = err.message;
+    const store = await require('../models/ShopifyStore').findOne().sort({ installedAt: -1 });
+    const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
 
+    if (isShopifyTokenError(err)) {
+      console.error('Setup webhooks error: Shopify token invalid');
+      return res.status(502).json(shopifyTokenInvalidResponse(shop));
+    }
+    let msg = err.message;
     if (msg === 'Shop not connected. Please run /auth/shopify first.') {
       return res.status(400).json({ message: msg });
     }
@@ -63,12 +88,9 @@ router.post('/setup-webhooks', requireRole('admin'), async (req, res) => {
       msg =
         'Scopes insuficiente. În Shopify: Dev Dashboard > Settings > API scopes > adaugă read_orders, write_orders (dacă e nevoie) > release new version > reinstall app.';
     }
-    if (status === 401) {
-      msg = 'Token invalid sau expirat. Reconectează shop-ul prin /auth/shopify.';
-    }
 
     console.error('Setup webhooks error:', err.response?.data?.errors || err.message);
-    res.status(status || 500).json({ message: msg, details: data });
+    res.status(status === 401 ? 502 : status || 500).json({ message: msg, details: data });
   }
 });
 
@@ -79,6 +101,13 @@ router.get('/webhooks', requireRole('admin'), async (req, res) => {
     res.json(webhooks);
   } catch (err) {
     const status = err.response?.status;
+    const store = await require('../models/ShopifyStore').findOne().sort({ installedAt: -1 });
+    const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
+
+    if (isShopifyTokenError(err)) {
+      console.error('Get webhooks error: Shopify token invalid');
+      return res.status(502).json(shopifyTokenInvalidResponse(shop));
+    }
     let msg = err.message;
     if (msg === 'Shop not connected. Please run /auth/shopify first.') {
       return res.status(400).json({ message: msg });
@@ -87,11 +116,8 @@ router.get('/webhooks', requireRole('admin'), async (req, res) => {
       msg =
         'Scopes insuficiente. Adaugă read_orders (și write pentru create) în API scopes.';
     }
-    if (status === 401) {
-      msg = 'Token invalid. Reconectează shop-ul prin /auth/shopify.';
-    }
     console.error('Get webhooks error:', err.response?.data?.errors || err.message);
-    res.status(status || 500).json({ message: msg });
+    res.status(status === 401 ? 502 : status || 500).json({ message: msg });
   }
 });
 
@@ -120,11 +146,18 @@ router.delete('/webhooks/:id', requireRole('admin'), async (req, res) => {
     res.json({ success: true, message: 'Webhook șters' });
   } catch (err) {
     const status = err.response?.status;
+    const store = await require('../models/ShopifyStore').findOne().sort({ installedAt: -1 });
+    const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
+
+    if (isShopifyTokenError(err)) {
+      console.error('Delete webhook error: Shopify token invalid');
+      return res.status(502).json(shopifyTokenInvalidResponse(shop));
+    }
     if (err.message === 'Shop not connected. Please run /auth/shopify first.') {
       return res.status(400).json({ message: err.message });
     }
     console.error('Delete webhook error:', err.response?.data?.errors || err.message);
-    res.status(status || 500).json({ message: err.message });
+    res.status(status === 401 ? 502 : status || 500).json({ message: err.message });
   }
 });
 
