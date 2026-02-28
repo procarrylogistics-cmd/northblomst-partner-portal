@@ -2,18 +2,36 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import OrderList from '../components/OrderList';
+import { sortOrdersNewestFirst } from '../utils/orderSort';
 import OrderDetail from '../components/OrderDetail';
 import CreateOrderModal from '../components/CreateOrderModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
+const LS_DELIVERY_PRESET = 'northblomst_partner_deliveryPreset';
+const LS_DELIVERY_DATE = 'northblomst_partner_deliveryDate';
+
+function getInitialDeliveryPreset() {
+  try {
+    const s = localStorage.getItem(LS_DELIVERY_PRESET);
+    if (s && ['', 'today', 'tomorrow', 'date'].includes(s)) return s;
+  } catch (_) {}
+  return 'today';
+}
+
+function getInitialDeliveryDate() {
+  try {
+    return localStorage.getItem(LS_DELIVERY_DATE) || '';
+  } catch (_) {}
+  return '';
+}
 
 export default function PartnerDashboard() {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [deliveryPreset, setDeliveryPreset] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryPreset, setDeliveryPreset] = useState(getInitialDeliveryPreset);
+  const [deliveryDate, setDeliveryDate] = useState(getInitialDeliveryDate);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
 
   const getDeliveryDateParam = () => {
@@ -82,8 +100,13 @@ export default function PartnerDashboard() {
           <select
             value={deliveryPreset}
             onChange={(e) => {
-              setDeliveryPreset(e.target.value);
-              if (e.target.value !== 'date') setDeliveryDate('');
+              const v = e.target.value;
+              setDeliveryPreset(v);
+              if (v !== 'date') setDeliveryDate('');
+              try {
+                localStorage.setItem(LS_DELIVERY_PRESET, v);
+                if (v !== 'date') localStorage.removeItem(LS_DELIVERY_DATE);
+              } catch (_) {}
             }}
             title="Leveringsdato"
           >
@@ -96,14 +119,18 @@ export default function PartnerDashboard() {
             <input
               type="date"
               value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDeliveryDate(v);
+                try { localStorage.setItem(LS_DELIVERY_DATE, v); } catch (_) {}
+              }}
               title="Leveringsdato"
             />
           )}
         </div>
       </div>
       <div className="dashboard-body">
-        <OrderList orders={orders} onSelect={setSelectedOrder} selectedId={selectedOrder?._id} />
+        <OrderList orders={sortOrdersNewestFirst(orders)} onSelect={setSelectedOrder} selectedId={selectedOrder?._id} />
         {selectedOrder && (
           <OrderDetail order={selectedOrder} onUpdated={loadOrders} />
         )}

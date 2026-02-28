@@ -2,11 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import OrderList from '../components/OrderList';
+import { sortOrdersNewestFirst } from '../utils/orderSort';
 import OrderDetail from '../components/OrderDetail';
 import PartnerManager from '../components/PartnerManager';
 import CreateOrderModal from '../components/CreateOrderModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
+const LS_DELIVERY_PRESET = 'northblomst_admin_deliveryPreset';
+const LS_DELIVERY_DATE = 'northblomst_admin_deliveryDate';
+
+function getInitialDeliveryPreset() {
+  try {
+    const s = localStorage.getItem(LS_DELIVERY_PRESET);
+    if (s && ['', 'today', 'tomorrow', 'date'].includes(s)) return s;
+  } catch (_) {}
+  return 'today';
+}
+
+function getInitialDeliveryDate() {
+  try {
+    return localStorage.getItem(LS_DELIVERY_DATE) || '';
+  } catch (_) {}
+  return '';
+}
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -14,8 +32,8 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [postalFilter, setPostalFilter] = useState('');
-  const [deliveryPreset, setDeliveryPreset] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryPreset, setDeliveryPreset] = useState(getInitialDeliveryPreset);
+  const [deliveryDate, setDeliveryDate] = useState(getInitialDeliveryDate);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [webhooks, setWebhooks] = useState([]);
   const [webhookMsg, setWebhookMsg] = useState('');
@@ -203,8 +221,13 @@ export default function AdminDashboard() {
           <select
             value={deliveryPreset}
             onChange={(e) => {
-              setDeliveryPreset(e.target.value);
-              if (e.target.value !== 'date') setDeliveryDate('');
+              const v = e.target.value;
+              setDeliveryPreset(v);
+              if (v !== 'date') setDeliveryDate('');
+              try {
+                localStorage.setItem(LS_DELIVERY_PRESET, v);
+                if (v !== 'date') localStorage.removeItem(LS_DELIVERY_DATE);
+              } catch (_) {}
             }}
             title="Leveringsdato"
           >
@@ -217,14 +240,18 @@ export default function AdminDashboard() {
             <input
               type="date"
               value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDeliveryDate(v);
+                try { localStorage.setItem(LS_DELIVERY_DATE, v); } catch (_) {}
+              }}
               title="Leveringsdato"
             />
           )}
         </div>
       </div>
       <div className="dashboard-body">
-        <OrderList orders={orders} onSelect={setSelectedOrder} selectedId={selectedOrder?._id} showPartner />
+        <OrderList orders={sortOrdersNewestFirst(orders)} onSelect={setSelectedOrder} selectedId={selectedOrder?._id} showPartner />
         {selectedOrder && (
           <OrderDetail order={selectedOrder} onUpdated={loadOrders} isAdmin />
         )}
