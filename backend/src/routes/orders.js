@@ -149,7 +149,12 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
       await order.save();
       triggerZapierForOrder(order, partner).catch((err) => console.error('Zapier trigger failed', err));
     }
-    enrichOrderImages(order).catch((err) => console.error('Sync image enrichment failed', err.message));
+    enrichOrderImages(order).then(() => {
+      if (process.env.DEBUG_IMAGE_ENRICH === 'true' && order.products?.length) {
+        const sample = order.products.find((p) => p.imageUrl) || order.products[0];
+        console.log('Sync enriched imageUrl sample:', order.shopifyOrderId, sample?.name, sample?.imageUrl || '(none)');
+      }
+    }).catch((err) => console.error('Sync image enrichment failed', err.message));
     synced++;
   }
   res.json({ success: true, synced });

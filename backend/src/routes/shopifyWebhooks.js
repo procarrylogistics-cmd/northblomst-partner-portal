@@ -145,7 +145,12 @@ router.post('/orders_create', async (req, res) => {
       );
 
       setImmediate(() => {
-        enrichOrderImages(saved).catch((err) => console.error('Webhook image enrichment failed', err.message));
+        enrichOrderImages(saved).then(() => {
+          if (process.env.DEBUG_IMAGE_ENRICH === 'true' && saved.products?.length) {
+            const sample = saved.products.find((p) => p.imageUrl) || saved.products[0];
+            console.log('Webhook enriched imageUrl sample:', saved.shopifyOrderId, sample?.name, sample?.imageUrl || '(none)');
+          }
+        }).catch((err) => console.error('Webhook image enrichment failed', err.message));
       });
 
       const addOnCount = (doc.addOns || []).length;

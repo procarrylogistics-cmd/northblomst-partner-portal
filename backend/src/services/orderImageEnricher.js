@@ -50,15 +50,13 @@ function toOrderGid(shopifyOrderId) {
 }
 
 /**
- * Resolve image URL: LineItem.image > variant.image > product.featuredImage
+ * Resolve image URL: variant.image.url > product.featuredImage.url (use url, not deprecated originalSrc)
  */
 function resolveImageUrl(node) {
-  return (
-    node?.image?.url ||
-    node?.variant?.image?.url ||
-    node?.product?.featuredImage?.url ||
-    null
-  );
+  const variantUrl = node?.variant?.image?.url;
+  const productUrl = node?.product?.featuredImage?.url;
+  const lineItemUrl = node?.image?.url;
+  return variantUrl || lineItemUrl || productUrl || null;
 }
 
 /**
@@ -119,10 +117,14 @@ async function enrichOrderImages(order) {
     let changed = false;
 
     if (order.products?.length) {
+      const DEBUG = process.env.DEBUG_IMAGE_ENRICH === 'true';
       for (let i = 0; i < order.products.length; i++) {
-        if (imageUrls[i] && !order.products[i].imageUrl) {
+        if (imageUrls[i]) {
           order.products[i].imageUrl = imageUrls[i];
           changed = true;
+          if (DEBUG && i === 0) {
+            console.log('orderImageEnricher sample imageUrl:', order.shopifyOrderId, order.products[0].name, imageUrls[0]);
+          }
         }
         if (productUrls[i] && !order.products[i].productUrl) {
           order.products[i].productUrl = productUrls[i];

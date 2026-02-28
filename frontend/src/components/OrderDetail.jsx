@@ -154,10 +154,22 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
               <li key={idx} className="order-product-item">
                 <div className="order-product-thumb">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt="" width={40} height={40} />
-                  ) : (
-                    <div className="order-product-placeholder" />
-                  )}
+                    <img
+                      src={p.imageUrl}
+                      alt=""
+                      width={40}
+                      height={40}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const ph = e.target.nextElementSibling;
+                        if (ph) ph.style.display = 'block';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="order-product-placeholder"
+                    style={{ display: p.imageUrl ? 'none' : 'block' }}
+                  />
                 </div>
                 <span className="order-product-info">
                   {p.quantity} x {p.name} {p.notes && <em>({p.notes})</em>}
