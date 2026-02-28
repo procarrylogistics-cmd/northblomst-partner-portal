@@ -42,6 +42,8 @@ function mapShopifyOrderToDoc(shopifyOrder) {
   const { deliveryDate: extracted, deliveryOption } = extractDeliveryFromShopifyOrder(shopifyOrder);
   const deliveryDate = extracted || (shopifyOrder.estimated_delivery_at ? new Date(shopifyOrder.estimated_delivery_at) : orderDate);
 
+  const totalPaid = shopifyOrder.total_price != null ? parseFloat(shopifyOrder.total_price) : null;
+  const currencyCode = shopifyOrder.currency || null;
   return {
     shopifyOrderId: String(shopifyOrder.id),
     shopifyOrderNumber: String(shopifyOrder.order_number || shopifyOrder.number || ''),
@@ -54,7 +56,10 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     shippingAddress,
     zone,
     status: 'new',
-    createdByRole: 'shopify'
+    createdByRole: 'shopify',
+    totalPrice: shopifyOrder.total_price,
+    totalPaidAmount: totalPaid,
+    currencyCode
   };
 }
 

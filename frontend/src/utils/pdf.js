@@ -30,12 +30,39 @@ export async function generateOrderPdf(order) {
 
   // Products
   drawText('Produktion:', 14);
-  (order.products || []).forEach((p) => {
-    drawText(
+  const thumbSize = 28;
+  const rowHeight = 32;
+  const leftIndent = margin + thumbSize + 8;
+  for (const p of order.products || []) {
+    if (p.imageUrl) {
+      try {
+        const imgRes = await fetch(p.imageUrl, { mode: 'cors' });
+        if (imgRes.ok) {
+          const arrBuf = await imgRes.arrayBuffer();
+          const bytes = new Uint8Array(arrBuf);
+          let img;
+          try {
+            img = await pdfDoc.embedPng(bytes);
+          } catch {
+            img = await pdfDoc.embedJpg(bytes);
+          }
+          const scale = Math.min(thumbSize / img.width, thumbSize / img.height);
+          page.drawImage(img, {
+            x: margin,
+            y: y - thumbSize,
+            width: img.width * scale,
+            height: img.height * scale
+          });
+        }
+      } catch (_) { /* skip thumbnail on fetch/embed error */ }
+    }
+    page.drawText(
       `${p.quantity} x ${p.name}${p.notes ? ` (${p.notes})` : ''}`,
-      12
+      { x: leftIndent, y, size: 12, font, color: rgb(0, 0, 0) }
     );
-  });
+    y -= rowHeight;
+  }
+  if ((order.products || []).length > 0) y -= 4;
 
   // Add-ons
   const addOns = order.addOns || [];
@@ -54,6 +81,11 @@ export async function generateOrderPdf(order) {
   }
 
   drawText('');
+  if (order.totalPaidAmount != null && order.totalPaidAmount > 0) {
+    const paidStr = `${order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${order.currencyCode || 'DKK'}`;
+    drawText(`Kunde betalte: ${paidStr}`, 12);
+    drawText('');
+  }
   drawText('Korttekst / bemærkninger:', 14);
   drawText(order.customer?.message || 'Ingen besked', 12);
 

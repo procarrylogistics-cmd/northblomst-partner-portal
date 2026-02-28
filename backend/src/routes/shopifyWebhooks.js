@@ -67,6 +67,8 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     addOns,
     addOnsSummary,
     totalPrice: payload.total_price,
+    totalPaidAmount: payload.total_price != null ? parseFloat(payload.total_price) : undefined,
+    currencyCode: payload.currency || undefined,
     raw: {
       id: payload.id,
       name: payload.name,

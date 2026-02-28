@@ -123,11 +123,17 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
         )}
         {isCancelled && <span className="badge badge-cancelled">Annulleret</span>}
       </div>
-      {(receivedStr || deliveryStr) && (
+      {(receivedStr || deliveryStr || (order.totalPaidAmount != null && order.totalPaidAmount > 0)) && (
         <p className="order-timestamps">
           {receivedStr && <span><strong>Modtaget:</strong> {receivedStr}</span>}
           {receivedStr && deliveryStr && ' · '}
           {deliveryStr && <span><strong>Levering:</strong> {deliveryStr}</span>}
+          {(order.totalPaidAmount != null && order.totalPaidAmount > 0) && (
+            <>
+              {(receivedStr || deliveryStr) && ' · '}
+              <span><strong>Kunde betalte:</strong> {order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} {order.currencyCode || 'DKK'}</span>
+            </>
+          )}
         </p>
       )}
       <p className="order-customer">

@@ -88,6 +88,8 @@ const OrderSchema = new mongoose.Schema(
     assignedAt: { type: Date },
     tags: String,
     totalPrice: { type: mongoose.Schema.Types.Mixed },
+    totalPaidAmount: { type: Number },
+    currencyCode: { type: String },
     raw: { type: mongoose.Schema.Types.Mixed },
 
     status: {

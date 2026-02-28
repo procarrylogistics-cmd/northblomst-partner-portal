@@ -1,5 +1,5 @@
 /**
- * Enrich order line items with Shopify product images via GraphQL.
+ * Enrich order line items with Shopify product images + total paid via GraphQL.
  * Uses OAuth token from ShopifyStore. Requires read_orders + read_products.
  */
 
@@ -8,13 +8,18 @@ const { getShopifyCredentials } = require('../utils/shopify');
 
 const API_VERSION = '2024-10';
 
-const ORDER_IMAGES_QUERY = `
-query getOrderLineItemImages($id: ID!) {
+const ORDER_ENRICH_QUERY = `
+query getOrderEnrich($id: ID!) {
   order(id: $id) {
     lineItems(first: 50) {
       nodes {
         image {
           url
+        }
+        variant {
+          image {
+            url
+          }
         }
         product {
           featuredImage {
@@ -22,6 +27,16 @@ query getOrderLineItemImages($id: ID!) {
           }
           onlineStoreUrl
         }
+      }
+    }
+    totalPriceSet {
+      presentmentMoney {
+        amount
+        currencyCode
+      }
+      shopMoney {
+        amount
+        currencyCode
       }
     }
   }
@@ -35,67 +50,105 @@ function toOrderGid(shopifyOrderId) {
 }
 
 /**
- * Fetch image URLs for order line items from Shopify GraphQL.
- * @param {string} shop - shop domain (e.g. northblomst-dev.myshopify.com)
- * @param {string} shopifyOrderId - numeric order id from REST
- * @returns {Promise<{ imageUrls: string[], productUrls: string[] }>}
+ * Resolve image URL: LineItem.image > variant.image > product.featuredImage
  */
-async function fetchOrderLineItemImages(shop, shopifyOrderId) {
+function resolveImageUrl(node) {
+  return (
+    node?.image?.url ||
+    node?.variant?.image?.url ||
+    node?.product?.featuredImage?.url ||
+    null
+  );
+}
+
+/**
+ * Fetch images and total paid for order from Shopify GraphQL.
+ * @param {string} shop - shop domain
+ * @param {string} shopifyOrderId - numeric order id from REST
+ * @returns {Promise<{ imageUrls: string[], productUrls: string[], totalPaidAmount: number|null, currencyCode: string|null }>}
+ */
+async function fetchOrderEnrichment(shop, shopifyOrderId) {
   const creds = await getShopifyCredentials();
-  if (!creds || !creds.token) {
-    return { imageUrls: [], productUrls: [] };
-  }
+  const empty = {
+    imageUrls: [],
+    productUrls: [],
+    totalPaidAmount: null,
+    currencyCode: null
+  };
+  if (!creds || !creds.token) return empty;
   const gid = toOrderGid(shopifyOrderId);
-  if (!gid) return { imageUrls: [], productUrls: [] };
+  if (!gid) return empty;
 
   const url = `https://${shop}/admin/api/${API_VERSION}/graphql.json`;
   const { data } = await axios.post(
     url,
-    { query: ORDER_IMAGES_QUERY, variables: { id: gid } },
+    { query: ORDER_ENRICH_QUERY, variables: { id: gid } },
     { headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': creds.token } }
   );
 
-  const nodes = data?.data?.order?.lineItems?.nodes || [];
-  const imageUrls = nodes.map((n) => n.image?.url || n.product?.featuredImage?.url || null);
+  const order = data?.data?.order;
+  if (!order) return empty;
+
+  const nodes = order.lineItems?.nodes || [];
+  const imageUrls = nodes.map((n) => resolveImageUrl(n));
   const productUrls = nodes.map((n) => n.product?.onlineStoreUrl || null);
-  return { imageUrls, productUrls };
+
+  const priceSet = order.totalPriceSet;
+  const pm = priceSet?.presentmentMoney || priceSet?.shopMoney;
+  const amount = pm?.amount != null ? parseFloat(pm.amount) : null;
+  const currencyCode = pm?.currencyCode || null;
+
+  return { imageUrls, productUrls, totalPaidAmount: amount, currencyCode };
 }
 
 /**
- * Enrich order document with imageUrl and productUrl per product.
+ * Enrich order document with imageUrl, productUrl per product and totalPaidAmount, currencyCode.
  * Runs async, does not throw – errors are logged.
  * @param {object} order - Mongoose Order doc
  */
 async function enrichOrderImages(order) {
-  if (!order || !order.shopifyOrderId || !order.products?.length) return;
+  if (!order || !order.shopifyOrderId) return;
   const shop = order.shop || '';
   if (!shop) return;
 
   try {
-    const { imageUrls, productUrls } = await fetchOrderLineItemImages(shop, order.shopifyOrderId);
+    const { imageUrls, productUrls, totalPaidAmount, currencyCode } = await fetchOrderEnrichment(
+      shop,
+      order.shopifyOrderId
+    );
     let changed = false;
-    const products = order.products;
-    for (let i = 0; i < products.length; i++) {
-      if (imageUrls[i] && !products[i].imageUrl) {
-        products[i].imageUrl = imageUrls[i];
-        changed = true;
+
+    if (order.products?.length) {
+      for (let i = 0; i < order.products.length; i++) {
+        if (imageUrls[i] && !order.products[i].imageUrl) {
+          order.products[i].imageUrl = imageUrls[i];
+          changed = true;
+        }
+        if (productUrls[i] && !order.products[i].productUrl) {
+          order.products[i].productUrl = productUrls[i];
+          changed = true;
+        }
       }
-      if (productUrls[i] && !products[i].productUrl) {
-        products[i].productUrl = productUrls[i];
-        changed = true;
-      }
+      if (changed) order.markModified('products');
     }
-    if (changed) {
-      order.markModified('products');
-      await order.save();
+
+    if (totalPaidAmount != null && order.totalPaidAmount == null) {
+      order.totalPaidAmount = totalPaidAmount;
+      changed = true;
     }
+    if (currencyCode && !order.currencyCode) {
+      order.currencyCode = currencyCode;
+      changed = true;
+    }
+
+    if (changed) await order.save();
   } catch (err) {
     console.error('orderImageEnricher: failed for order', order.shopifyOrderId, err.message);
   }
 }
 
 module.exports = {
-  fetchOrderLineItemImages,
+  fetchOrderEnrichment,
   enrichOrderImages,
-  ORDER_IMAGES_QUERY
+  ORDER_ENRICH_QUERY
 };
