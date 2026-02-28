@@ -5,6 +5,7 @@ const { requireRole } = require('../middleware/auth');
 const { triggerZapierForOrder } = require('../services/zapier');
 const { sendOrderAssignedToPartner, sendStatusChangeToAdmin } = require('../services/email');
 const { buildDeliveryDateQuery } = require('../utils/deliveryFilter');
+const { extractDeliveryFromOrderDoc, extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 const { getOrders: getShopifyOrders, addFulfillment } = require('../utils/shopifyProxy');
 const { matchZoneForPostalCode } = require('../utils/postalZone');
 
@@ -35,7 +36,8 @@ function mapShopifyOrderToDoc(shopifyOrder) {
   };
   const zone = matchZoneForPostalCode(shipping.zip);
   const orderDate = shopifyOrder.created_at ? new Date(shopifyOrder.created_at) : new Date();
-  const deliveryDate = shopifyOrder.estimated_delivery_at ? new Date(shopifyOrder.estimated_delivery_at) : orderDate;
+  const { deliveryDate: extracted, deliveryOption } = extractDeliveryFromShopifyOrder(shopifyOrder);
+  const deliveryDate = extracted || (shopifyOrder.estimated_delivery_at ? new Date(shopifyOrder.estimated_delivery_at) : orderDate);
 
   return {
     shopifyOrderId: String(shopifyOrder.id),
@@ -43,6 +45,7 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     shopifyOrderName: shopifyOrder.name,
     orderDate,
     deliveryDate,
+    deliveryOption: deliveryOption || undefined,
     products,
     customer,
     shippingAddress,
@@ -79,17 +82,19 @@ router.get('/partner', async (req, res) => {
   if (!req.user || req.user.role !== 'partner') {
     return res.status(403).json({ message: 'Forbidden' });
   }
-  const { status } = req.query;
+  const { status, deliveryPreset, deliveryDate, from, to } = req.query;
   const query = { partner: req.user.id };
   if (status) query.status = status;
+  const deliveryQuery = buildDeliveryDateQuery(deliveryPreset, deliveryDate, from, to);
+  if (deliveryQuery) Object.assign(query, deliveryQuery);
   const orders = await Order.find(query)
     .populate('partner', 'name email')
-    .sort({ createdAt: -1 })
+    .sort({ deliveryDate: 1, createdAt: -1 })
     .limit(200);
   res.json(orders);
 });
 
-// Admin: list all orders (assigned and unassigned), sorted by createdAt DESC
+// Admin: list all orders, sorted by deliveryDate then createdAt
 router.get('/admin', requireRole('admin'), async (req, res) => {
   const { status, postalCode, partnerId, deliveryPreset, deliveryDate, from, to } = req.query;
   const query = {};
@@ -104,7 +109,7 @@ router.get('/admin', requireRole('admin'), async (req, res) => {
 
   const orders = await Order.find(query)
     .populate('partner', 'name email')
-    .sort({ createdAt: -1 })
+    .sort({ deliveryDate: 1, createdAt: -1 })
     .limit(200);
   res.json(orders);
 });

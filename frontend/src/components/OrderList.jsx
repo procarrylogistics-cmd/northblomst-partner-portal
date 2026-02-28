@@ -28,11 +28,11 @@ export default function OrderList({ orders, onSelect, selectedId, showPartner = 
                 Modtaget: {new Date(o.receivedAt || o.createdAt).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })} {new Date(o.receivedAt || o.createdAt).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            {o.deliveryDate && (
-              <span title="Levering">
-                Levering: {new Date(o.deliveryDate).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })}
-              </span>
-            )}
+            <span title="Levering">
+              Levering: {o.deliveryDate
+                ? new Date(o.deliveryDate).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })
+                : '—'}
+            </span>
             {showPartner && <span>{o.partner?.name || 'Ikke tildelt'}</span>}
             {o.createdByRole === 'partner' && <span className="meta-created">Partner</span>}
           </div>

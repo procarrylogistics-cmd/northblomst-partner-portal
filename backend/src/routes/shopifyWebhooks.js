@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const Order = require('../models/Order');
 const ShopifyStore = require('../models/ShopifyStore');
 const { summarizeOrderForDebug, extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
+const { extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -19,6 +20,7 @@ router.get('/ping', (req, res) => {
 
 function mapWebhookPayloadToOrder(payload, effectiveShop) {
   const { addOns, addOnsSummary } = extractAddOnsFromShopifyOrder(payload);
+  const { deliveryDate: extractedDate, deliveryOption } = extractDeliveryFromShopifyOrder(payload);
   const ship = payload.shipping_address || {};
   const cust = payload.customer || {};
   const customerName =
@@ -38,7 +40,8 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     shopifyOrderNumber: payload.order_number != null ? String(payload.order_number) : undefined,
     receivedAt: payload.created_at ? new Date(payload.created_at) : new Date(),
     orderDate: payload.created_at ? new Date(payload.created_at) : new Date(),
-    deliveryDate: payload.estimated_delivery_at ? new Date(payload.estimated_delivery_at) : new Date(payload.created_at || Date.now()),
+    deliveryDate: extractedDate || (payload.estimated_delivery_at ? new Date(payload.estimated_delivery_at) : new Date(payload.created_at || Date.now())),
+    deliveryOption: deliveryOption || undefined,
     status: 'new',
     partner: null,
     createdByRole: 'shopify',
@@ -66,7 +69,10 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
       name: payload.name,
       created_at: payload.created_at,
       email: payload.email,
-      order_number: payload.order_number
+      order_number: payload.order_number,
+      note_attributes: payload.note_attributes,
+      line_items: (payload.line_items || []).map((li) => ({ properties: li.properties })),
+      estimated_delivery_at: payload.estimated_delivery_at
     }
   };
 }

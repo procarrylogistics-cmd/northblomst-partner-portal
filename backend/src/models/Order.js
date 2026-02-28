@@ -57,6 +57,7 @@ const OrderSchema = new mongoose.Schema(
     shopifyOrderName: String,
     orderDate: Date,
     deliveryDate: { type: Date, default: Date.now, index: true },
+    deliveryOption: { type: String, enum: ['TODAY', 'TOMORROW', 'DATE'] },
 
     products: [ProductSchema],
     addOns: [AddOnSchema],

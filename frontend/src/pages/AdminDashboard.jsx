@@ -28,12 +28,12 @@ export default function AdminDashboard() {
     if (deliveryPreset === 'date' && deliveryDate) return deliveryDate;
     if (deliveryPreset === 'today') {
       const d = new Date();
-      return d.toISOString().slice(0, 10);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     if (deliveryPreset === 'tomorrow') {
       const d = new Date();
       d.setDate(d.getDate() + 1);
-      return d.toISOString().slice(0, 10);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     return null;
   };

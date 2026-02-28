@@ -10,6 +10,8 @@ const {
   webhookExists
 } = require('../utils/shopify');
 const { requireRole } = require('../middleware/auth');
+const Order = require('../models/Order');
+const { extractDeliveryFromOrderDoc } = require('../utils/deliveryDateExtractor');
 
 const router = express.Router();
 
@@ -91,6 +93,24 @@ router.get('/webhooks', requireRole('admin'), async (req, res) => {
     console.error('Get webhooks error:', err.response?.data?.errors || err.message);
     res.status(status || 500).json({ message: msg });
   }
+});
+
+/** POST /api/admin/backfill-delivery-date – backfill deliveryDate from raw payload (admin only) */
+router.post('/admin/backfill-delivery-date', requireRole('admin'), async (req, res) => {
+  const orders = await Order.find({});
+  let updated = 0;
+  for (const order of orders) {
+    const { deliveryDate, deliveryOption } = extractDeliveryFromOrderDoc(order);
+    if (!deliveryDate) continue;
+    const changed = !order.deliveryDate || order.deliveryDate.getTime() !== deliveryDate.getTime();
+    if (changed) {
+      order.deliveryDate = deliveryDate;
+      if (deliveryOption) order.deliveryOption = deliveryOption;
+      await order.save();
+      updated++;
+    }
+  }
+  res.json({ success: true, total: orders.length, updated });
 });
 
 /** DELETE /api/webhooks/:id - șterge webhook (admin only) */
