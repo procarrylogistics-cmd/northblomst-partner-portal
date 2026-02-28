@@ -8,6 +8,7 @@ const { buildDeliveryDateQuery } = require('../utils/deliveryFilter');
 const { extractDeliveryFromOrderDoc, extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 const { getOrders: getShopifyOrders, addFulfillment } = require('../utils/shopifyProxy');
 const { matchZoneForPostalCode } = require('../utils/postalZone');
+const { enrichOrderImages } = require('../services/orderImageEnricher');
 
 const router = express.Router();
 
@@ -16,9 +17,11 @@ function mapShopifyOrderToDoc(shopifyOrder) {
   const shipping = shopifyOrder.shipping_address || {};
   const products = (shopifyOrder.line_items || []).map((li) => ({
     sku: li.sku,
-    name: li.name,
-    quantity: li.quantity,
-    notes: (li.properties && li.properties.note) ? li.properties.note : ''
+    name: li.title || li.name,
+    quantity: li.quantity || 1,
+    notes: (li.properties && li.properties.note) ? li.properties.note : '',
+    productId: li.product_id != null ? String(li.product_id) : undefined,
+    variantId: li.variant_id != null ? String(li.variant_id) : undefined
   }));
   const customer = {
     name: `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() ||
@@ -126,11 +129,14 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
     return res.status(502).json({ success: false, message });
   }
   const shopifyOrders = result.data || [];
+  const store = await require('../models/ShopifyStore').findOne().sort({ installedAt: -1 });
+  const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
   let synced = 0;
   for (const so of shopifyOrders) {
     const existing = await Order.findOne({ shopifyOrderId: String(so.id) });
     if (existing) continue;
     const doc = mapShopifyOrderToDoc(so);
+    if (!doc.shop && shop) doc.shop = shop;
     const order = await Order.create(doc);
     const partner = await assignPartnerIfMatch(order);
     if (partner) {
@@ -138,6 +144,7 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
       await order.save();
       triggerZapierForOrder(order, partner).catch((err) => console.error('Zapier trigger failed', err));
     }
+    enrichOrderImages(order).catch((err) => console.error('Sync image enrichment failed', err.message));
     synced++;
   }
   res.json({ success: true, synced });

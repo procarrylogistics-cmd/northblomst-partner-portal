@@ -9,6 +9,7 @@ const Order = require('../models/Order');
 const ShopifyStore = require('../models/ShopifyStore');
 const { summarizeOrderForDebug, extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
 const { extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
+const { enrichOrderImages } = require('../services/orderImageEnricher');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -31,7 +32,9 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
   const products = (payload.line_items || []).map((li) => ({
     sku: li.sku,
     name: li.title || li.name,
-    quantity: li.quantity || 1
+    quantity: li.quantity || 1,
+    productId: li.product_id != null ? String(li.product_id) : undefined,
+    variantId: li.variant_id != null ? String(li.variant_id) : undefined
   }));
   return {
     shop: effectiveShop,
@@ -133,11 +136,15 @@ router.post('/orders_create', async (req, res) => {
 
       const doc = mapWebhookPayloadToOrder(payload, effectiveShop);
 
-      await Order.findOneAndUpdate(
+      const saved = await Order.findOneAndUpdate(
         { shop: effectiveShop, shopifyOrderId },
         { $set: doc },
         { upsert: true, new: true }
       );
+
+      setImmediate(() => {
+        enrichOrderImages(saved).catch((err) => console.error('Webhook image enrichment failed', err.message));
+      });
 
       const addOnCount = (doc.addOns || []).length;
       console.log('order saved', { shop: effectiveShop, shopifyOrderId, name, addOns: addOnCount });

@@ -143,10 +143,19 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
         {order.productSummary ? (
           <p>{order.productSummary}</p>
         ) : (
-          <ul>
+          <ul className="order-products-list">
             {order.products?.map((p, idx) => (
-              <li key={idx}>
-                {p.quantity} x {p.name} {p.notes && <em>({p.notes})</em>}
+              <li key={idx} className="order-product-item">
+                <div className="order-product-thumb">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" width={40} height={40} />
+                  ) : (
+                    <div className="order-product-placeholder" />
+                  )}
+                </div>
+                <span className="order-product-info">
+                  {p.quantity} x {p.name} {p.notes && <em>({p.notes})</em>}
+                </span>
               </li>
             ))}
             {(!order.products || order.products.length === 0) && <li>Ingen produkter</li>}

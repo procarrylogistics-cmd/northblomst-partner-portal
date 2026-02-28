@@ -5,7 +5,11 @@ const ProductSchema = new mongoose.Schema(
     sku: String,
     name: String,
     quantity: Number,
-    notes: String
+    notes: String,
+    productId: String,
+    variantId: String,
+    imageUrl: String,
+    productUrl: String
   },
   { _id: false }
 );
