@@ -10,6 +10,22 @@ const ProductSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AddOnSchema = new mongoose.Schema(
+  {
+    source: String,
+    key: String,
+    label: String,
+    value: String,
+    quantity: Number,
+    price: String,
+    currency: String,
+    lineItemTitle: String,
+    sku: String,
+    rawKey: String
+  },
+  { _id: false }
+);
+
 const CustomerSchema = new mongoose.Schema(
   {
     name: String,
@@ -43,6 +59,8 @@ const OrderSchema = new mongoose.Schema(
     deliveryDate: { type: Date, default: Date.now, index: true },
 
     products: [ProductSchema],
+    addOns: [AddOnSchema],
+    addOnsSummary: String,
     customer: CustomerSchema,
     shippingAddress: AddressSchema,
 

@@ -138,10 +138,6 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
         {order.address || order.shippingAddress?.address1}<br />
         {order.postcode || order.shippingAddress?.postalCode} {order.city || order.shippingAddress?.city}
       </p>
-      <p>
-        <strong>Korttekst / bemærkninger:</strong><br />
-        {order.cardText || order.customer?.message || order.notes || 'Ingen besked'}
-      </p>
       <div>
         <strong>Produkter:</strong>
         {order.productSummary ? (
@@ -157,6 +153,29 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
           </ul>
         )}
       </div>
+
+      <div className="order-addons">
+        <strong>Tilvalg / Add-ons</strong>
+        {order.addOns && order.addOns.length > 0 ? (
+          <ul>
+            {order.addOns.map((a, idx) => (
+              <li key={idx}>
+                <strong>{a.label}</strong>
+                {a.value && `: ${a.value}`}
+                {a.quantity > 1 && ` (${a.quantity} stk)`}
+                {a.price && ` · ${a.quantity > 1 ? `${a.quantity} × ` : ''}${a.price} ${a.currency || 'DKK'}`}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Ingen tilvalg</p>
+        )}
+      </div>
+
+      <p>
+        <strong>Korttekst / bemærkninger:</strong><br />
+        {order.cardText || order.customer?.message || order.notes || 'Ingen besked'}
+      </p>
 
       <div className="order-actions">
         {!isCancelled && (

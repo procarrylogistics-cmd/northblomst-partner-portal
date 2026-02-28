@@ -37,6 +37,22 @@ export async function generateOrderPdf(order) {
     );
   });
 
+  // Add-ons
+  const addOns = order.addOns || [];
+  if (addOns.length > 0) {
+    drawText('');
+    drawText('Tilvalg / Add-ons:', 14);
+    addOns.slice(0, 6).forEach((a) => {
+      let line = `${a.label}${a.value ? `: ${a.value}` : ''}`;
+      if (a.quantity > 1) line += ` (${a.quantity} stk)`;
+      if (a.price) line += ` · ${a.price} ${a.currency || 'DKK'}`;
+      drawText(line, 11);
+    });
+    if (addOns.length > 6) {
+      drawText(`... +${addOns.length - 6} flere`, 10);
+    }
+  }
+
   drawText('');
   drawText('Korttekst / bemærkninger:', 14);
   drawText(order.customer?.message || 'Ingen besked', 12);

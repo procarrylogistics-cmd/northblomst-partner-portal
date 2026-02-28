@@ -7,8 +7,10 @@ const express = require('express');
 const crypto = require('crypto');
 const Order = require('../models/Order');
 const ShopifyStore = require('../models/ShopifyStore');
+const { summarizeOrderForDebug, extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
 
 const router = express.Router();
+const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
 
 /** GET /webhooks/ping – quick reachability check */
 router.get('/ping', (req, res) => {
@@ -16,6 +18,7 @@ router.get('/ping', (req, res) => {
 });
 
 function mapWebhookPayloadToOrder(payload, effectiveShop) {
+  const { addOns, addOnsSummary } = extractAddOnsFromShopifyOrder(payload);
   const ship = payload.shipping_address || {};
   const cust = payload.customer || {};
   const customerName =
@@ -55,6 +58,8 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     notes: payload.note,
     tags: payload.tags,
     products,
+    addOns,
+    addOnsSummary,
     totalPrice: payload.total_price,
     raw: {
       id: payload.id,
@@ -95,6 +100,11 @@ router.post('/orders_create', async (req, res) => {
     payload = JSON.parse(req.body.toString('utf8'));
   } catch (e) {
     return res.status(400).send('Invalid JSON');
+  }
+
+  if (DEBUG_WEBHOOK_PAYLOAD) {
+    const summary = summarizeOrderForDebug(payload);
+    console.log('WEBHOOK DEBUG payload summary', JSON.stringify(summary, null, 0).slice(0, 1500));
   }
 
   const shop = (req.get('x-shopify-shop-domain') || payload.shop_domain || process.env.SHOPIFY_SHOP || '').trim();
