@@ -133,7 +133,14 @@ router.post('/orders_create', async (req, res) => {
         { upsert: true, new: true }
       );
 
-      console.log('order saved', { shop: effectiveShop, shopifyOrderId, name });
+      const addOnCount = (doc.addOns || []).length;
+      console.log('order saved', { shop: effectiveShop, shopifyOrderId, name, addOns: addOnCount });
+      if (addOnCount === 0) {
+        if (DEBUG_WEBHOOK_PAYLOAD) {
+          const summary = summarizeOrderForDebug(payload);
+          console.log('WEBHOOK addons=0, payload:', JSON.stringify(summary).slice(0, 2000));
+        }
+      }
     } catch (err) {
       console.error('Webhook orders/create processing error', err.message);
     }

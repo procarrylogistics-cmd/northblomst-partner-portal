@@ -4,24 +4,26 @@
  */
 
 const ADDON_KEYWORDS = [
-  'card', 'kort', 'felicitare',
+  'card', 'kort', 'felicitare', 'gavekort',
   'chocolate', 'chokolade',
-  'vase', 'vaza', 'vase',
+  'vase', 'vaza',
   'teddy', 'bamse', 'ursulet', 'bjørn',
-  'ribbon', 'bånd', 'panglica', 'band',
-  'ekstra', 'extra', 'add-on', 'tilvalg', 'addon'
+  'ribbon', 'bånd', 'panglica', 'band', 'slojfe', 'sløjfe',
+  'ekstra', 'extra', 'add-on', 'tilvalg', 'addon', 'tillæg', 'tillaeg',
+  'personaliseret', 'personalized', 'overskrift', 'tekst', 'text',
+  'ciocolata', 'ursulet'
 ];
 
-const ADDON_SKU_PREFIXES = ['ADDON_', 'EXTRA_', 'TILVALG_'];
+const ADDON_SKU_PREFIXES = ['ADDON_', 'EXTRA_', 'TILVALG_', 'TILLÆG_', 'TILVALG'];
 
 const PROPERTY_KEY_MAP = {
-  card: ['card', 'kort', 'felicitare', 'felicitación'],
-  card_message: ['card text', 'korttekst', 'kort tekst', 'message', 'dedication', 'bemærkning', 'besked'],
-  ribbon: ['ribbon', 'bånd', 'panglica', 'band', 'sløjfe'],
-  ribbon_text: ['ribbon text', 'bånd tekst', 'ribbon tekst', 'sløjfetekst'],
-  vase: ['vase', 'vaza', 'vase'],
+  card: ['card', 'kort', 'felicitare', 'gavekort'],
+  card_message: ['card text', 'korttekst', 'kort tekst', 'message', 'dedication', 'bemærkning', 'besked', 'kortbesked', 'overskrift'],
+  ribbon: ['ribbon', 'bånd', 'panglica', 'band', 'sløjfe', 'slojfe'],
+  ribbon_text: ['ribbon text', 'bånd tekst', 'båndtekst', 'ribbon tekst', 'sløjfetekst', 'bandtekst'],
+  vase: ['vase', 'vaza'],
   chocolate: ['chocolate', 'chokolade'],
-  teddy: ['teddy', 'bamse', 'ursulet', 'bjørn', 'teddy bear'],
+  teddy: ['teddy', 'bamse', 'ursulet', 'bjørn'],
   other: []
 };
 
@@ -121,20 +123,25 @@ function extractAddOnsFromShopifyOrder(order) {
     });
   });
 
-  // 2.2 line_items[].properties
+  // 2.2 line_items[].properties – INCLUSIVE: include ALL non-empty properties
   (order.line_items || []).forEach((li) => {
-    (li.properties || []).forEach((prop) => {
-      const name = (prop.name || prop).toString().trim();
-      const value = (prop.value || prop).toString().trim();
+    const rawProps = li.properties || [];
+    const propList = Array.isArray(rawProps)
+      ? rawProps
+      : typeof rawProps === 'object' && rawProps !== null
+        ? Object.entries(rawProps).map(([k, v]) => ({ name: k, value: v }))
+        : [];
+    propList.forEach((prop) => {
+      const name = (prop && (prop.name ?? prop)).toString().trim().replace(/^_+/, '');
+      const value = (prop && (prop.value ?? '')).toString().trim();
       if (!name || !value) return;
       const norm = normalizeKey(name);
-      const key = mapPropertyToKey(norm);
-      if (key === 'other' && !ADDON_KEYWORDS.some((kw) => norm.includes(kw))) return;
+      if (norm.length < 2) return;
       raw.propertyCandidates++;
       addOns.push({
         source: 'property',
-        key,
-        label: name,
+        key: mapPropertyToKey(norm),
+        label: name.replace(/^_+/, ''),
         value,
         quantity: 1,
         price: undefined,
@@ -146,18 +153,17 @@ function extractAddOnsFromShopifyOrder(order) {
     });
   });
 
-  // 2.3 note_attributes
+  // 2.3 note_attributes – INCLUSIVE: include ALL
   (order.note_attributes || []).forEach((na) => {
-    const name = (na.name || na).toString().trim();
-    const value = (na.value || na).toString().trim();
+    const name = (na.name != null ? na.name : na).toString().trim().replace(/^_+/, '');
+    const value = (na.value != null ? na.value : '').toString().trim();
     if (!name || !value) return;
     const norm = normalizeKey(name);
-    const key = mapPropertyToKey(norm);
-    if (key === 'other' && !ADDON_KEYWORDS.some((kw) => norm.includes(kw))) return;
+    if (norm.length < 2) return;
     raw.noteAttrCandidates++;
     addOns.push({
       source: 'note_attribute',
-      key,
+      key: mapPropertyToKey(norm),
       label: name,
       value,
       quantity: 1,
@@ -179,14 +185,12 @@ function extractAddOnsFromShopifyOrder(order) {
       const [, k, v] = m;
       const name = (k || '').trim();
       const value = (v || '').trim();
-      if (!name || !value) return;
+      if (!name || !value || name.length < 2) return;
       const norm = normalizeKey(name);
-      const key = mapPropertyToKey(norm);
-      if (key === 'other' && !ADDON_KEYWORDS.some((kw) => norm.includes(kw))) return;
       raw.noteParsed = true;
       addOns.push({
         source: 'note',
-        key,
+        key: mapPropertyToKey(norm),
         label: name,
         value,
         quantity: 1,
@@ -197,6 +201,24 @@ function extractAddOnsFromShopifyOrder(order) {
         rawKey: name
       });
     });
+  }
+
+  // 2.5 Fallback: if order.note exists and we have no addons yet, treat note as card/comment
+  const noteStr = order.note && String(order.note).trim();
+  if (noteStr && addOns.length === 0) {
+    addOns.push({
+      source: 'note',
+      key: 'card_message',
+      label: 'Bemærkning / Note',
+      value: noteStr.slice(0, 500),
+      quantity: 1,
+      price: undefined,
+      currency,
+      lineItemTitle: undefined,
+      sku: undefined,
+      rawKey: 'note'
+    });
+    raw.noteParsed = true;
   }
 
   const deduped = dedupeAddOns(addOns);
