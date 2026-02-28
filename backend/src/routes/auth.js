@@ -40,6 +40,7 @@ router.post('/login', async (req, res) => {
 
   res.cookie('nb_token', token, {
     ...COOKIE_OPTS,
+    path: '/',
     maxAge
   });
 

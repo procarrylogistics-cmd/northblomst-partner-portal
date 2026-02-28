@@ -24,7 +24,7 @@ export default function LoginPage() {
         password,
         remember: rememberMe
       }, { withCredentials: true });
-      login(res.data);
+      login(res.data); // AuthContext stores token from res.data.token and sets user
       if (res.data.user.role === 'admin') {
         navigate('/admin');
       } else {

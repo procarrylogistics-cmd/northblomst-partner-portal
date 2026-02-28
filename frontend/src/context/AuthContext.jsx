@@ -1,25 +1,57 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
+const AUTH_TOKEN_KEY = 'nb_token';
+
+function getStoredToken() {
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(token) {
+  try {
+    if (token) {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('Auth: could not persist token', e);
+  }
+}
 
 let interceptorsConfigured = false;
 
 if (typeof window !== 'undefined' && !interceptorsConfigured) {
   axios.defaults.withCredentials = true;
 
+  axios.interceptors.request.use((config) => {
+    const token = getStoredToken();
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
   axios.interceptors.response.use(
     (response) => response,
     (error) => {
       if (error?.response?.status === 401) {
+        if (import.meta.env.DEV) {
+          console.warn('Auth: 401 received', { url: error.config?.url, hasToken: !!getStoredToken() });
+        }
+        setStoredToken(null);
         try {
-          window.localStorage.removeItem('nb_token');
           window.localStorage.removeItem('nb_user');
           window.localStorage.removeItem('northblomst_auth');
           window.sessionStorage.removeItem('nb_token');
           window.sessionStorage.removeItem('nb_user');
         } catch (e) {
-          // Ignore
+          /* ignore */
         }
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
@@ -37,14 +69,28 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const initDone = useRef(false);
 
   useEffect(() => {
+    if (initDone.current) return;
+    initDone.current = true;
+
+    const token = getStoredToken();
+    if (import.meta.env.DEV) {
+      console.log('Auth init: token from storage', token ? 'present' : 'missing');
+    }
+
     axios
       .get(`${API_BASE}/auth/me`, { withCredentials: true })
       .then((res) => {
-        setUser(res.data?.user ?? null);
+        const u = res.data?.user ?? null;
+        if (import.meta.env.DEV && u) console.log('Auth: /me success', u.role);
+        setUser(u);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (import.meta.env.DEV) {
+          console.warn('Auth: /me failed', err?.response?.status, err?.response?.data?.message);
+        }
         setUser(null);
       })
       .finally(() => {
@@ -53,23 +99,27 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (data) => {
-    setUser(data.user);
+    if (data?.token) {
+      setStoredToken(data.token);
+      if (import.meta.env.DEV) console.log('Auth: token stored on login');
+    }
+    setUser(data?.user ?? null);
   };
 
   const logout = async () => {
     try {
       await axios.post(`${API_BASE}/auth/logout`, {}, { withCredentials: true });
     } catch (e) {
-      // Ignore
+      /* ignore */
     }
     setUser(null);
+    setStoredToken(null);
     try {
-      window.localStorage.removeItem('nb_token');
       window.localStorage.removeItem('nb_user');
       window.sessionStorage.removeItem('nb_token');
       window.sessionStorage.removeItem('nb_user');
     } catch (e) {
-      // Ignore
+      /* ignore */
     }
   };
 

@@ -34,7 +34,7 @@ router.get('/auth/shopify', (req, res) => {
       return res.status(400).send('Missing or invalid shop query parameter');
     }
     const apiKey = getEnv('SHOPIFY_API_KEY');
-    const scopes = (process.env.SHOPIFY_SCOPES || 'read_orders').replace(/\s/g, '');
+    const scopes = (process.env.SHOPIFY_SCOPES || 'read_orders,read_products,write_orders').replace(/\s/g, '');
     const appUrl = (process.env.SHOPIFY_APP_URL || '').trim().replace(/\/$/, '');
     const redirectUri = `${appUrl}/auth/shopify/callback`.trim();
     const state = crypto.randomBytes(16).toString('hex');

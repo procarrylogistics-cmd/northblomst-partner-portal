@@ -14,6 +14,9 @@ async function authMiddleware(req, res, next) {
   const token = fromHeader || fromCookie;
 
   if (!token) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth 401: missing token', { hasHeader: !!fromHeader, hasCookie: !!fromCookie, path: req.originalUrl });
+    }
     return res.status(401).json({ message: 'Missing authorization token' });
   }
 
@@ -31,7 +34,11 @@ async function authMiddleware(req, res, next) {
     };
     next();
   } catch (err) {
-    console.error('Auth error', err);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth 401: invalid token', err.message, { path: req.originalUrl });
+    } else {
+      console.error('Auth error', err.message);
+    }
     return res.status(401).json({ message: 'Invalid token' });
   }
 }
