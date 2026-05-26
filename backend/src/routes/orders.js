@@ -15,6 +15,8 @@ const {
 } = require('../services/orderImageEnricher');
 const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
 const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
+const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
+const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
 
 const router = express.Router();
 
@@ -260,17 +262,30 @@ async function loadOrderForUser(req) {
   return { order };
 }
 
-// Production sheet PDF (admin + assigned partner) – enriches images first
+// Shopify-style packing slip HTML (images from Shopify REST – best for print)
+router.get('/:id/print-packing-slip', async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+
+  try {
+    const payload = await loadOrderPrintPayload(order);
+    const html = renderPackingSlipHtml(payload);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('print-packing-slip failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke hente pakkeseddel' });
+  }
+});
+
+// PDF fallback (same Shopify image data)
 router.get('/:id/print-production-sheet', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
   if (error) return res.status(error.status).json({ message: error.message });
 
-  if (order.shopifyOrderId && orderNeedsImageEnrichment(order)) {
-    await enrichOrderImages(order);
-  }
-
   try {
-    const pdfBytes = await generateProductionSheetPdf(order.toObject ? order.toObject() : order);
+    const payload = await loadOrderPrintPayload(order);
+    const pdfBytes = await generateProductionSheetPdf(payload);
     const name = order.shopifyOrderName || order.shopifyOrderNumber || order._id;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="packing_slip_${name}.pdf"`);
@@ -279,6 +294,15 @@ router.get('/:id/print-production-sheet', async (req, res) => {
     console.error('print-production-sheet failed', err.message);
     res.status(500).json({ message: 'Kunne ikke generere produktionsseddel' });
   }
+});
+
+// Admin: link to open order in Shopify admin (Print → Print packing slips)
+router.get('/:id/shopify-admin-url', requireRole('admin'), async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+  const url = getShopifyAdminOrderUrl(order);
+  if (!url) return res.status(400).json({ message: 'Ingen Shopify ordre-id' });
+  res.json({ url });
 });
 
 // Get single order (admin or assigned partner) – enrich images on read if missing

@@ -82,19 +82,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const handlePrint = async () => {
     setPrintLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/orders/${order._id}/print-production-sheet`, {
-        responseType: 'blob'
+      const res = await axios.get(`${API_BASE}/orders/${order._id}/print-packing-slip`, {
+        responseType: 'text'
       });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url);
+      const win = window.open('', '_blank');
       if (!win) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `packing_slip_${order.shopifyOrderName || order.shopifyOrderNumber || order._id}.pdf`;
-        a.click();
+        alert('Tillad pop-ups for at printe pakkeseddel.');
+        return;
       }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      win.document.write(res.data);
+      win.document.close();
     } catch (err) {
       console.error('Print failed', err);
       setStatusError(err.response?.data?.message || 'Kunne ikke hente produktionsseddel');
@@ -249,8 +246,24 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         )}
         {statusError && <div className="error">{statusError}</div>}
         <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading}>
-          {printLoading ? 'Henter seddel…' : 'Print ordreseddel'}
+          {printLoading ? 'Henter pakkeseddel…' : 'Print pakkeseddel'}
         </button>
+        {isAdmin && order.shopifyOrderId && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={async () => {
+              try {
+                const { data } = await axios.get(`${API_BASE}/orders/${order._id}/shopify-admin-url`);
+                if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          >
+            Åbn i Shopify (original seddel)
+          </button>
+        )}
       </div>
       {showCancelConfirm && (
         <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>

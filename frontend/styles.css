@@ -407,6 +407,12 @@ button {
   margin-bottom: 0.75rem;
 }
 
+.order-actions button.secondary {
+  background: #fff;
+  border: 1px solid #1a5f4a;
+  color: #1a5f4a;
+}
+
 .order-actions .primary {
   background: #16a34a;
 }
