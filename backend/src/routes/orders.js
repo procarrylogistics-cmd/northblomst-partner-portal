@@ -285,7 +285,15 @@ router.get('/:id/print-production-sheet', async (req, res) => {
 
   try {
     const payload = await loadOrderPrintPayload(order);
-    const pdfBytes = await generateProductionSheetPdf(payload);
+    const pdfOrder = {
+      ...payload.mongo,
+      products: (payload.lineItems || []).map((li) => ({
+        name: li.title,
+        quantity: li.quantity,
+        imageUrl: li.imageDataUri || li.imageUrl
+      }))
+    };
+    const pdfBytes = await generateProductionSheetPdf(pdfOrder);
     const name = order.shopifyOrderName || order.shopifyOrderNumber || order._id;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="packing_slip_${name}.pdf"`);

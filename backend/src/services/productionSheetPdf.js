@@ -8,6 +8,11 @@ const axios = require('axios');
 
 async function fetchImageBytes(imageUrl) {
   if (!imageUrl) return null;
+  if (String(imageUrl).startsWith('data:')) {
+    const m = String(imageUrl).match(/^data:[^;]+;base64,(.+)$/);
+    if (m) return new Uint8Array(Buffer.from(m[1], 'base64'));
+    return null;
+  }
   try {
     const res = await axios.get(imageUrl, {
       responseType: 'arraybuffer',
