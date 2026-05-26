@@ -84,6 +84,11 @@ async function fetchOrderEnrichment(shop, shopifyOrderId) {
     { headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': creds.token } }
   );
 
+  if (data?.errors?.length) {
+    console.error('orderImageEnricher GraphQL errors:', JSON.stringify(data.errors).slice(0, 500));
+    return empty;
+  }
+
   const order = data?.data?.order;
   if (!order) return empty;
 
@@ -104,10 +109,25 @@ async function fetchOrderEnrichment(shop, shopifyOrderId) {
  * Runs async, does not throw – errors are logged.
  * @param {object} order - Mongoose Order doc
  */
+async function resolveShopForOrder(order) {
+  if (order?.shop) return order.shop;
+  const creds = await getShopifyCredentials();
+  return creds?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
+}
+
+function orderNeedsImageEnrichment(order) {
+  if (!order?.shopifyOrderId || !order.products?.length) return false;
+  return order.products.some((p) => !p.imageUrl);
+}
+
 async function enrichOrderImages(order) {
-  if (!order || !order.shopifyOrderId) return;
-  const shop = order.shop || '';
-  if (!shop) return;
+  if (!order || !order.shopifyOrderId) return false;
+  const shop = await resolveShopForOrder(order);
+  if (!shop) {
+    console.error('orderImageEnricher: no shop for order', order.shopifyOrderId);
+    return false;
+  }
+  if (!order.shop) order.shop = shop;
 
   try {
     const { imageUrls, productUrls, totalPaidAmount, currencyCode } = await fetchOrderEnrichment(
@@ -144,13 +164,17 @@ async function enrichOrderImages(order) {
     }
 
     if (changed) await order.save();
+    return changed;
   } catch (err) {
     console.error('orderImageEnricher: failed for order', order.shopifyOrderId, err.message);
+    return false;
   }
 }
 
 module.exports = {
   fetchOrderEnrichment,
   enrichOrderImages,
+  resolveShopForOrder,
+  orderNeedsImageEnrichment,
   ORDER_ENRICH_QUERY
 };

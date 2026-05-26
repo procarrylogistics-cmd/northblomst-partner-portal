@@ -8,7 +8,11 @@ const { buildDeliveryDateQuery } = require('../utils/deliveryFilter');
 const { extractDeliveryFromOrderDoc, extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 const { getOrders: getShopifyOrders, addFulfillment } = require('../utils/shopifyProxy');
 const { matchZoneForPostalCode } = require('../utils/postalZone');
-const { enrichOrderImages } = require('../services/orderImageEnricher');
+const {
+  enrichOrderImages,
+  orderNeedsImageEnrichment
+} = require('../services/orderImageEnricher');
+const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
 
 const router = express.Router();
 
@@ -234,15 +238,43 @@ router.get('/my', async (req, res) => {
   res.json(orders);
 });
 
-// Get single order (admin or assigned partner)
-router.get('/:id', async (req, res) => {
+async function loadOrderForUser(req) {
   const order = await Order.findById(req.params.id).populate('partner', 'name email');
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
+  if (!order) return { error: { status: 404, message: 'Order not found' } };
+  if (req.user.role === 'partner' && (!order.partner || String(order.partner._id) !== String(req.user.id))) {
+    return { error: { status: 403, message: 'Forbidden' } };
+  }
+  return { order };
+}
+
+// Production sheet PDF (admin + assigned partner) – enriches images first
+router.get('/:id/print-production-sheet', async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+
+  if (order.shopifyOrderId && orderNeedsImageEnrichment(order)) {
+    await enrichOrderImages(order);
   }
 
-  if (req.user.role === 'partner' && (!order.partner || String(order.partner._id) !== String(req.user.id))) {
-    return res.status(403).json({ message: 'Forbidden' });
+  try {
+    const pdfBytes = await generateProductionSheetPdf(order.toObject ? order.toObject() : order);
+    const name = order.shopifyOrderName || order.shopifyOrderNumber || order._id;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="packing_slip_${name}.pdf"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (err) {
+    console.error('print-production-sheet failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke generere produktionsseddel' });
+  }
+});
+
+// Get single order (admin or assigned partner) – enrich images on read if missing
+router.get('/:id', async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+
+  if (order.shopifyOrderId && orderNeedsImageEnrichment(order)) {
+    await enrichOrderImages(order);
   }
 
   res.json(order);

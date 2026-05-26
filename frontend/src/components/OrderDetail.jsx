@@ -1,17 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { generateOrderPdf } from '../utils/pdf';
 import EditOrderModal from './EditOrderModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
-export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
+function ProductThumb({ imageUrl, name }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [imageUrl]);
+  const showImg = imageUrl && !failed;
+  return (
+    <div className="order-product-thumb">
+      {showImg ? (
+        <img
+          src={imageUrl}
+          alt={name || ''}
+          width={40}
+          height={40}
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+      <div className="order-product-placeholder" style={{ display: showImg ? 'none' : 'block' }} />
+    </div>
+  );
+}
+
+export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = false }) {
+  const [displayOrder, setDisplayOrder] = useState(orderProp);
+  const [printLoading, setPrintLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '');
-  const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl || '');
+  const order = displayOrder;
+  const [trackingNumber, setTrackingNumber] = useState(orderProp.trackingNumber || '');
+  const [trackingUrl, setTrackingUrl] = useState(orderProp.trackingUrl || '');
   const [partners, setPartners] = useState([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [assignMessage, setAssignMessage] = useState('');
@@ -20,6 +44,19 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
+
+  useEffect(() => {
+    setDisplayOrder(orderProp);
+  }, [orderProp._id]);
+
+  useEffect(() => {
+    if (!orderProp._id) return;
+    let cancelled = false;
+    axios.get(`${API_BASE}/orders/${orderProp._id}`).then((res) => {
+      if (!cancelled) setDisplayOrder(res.data);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [orderProp._id]);
 
   useEffect(() => {
     setTrackingNumber(order.trackingNumber || '');
@@ -64,7 +101,27 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
   };
 
   const handlePrint = async () => {
-    await generateOrderPdf(order);
+    setPrintLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/orders/${order._id}/print-production-sheet`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url);
+      if (!win) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `packing_slip_${order.shopifyOrderName || order.shopifyOrderNumber || order._id}.pdf`;
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      console.error('Print failed', err);
+      setStatusError(err.response?.data?.message || 'Kunne ikke hente produktionsseddel');
+    } finally {
+      setPrintLoading(false);
+    }
   };
 
   const handleAssign = async () => {
@@ -152,25 +209,7 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
           <ul className="order-products-list">
             {order.products?.map((p, idx) => (
               <li key={idx} className="order-product-item">
-                <div className="order-product-thumb">
-                  {p.imageUrl ? (
-                    <img
-                      src={p.imageUrl}
-                      alt=""
-                      width={40}
-                      height={40}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        const ph = e.target.nextElementSibling;
-                        if (ph) ph.style.display = 'block';
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="order-product-placeholder"
-                    style={{ display: p.imageUrl ? 'none' : 'block' }}
-                  />
-                </div>
+                <ProductThumb imageUrl={p.imageUrl} name={p.name} />
                 <span className="order-product-info">
                   {p.quantity} x {p.name} {p.notes && <em>({p.notes})</em>}
                 </span>
@@ -220,8 +259,8 @@ export default function OrderDetail({ order, onUpdated, isAdmin = false }) {
           </>
         )}
         {statusError && <div className="error">{statusError}</div>}
-        <button className="primary" onClick={handlePrint} disabled={isCancelled}>
-          Print ordreseddel
+        <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading}>
+          {printLoading ? 'Henter seddel…' : 'Print ordreseddel'}
         </button>
       </div>
       {showCancelConfirm && (
