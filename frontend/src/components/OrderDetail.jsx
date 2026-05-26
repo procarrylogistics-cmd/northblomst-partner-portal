@@ -52,8 +52,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   useEffect(() => {
     if (!orderProp._id) return;
     let cancelled = false;
-    axios.get(`${API_BASE}/orders/${orderProp._id}`).then((res) => {
-      if (!cancelled) setDisplayOrder(res.data);
+    const load = () => axios.get(`${API_BASE}/orders/${orderProp._id}`);
+    load().then((res) => {
+      if (cancelled) return;
+      setDisplayOrder(res.data);
+      const needsImages = res.data.products?.some((p) => !p.imageUrl) && res.data.shopifyOrderId;
+      if (needsImages) {
+        setTimeout(() => {
+          load().then((r2) => { if (!cancelled) setDisplayOrder(r2.data); }).catch(() => {});
+        }, 1500);
+      }
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [orderProp._id]);

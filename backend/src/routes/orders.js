@@ -10,7 +10,8 @@ const { getOrders: getShopifyOrders, addFulfillment } = require('../utils/shopif
 const { matchZoneForPostalCode } = require('../utils/postalZone');
 const {
   enrichOrderImages,
-  orderNeedsImageEnrichment
+  orderNeedsImageEnrichment,
+  imageUrlFromShopifyLineItem
 } = require('../services/orderImageEnricher');
 const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
 
@@ -25,7 +26,8 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     quantity: li.quantity || 1,
     notes: (li.properties && li.properties.note) ? li.properties.note : '',
     productId: li.product_id != null ? String(li.product_id) : undefined,
-    variantId: li.variant_id != null ? String(li.variant_id) : undefined
+    variantId: li.variant_id != null ? String(li.variant_id) : undefined,
+    imageUrl: imageUrlFromShopifyLineItem(li) || undefined
   }));
   const customer = {
     name: `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim() ||
@@ -141,9 +143,16 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
   const store = await require('../models/ShopifyStore').findOne().sort({ installedAt: -1 });
   const shop = store?.shop || process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOPIFY_SHOP || '';
   let synced = 0;
+  let imagesRefreshed = 0;
   for (const so of shopifyOrders) {
     const existing = await Order.findOne({ shopifyOrderId: String(so.id) });
-    if (existing) continue;
+    if (existing) {
+      if (orderNeedsImageEnrichment(existing)) {
+        await enrichOrderImages(existing);
+        imagesRefreshed += 1;
+      }
+      continue;
+    }
     const doc = mapShopifyOrderToDoc(so);
     if (!doc.shop && shop) doc.shop = shop;
     const order = await Order.create(doc);
@@ -161,7 +170,7 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
     }).catch((err) => console.error('Sync image enrichment failed', err.message));
     synced++;
   }
-  res.json({ success: true, synced });
+  res.json({ success: true, synced, imagesRefreshed });
 });
 
 // Admin or Partner: create manual order (phone orders) - must be before /:id
@@ -275,6 +284,8 @@ router.get('/:id', async (req, res) => {
 
   if (order.shopifyOrderId && orderNeedsImageEnrichment(order)) {
     await enrichOrderImages(order);
+    const fresh = await Order.findById(order._id);
+    if (fresh) return res.json(fresh);
   }
 
   res.json(order);

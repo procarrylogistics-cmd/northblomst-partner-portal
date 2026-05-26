@@ -9,7 +9,7 @@ const Order = require('../models/Order');
 const ShopifyStore = require('../models/ShopifyStore');
 const { summarizeOrderForDebug, extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
 const { extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
-const { enrichOrderImages } = require('../services/orderImageEnricher');
+const { enrichOrderImages, imageUrlFromShopifyLineItem } = require('../services/orderImageEnricher');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -34,7 +34,8 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     name: li.title || li.name,
     quantity: li.quantity || 1,
     productId: li.product_id != null ? String(li.product_id) : undefined,
-    variantId: li.variant_id != null ? String(li.variant_id) : undefined
+    variantId: li.variant_id != null ? String(li.variant_id) : undefined,
+    imageUrl: imageUrlFromShopifyLineItem(li) || undefined
   }));
   return {
     shop: effectiveShop,
