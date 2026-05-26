@@ -372,6 +372,29 @@ button {
   background: #d1d5db;
 }
 
+.order-product-link {
+  color: #1a5f4a;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.order-product-link:hover {
+  color: #0d3d30;
+}
+
+.order-product-link-icon {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.order-product-notes {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.9em;
+  color: #555;
+}
+
 .order-product-info {
   flex: 1;
 }

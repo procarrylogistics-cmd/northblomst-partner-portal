@@ -1,30 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditOrderModal from './EditOrderModal';
+import { resolveProductLink } from '../utils/productLink';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
-
-function ProductThumb({ imageUrl, name }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-  }, [imageUrl]);
-  const showImg = imageUrl && !failed;
-  return (
-    <div className="order-product-thumb">
-      {showImg ? (
-        <img
-          src={imageUrl}
-          alt={name || ''}
-          width={40}
-          height={40}
-          onError={() => setFailed(true)}
-        />
-      ) : null}
-      <div className="order-product-placeholder" style={{ display: showImg ? 'none' : 'block' }} />
-    </div>
-  );
-}
 
 export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = false }) {
   const [displayOrder, setDisplayOrder] = useState(orderProp);
@@ -52,16 +31,8 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   useEffect(() => {
     if (!orderProp._id) return;
     let cancelled = false;
-    const load = () => axios.get(`${API_BASE}/orders/${orderProp._id}`);
-    load().then((res) => {
-      if (cancelled) return;
-      setDisplayOrder(res.data);
-      const needsImages = res.data.products?.some((p) => !p.imageUrl) && res.data.shopifyOrderId;
-      if (needsImages) {
-        setTimeout(() => {
-          load().then((r2) => { if (!cancelled) setDisplayOrder(r2.data); }).catch(() => {});
-        }, 1500);
-      }
+    axios.get(`${API_BASE}/orders/${orderProp._id}`).then((res) => {
+      if (!cancelled) setDisplayOrder(res.data);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [orderProp._id]);
@@ -215,14 +186,24 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           <p>{order.productSummary}</p>
         ) : (
           <ul className="order-products-list">
-            {order.products?.map((p, idx) => (
-              <li key={idx} className="order-product-item">
-                <ProductThumb imageUrl={p.imageUrl} name={p.name} />
-                <span className="order-product-info">
-                  {p.quantity} x {p.name} {p.notes && <em>({p.notes})</em>}
-                </span>
-              </li>
-            ))}
+            {order.products?.map((p, idx) => {
+              const href = resolveProductLink(p);
+              return (
+                <li key={idx} className="order-product-item">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="order-product-link"
+                    title="Se produkt på northblomst.dk"
+                  >
+                    {p.quantity} × {p.name}
+                    <span className="order-product-link-icon" aria-hidden="true"> ↗</span>
+                  </a>
+                  {p.notes && <em className="order-product-notes"> ({p.notes})</em>}
+                </li>
+              );
+            })}
             {(!order.products || order.products.length === 0) && <li>Ingen produkter</li>}
           </ul>
         )}

@@ -14,6 +14,7 @@ const {
   imageUrlFromShopifyLineItem
 } = require('../services/orderImageEnricher');
 const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
+const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
 
 const router = express.Router();
 
@@ -151,6 +152,9 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
         await enrichOrderImages(existing);
         imagesRefreshed += 1;
       }
+      if (orderNeedsProductLinks(existing)) {
+        await enrichProductLinks(existing);
+      }
       continue;
     }
     const doc = mapShopifyOrderToDoc(so);
@@ -282,8 +286,16 @@ router.get('/:id', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
   if (error) return res.status(error.status).json({ message: error.message });
 
+  let needsReload = false;
   if (order.shopifyOrderId && orderNeedsImageEnrichment(order)) {
     await enrichOrderImages(order);
+    needsReload = true;
+  }
+  if (orderNeedsProductLinks(order)) {
+    await enrichProductLinks(order);
+    needsReload = true;
+  }
+  if (needsReload) {
     const fresh = await Order.findById(order._id);
     if (fresh) return res.json(fresh);
   }
