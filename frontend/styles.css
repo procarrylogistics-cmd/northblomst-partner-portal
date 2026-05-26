@@ -372,6 +372,44 @@ button {
   background: #d1d5db;
 }
 
+.delivery-date-edit {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.delivery-date-input {
+  padding: 4px 6px;
+  border: 1px solid #d2c7af;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.delivery-date-save {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #1a5f4a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.delivery-date-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.delivery-date-msg {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  color: #1a5f4a;
+  font-weight: 600;
+}
+
 .order-product-link {
   color: #1a5f4a;
   font-weight: 500;

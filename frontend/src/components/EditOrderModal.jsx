@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { toDateInputValue } from '../utils/dateInput';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
 const editableFields = ['recipientName', 'address', 'postcode', 'city', 'phone', 'deliveryDate', 'cardFlag', 'cardText', 'notes', 'productSummary'];
 
 export default function EditOrderModal({ order, onClose, onSaved }) {
-  const deliveryDateVal = order.deliveryDate
-    ? new Date(order.deliveryDate).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+  const deliveryDateVal = toDateInputValue(order.deliveryDate) || toDateInputValue(new Date());
   const [form, setForm] = useState({
     recipientName: order.recipientName || order.customer?.name || '',
     address: order.address || order.shippingAddress?.address1 || '',

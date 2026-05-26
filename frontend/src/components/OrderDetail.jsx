@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditOrderModal from './EditOrderModal';
 import { resolveProductLink } from '../utils/productLink';
+import { toDateInputValue } from '../utils/dateInput';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -20,6 +21,9 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [assignMessage, setAssignMessage] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [deliveryDateInput, setDeliveryDateInput] = useState(() => toDateInputValue(orderProp.deliveryDate));
+  const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
+  const [deliveryDateMessage, setDeliveryDateMessage] = useState('');
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
@@ -41,7 +45,24 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setTrackingNumber(order.trackingNumber || '');
     setTrackingUrl(order.trackingUrl || '');
     setSelectedPartnerId(currentPartnerIdStr);
-  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr]);
+    setDeliveryDateInput(toDateInputValue(order.deliveryDate));
+    setDeliveryDateMessage('');
+  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate]);
+
+  const saveDeliveryDate = async () => {
+    if (!deliveryDateInput) return;
+    setDeliveryDateSaving(true);
+    setDeliveryDateMessage('');
+    try {
+      await axios.patch(`${API_BASE}/orders/${order._id}`, { deliveryDate: deliveryDateInput });
+      setDeliveryDateMessage('Leveringsdato gemt');
+      await onUpdated();
+    } catch (err) {
+      setDeliveryDateMessage(err.response?.data?.message || 'Kunne ikke gemme dato');
+    } finally {
+      setDeliveryDateSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -156,19 +177,41 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         )}
         {isCancelled && <span className="badge badge-cancelled">Annulleret</span>}
       </div>
-      {(receivedStr || deliveryStr || (order.totalPaidAmount != null && order.totalPaidAmount > 0)) && (
+      {(receivedStr || deliveryStr || isAdmin || (order.totalPaidAmount != null && order.totalPaidAmount > 0)) && (
         <p className="order-timestamps">
           {receivedStr && <span><strong>Modtaget:</strong> {receivedStr}</span>}
-          {receivedStr && deliveryStr && ' · '}
-          {deliveryStr && <span><strong>Levering:</strong> {deliveryStr}</span>}
+          {receivedStr && (deliveryStr || isAdmin) && ' · '}
+          {isAdmin && !isCancelled ? (
+            <span className="delivery-date-edit">
+              <strong>Levering:</strong>{' '}
+              <input
+                type="date"
+                className="delivery-date-input"
+                value={deliveryDateInput}
+                onChange={(e) => setDeliveryDateInput(e.target.value)}
+                disabled={deliveryDateSaving}
+              />
+              <button
+                type="button"
+                className="delivery-date-save"
+                onClick={saveDeliveryDate}
+                disabled={deliveryDateSaving || !deliveryDateInput}
+              >
+                {deliveryDateSaving ? 'Gemmer…' : 'Gem dato'}
+              </button>
+            </span>
+          ) : (
+            deliveryStr && <span><strong>Levering:</strong> {deliveryStr}</span>
+          )}
           {(order.totalPaidAmount != null && order.totalPaidAmount > 0) && (
             <>
-              {(receivedStr || deliveryStr) && ' · '}
+              {(receivedStr || deliveryStr || isAdmin) && ' · '}
               <span><strong>Kunde betalte:</strong> {order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} {order.currencyCode || 'DKK'}</span>
             </>
           )}
         </p>
       )}
+      {deliveryDateMessage && <p className="delivery-date-msg">{deliveryDateMessage}</p>}
       <p className="order-customer">
         <strong>Kunde:</strong> {order.recipientName || order.customer?.name} ({order.phone || order.customer?.phone})
       </p>
