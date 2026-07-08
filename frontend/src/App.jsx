@@ -6,6 +6,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import PartnerDashboard from './pages/PartnerDashboard';
 import LoginPage from './pages/LoginPage';
 import ReportsPage from './pages/ReportsPage';
+import PartnerReportsPage from './pages/PartnerReportsPage';
 
 function ProtectedRoute({ children, role }) {
   const { user, isAuthReady } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
           {isAuthReady && user?.role === 'admin' && <Link to="/admin">Admin</Link>}
           {isAuthReady && user?.role === 'admin' && <Link to="/reports">Rapporter</Link>}
           {isAuthReady && user?.role === 'partner' && <Link to="/partner">Mine ordrer</Link>}
+          {isAuthReady && user?.role === 'partner' && <Link to="/partner/reports">Raport</Link>}
           {isAuthReady && !user && <Link to="/login">Login</Link>}
           {isAuthReady && user && (
             <button onClick={logout} className="btn-link">
@@ -68,6 +70,14 @@ export default function App() {
             element={
               <ProtectedRoute role="partner">
                 <PartnerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/partner/reports"
+            element={
+              <ProtectedRoute role="partner">
+                <PartnerReportsPage />
               </ProtectedRoute>
             }
           />

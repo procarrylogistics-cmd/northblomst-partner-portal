@@ -877,6 +877,17 @@ button {
   font-weight: 600;
 }
 
+@media print {
+  .partner-reports-page .reports-filters,
+  .app-header,
+  .btn-link {
+    display: none !important;
+  }
+  .partner-reports-page {
+    padding: 0;
+  }
+}
+
 /* Create Order Modal */
 .modal-overlay {
   position: fixed;
