@@ -33,7 +33,7 @@ export default function App() {
           {isAuthReady && user?.role === 'admin' && <Link to="/admin">Admin</Link>}
           {isAuthReady && user?.role === 'admin' && <Link to="/reports">Rapporter</Link>}
           {isAuthReady && user?.role === 'partner' && <Link to="/partner">Mine ordrer</Link>}
-          {isAuthReady && user?.role === 'partner' && <Link to="/partner/reports">Raport</Link>}
+          {isAuthReady && user?.role === 'partner' && <Link to="/partner/reports">Reports</Link>}
           {isAuthReady && !user && <Link to="/login">Login</Link>}
           {isAuthReady && user && (
             <button onClick={logout} className="btn-link">

@@ -21,6 +21,19 @@ function money(value) {
   return `${Number(value || 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DKK`;
 }
 
+function weekdayLabel(weekday) {
+  const map = {
+    1: 'Monday',
+    2: 'Tuesday',
+    3: 'Wednesday',
+    4: 'Thursday',
+    5: 'Friday',
+    6: 'Saturday',
+    0: 'Sunday'
+  };
+  return map[weekday] || '-';
+}
+
 export default function PartnerReportsPage() {
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [feePercent, setFeePercent] = useState('2.39');
@@ -41,7 +54,7 @@ export default function PartnerReportsPage() {
       setReport(res.data || null);
     } catch (err) {
       setReport(null);
-      setError(err.response?.data?.message || 'Kunne ikke hente partner-rapport');
+      setError(err.response?.data?.message || 'Could not load partner report');
     } finally {
       setLoading(false);
     }
@@ -63,18 +76,18 @@ export default function PartnerReportsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.response?.data?.message || 'Kunne ikke eksportere CSV');
+      setError(err.response?.data?.message || 'Could not export CSV');
     }
   };
 
   return (
     <div className="reports-page partner-reports-page">
-      <h2>Partner rapport (uge)</h2>
+      <h2>Partner Weekly Report</h2>
       {error && <div className="error" style={{ marginBottom: '0.5rem' }}>{error}</div>}
 
       <div className="reports-filters">
         <label>
-          Uge start (mandag)
+          Week start (Monday)
           <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </label>
         <label>
@@ -82,14 +95,14 @@ export default function PartnerReportsPage() {
           <input type="number" step="0.01" value={feePercent} onChange={(e) => setFeePercent(e.target.value)} />
         </label>
         <label>
-          Fee fast (DKK)
+          Fixed fee (DKK)
           <input type="number" step="0.01" value={feeFixed} onChange={(e) => setFeeFixed(e.target.value)} />
         </label>
         <label>
           Platform %
           <input type="number" step="0.01" value={platformPercent} onChange={(e) => setPlatformPercent(e.target.value)} />
         </label>
-        <button type="button" onClick={loadReport} disabled={loading}>{loading ? 'Indlæser…' : 'Opdater'}</button>
+        <button type="button" onClick={loadReport} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button type="button" className="btn-export" onClick={exportExcel}>Excel (CSV)</button>
         <button type="button" onClick={() => window.print()}>Print</button>
       </div>
@@ -97,29 +110,29 @@ export default function PartnerReportsPage() {
       {report && (
         <>
           <div className="reports-summary">
-            <p><strong>Periode:</strong> {report.week?.from} → {report.week?.to}</p>
-            <p><strong>Ordrer:</strong> {report.summary?.totals?.deliveries || 0}</p>
-            <p><strong>Brutto:</strong> {money(report.summary?.totals?.gross)}</p>
+            <p><strong>Period:</strong> {report.week?.from} → {report.week?.to}</p>
+            <p><strong>Orders:</strong> {report.summary?.totals?.deliveries || 0}</p>
+            <p><strong>Gross:</strong> {money(report.summary?.totals?.gross)}</p>
             <p><strong>Fee:</strong> {money(report.summary?.totals?.feeAmount)}</p>
-            <p><strong>Netto efter fee:</strong> {money(report.summary?.totals?.netAfterFee)}</p>
-            <p><strong>Transport:</strong> {money(report.summary?.totals?.shipping)}</p>
-            <p><strong>Blomster:</strong> {money(report.summary?.totals?.flowerValue)}</p>
+            <p><strong>Net after fee:</strong> {money(report.summary?.totals?.netAfterFee)}</p>
+            <p><strong>Shipping:</strong> {money(report.summary?.totals?.shipping)}</p>
+            <p><strong>Flowers:</strong> {money(report.summary?.totals?.flowerValue)}</p>
             <p><strong>Platform ({platformPercent}%):</strong> {money(report.summary?.totals?.platformCommission)}</p>
             <p><strong>Partner payout:</strong> {money(report.summary?.totals?.partnerPayout)}</p>
-            <small>Estimare: fee procent + fee fix (poți ajusta sus).</small>
+            <small>Assumption: percentage fee + fixed fee (editable above).</small>
           </div>
 
           <div className="reports-table-wrap">
             <table className="reports-table">
               <thead>
                 <tr>
-                  <th>Zi</th>
-                  <th>Livrări</th>
-                  <th>Brutto</th>
+                  <th>Day</th>
+                  <th>Deliveries</th>
+                  <th>Gross</th>
                   <th>Fee</th>
-                  <th>Netto</th>
-                  <th>Transport</th>
-                  <th>Flori</th>
+                  <th>Net</th>
+                  <th>Shipping</th>
+                  <th>Flowers</th>
                   <th>Platform</th>
                   <th>Partner</th>
                 </tr>
@@ -127,7 +140,7 @@ export default function PartnerReportsPage() {
               <tbody>
                 {(report.summary?.days || []).map((d) => (
                   <tr key={d.weekday}>
-                    <td>{d.label}</td>
+                    <td>{weekdayLabel(d.weekday)}</td>
                     <td>{d.deliveries}</td>
                     <td>{money(d.gross)}</td>
                     <td>{money(d.feeAmount)}</td>
@@ -146,15 +159,15 @@ export default function PartnerReportsPage() {
             <table className="reports-table">
               <thead>
                 <tr>
-                  <th>Ordre</th>
-                  <th>Dato</th>
+                  <th>Order</th>
+                  <th>Date</th>
                   <th>Status</th>
                   <th>Recipient</th>
-                  <th>By</th>
-                  <th>Brutto</th>
+                  <th>City</th>
+                  <th>Gross</th>
                   <th>Fee</th>
-                  <th>Transport</th>
-                  <th>Flori</th>
+                  <th>Shipping</th>
+                  <th>Flowers</th>
                   <th>Platform</th>
                   <th>Partner</th>
                 </tr>
@@ -182,10 +195,10 @@ export default function PartnerReportsPage() {
       )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#6b7280' }}>
-        Exemplu logică: Brutto - fee = Netto. Din Netto, transportul merge la partener, iar din flori platforma ia procentul setat.
+        Calculation logic: Gross - fee = Net. From Net, shipping goes to the partner, and the platform takes the configured percentage from flowers.
       </p>
       <p style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>
-        Săptămână curentă: {weekStart} → {weekEnd}
+        Current week: {weekStart} → {weekEnd}
       </p>
     </div>
   );
