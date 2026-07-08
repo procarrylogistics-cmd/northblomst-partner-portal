@@ -3,6 +3,8 @@ import axios from 'axios';
 import EditOrderModal from './EditOrderModal';
 import { resolveProductLink } from '../utils/productLink';
 import { toDateInputValue } from '../utils/dateInput';
+import { extractCardMessage } from '../utils/cardMessage';
+import { printCardText } from '../utils/printCardText';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -98,6 +100,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     } finally {
       setUpdating(false);
     }
+  };
+
+  const cardMessage = extractCardMessage(order);
+
+  const handlePrintCardText = () => {
+    if (!cardMessage) {
+      alert('Ingen korttekst fundet på denne ordre.');
+      return;
+    }
+    printCardText(order, cardMessage);
   };
 
   const handlePrint = async () => {
@@ -271,7 +283,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
 
       <p>
         <strong>Korttekst / bemærkninger:</strong><br />
-        {order.cardText || order.customer?.message || order.notes || 'Ingen besked'}
+        {cardMessage || order.notes || 'Ingen besked'}
       </p>
 
       <div className="order-actions">
@@ -292,6 +304,15 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         {statusError && <div className="error">{statusError}</div>}
         <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading}>
           {printLoading ? 'Henter pakkeseddel…' : 'Print pakkeseddel'}
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={handlePrintCardText}
+          disabled={isCancelled || !cardMessage}
+          title={cardMessage ? 'Print kun korttekst til udskæring' : 'Ingen korttekst på ordren'}
+        >
+          Print korttekst
         </button>
         {isAdmin && order.shopifyOrderId && (
           <button
