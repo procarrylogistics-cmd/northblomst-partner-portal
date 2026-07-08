@@ -8,6 +8,7 @@ const { buildDeliveryDateQuery } = require('../utils/deliveryFilter');
 const { extractDeliveryFromOrderDoc, extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 const { getOrders: getShopifyOrders, addFulfillment } = require('../utils/shopifyProxy');
 const { matchZoneForPostalCode } = require('../utils/postalZone');
+const { autoAssignPartnerForOrder } = require('../services/partnerAutoAssign');
 const {
   enrichOrderImages,
   orderNeedsImageEnrichment,
@@ -70,28 +71,6 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     totalPaidAmount: totalPaid,
     currencyCode
   };
-}
-
-/** Auto-asignează partner după zonă/postal. */
-async function assignPartnerIfMatch(order) {
-  const zone = order.zone;
-  if (!zone) return null;
-  const partners = await User.find({ role: 'partner' });
-  const postal = String(order.shippingAddress?.postalCode || '');
-  const numericPostal = parseInt(postal, 10);
-  for (const p of partners) {
-    if (!Array.isArray(p.zoneRanges)) continue;
-    for (const zr of p.zoneRanges) {
-      if (zr.includes('-')) {
-        const [s, e] = zr.split('-').map(Number);
-        if (!Number.isNaN(s) && !Number.isNaN(e) && numericPostal >= s && numericPostal <= e) return p;
-      } else {
-        const ex = parseInt(zr, 10);
-        if (!Number.isNaN(ex) && ex === numericPostal) return p;
-      }
-    }
-  }
-  return null;
 }
 
 /** GET /api/orders/partner – partner sees only assigned orders (partner-only) */
@@ -162,11 +141,9 @@ router.get('/sync-from-shopify', requireRole('admin'), async (req, res) => {
     const doc = mapShopifyOrderToDoc(so);
     if (!doc.shop && shop) doc.shop = shop;
     const order = await Order.create(doc);
-    const partner = await assignPartnerIfMatch(order);
-    if (partner) {
-      order.partner = partner._id;
-      await order.save();
-      triggerZapierForOrder(order, partner).catch((err) => console.error('Zapier trigger failed', err));
+    const assignment = await autoAssignPartnerForOrder(order);
+    if (assignment.partner) {
+      triggerZapierForOrder(order, assignment.partner).catch((err) => console.error('Zapier trigger failed', err));
     }
     enrichOrderImages(order).then(() => {
       if (process.env.DEBUG_IMAGE_ENRICH === 'true' && order.products?.length) {

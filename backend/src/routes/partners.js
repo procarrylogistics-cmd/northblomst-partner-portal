@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const { requireRole } = require('../middleware/auth');
+const { rebalanceOpenOrdersByPostal } = require('../services/partnerAutoAssign');
 
 const router = express.Router();
 
@@ -34,13 +35,16 @@ router.post('/', requireRole('admin'), async (req, res) => {
     role: 'partner'
   });
 
+  const rebalance = await rebalanceOpenOrdersByPostal();
+
   res.status(201).json({
     id: partner._id,
     name: partner.name,
     email: partner.email,
     phone: partner.phone,
     address: partner.address,
-    zoneRanges: partner.zoneRanges
+    zoneRanges: partner.zoneRanges,
+    autoAssigned: rebalance
   });
 });
 
@@ -62,6 +66,7 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   }
 
   await partner.save();
+  const rebalance = await rebalanceOpenOrdersByPostal();
 
   res.json({
     id: partner._id,
@@ -69,7 +74,8 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
     email: partner.email,
     phone: partner.phone,
     address: partner.address,
-    zoneRanges: partner.zoneRanges
+    zoneRanges: partner.zoneRanges,
+    autoAssigned: rebalance
   });
 });
 

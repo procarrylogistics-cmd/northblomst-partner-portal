@@ -10,6 +10,8 @@ const ShopifyStore = require('../models/ShopifyStore');
 const { summarizeOrderForDebug, extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
 const { extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
 const { enrichOrderImages, imageUrlFromShopifyLineItem } = require('../services/orderImageEnricher');
+const { matchZoneForPostalCode } = require('../utils/postalZone');
+const { autoAssignPartnerForOrder } = require('../services/partnerAutoAssign');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -37,6 +39,7 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     variantId: li.variant_id != null ? String(li.variant_id) : undefined,
     imageUrl: imageUrlFromShopifyLineItem(li) || undefined
   }));
+  const zone = matchZoneForPostalCode(ship.zip);
   return {
     shop: effectiveShop,
     shopifyOrderId: payload.id != null ? String(payload.id) : null,
@@ -62,6 +65,7 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     address: ship.address1,
     postcode: ship.zip,
     city: ship.city,
+    zone,
     notes: payload.note,
     tags: payload.tags,
     products,
@@ -144,6 +148,8 @@ router.post('/orders_create', async (req, res) => {
         { $set: doc },
         { upsert: true, new: true }
       );
+
+      await autoAssignPartnerForOrder(saved);
 
       setImmediate(() => {
         enrichOrderImages(saved).then(() => {
