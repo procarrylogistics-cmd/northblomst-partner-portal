@@ -13,6 +13,10 @@ const CARD_LABEL_PATTERNS = [
   'overskrift'
 ];
 
+const SENDER_LABEL_PATTERNS = ['sender name', 'sender', 'afsender', 'fra', 'sendt af'];
+
+export const CARD_MESSAGE_CHAR_LIMIT = 300;
+
 function normalizeKey(value) {
   return String(value || '')
     .toLowerCase()
@@ -41,4 +45,27 @@ export function extractCardMessage(order) {
   if (order.customer?.message?.trim()) return order.customer.message.trim();
 
   return '';
+}
+
+/** Name of the customer who placed the order (sender), not the recipient. */
+export function extractSenderName(order) {
+  if (!order) return '';
+
+  for (const addon of order.addOns || []) {
+    if (!addon?.value?.trim()) continue;
+    const norm = normalizeKey(addon.label);
+    if (SENDER_LABEL_PATTERNS.some((pattern) => norm.includes(pattern) || pattern.includes(norm))) {
+      return addon.value.trim();
+    }
+  }
+
+  if (order.customer?.name?.trim()) return order.customer.name.trim();
+
+  return '';
+}
+
+export function truncateCardMessage(message, limit = CARD_MESSAGE_CHAR_LIMIT) {
+  const text = String(message || '').trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit).trimEnd()}…`;
 }
