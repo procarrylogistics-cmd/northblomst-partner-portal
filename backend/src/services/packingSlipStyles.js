@@ -98,6 +98,56 @@ module.exports.PACKING_SLIP_CSS = `
   .terminal-text { white-space: pre-line; font-size: 12.5px; line-height: 1.38; font-weight: 700; color: #111; }
   .terminal-text-large { white-space: pre-line; font-size: 13.5px; line-height: 1.4; font-weight: 800; color: #111; }
   .terminal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-card-cut {
+    margin: 10px 0 6px;
+    border-top: 2px dashed #111;
+    text-align: center;
+    height: 9px;
+  }
+  .mini-card-cut span {
+    position: relative;
+    top: -8px;
+    background: #fff;
+    padding: 0 8px;
+    font-size: 9px;
+    font-weight: 900;
+    color: #333;
+    letter-spacing: 0.5px;
+  }
+  .mini-card {
+    width: 320px;
+    max-width: 100%;
+    border: 2px dashed #111;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fffdf8;
+    page-break-inside: avoid;
+  }
+  .mini-card-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #6a5a35;
+    font-weight: 900;
+    margin-bottom: 6px;
+  }
+  .mini-card-message {
+    min-height: 54px;
+    border: 1px solid #e3d9c5;
+    border-radius: 6px;
+    background: #fff;
+    padding: 8px;
+    font-size: 14px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    font-family: "Segoe Script", "Brush Script MT", cursive;
+  }
+  .mini-card-meta {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #555;
+    font-weight: 700;
+  }
   .footer {
     margin-top: 6px; border-top: 1px solid #e3d9c5; padding-top: 4px;
     display: flex; justify-content: space-between; color: #777; font-size: 9.2px;

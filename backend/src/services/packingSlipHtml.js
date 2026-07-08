@@ -283,6 +283,7 @@ function renderPage2(ctx) {
     .join('\n');
 
   const deliveryNote = mongo.addOnsSummary || mongo.cardText || '';
+  const miniCardMessage = String(mongo.cardText || note || '').trim().slice(0, 260);
 
   return `<div class="page">
   <div class="top-border"></div>
@@ -377,6 +378,16 @@ function renderPage2(ctx) {
       </div>
     </div>
   </div>
+  ${
+    miniCardMessage
+      ? `<div class="mini-card-cut"><span>CUT HERE · MINI CARD</span></div>
+  <div class="mini-card">
+    <div class="mini-card-title">Greeting card</div>
+    <div class="mini-card-message">${esc(miniCardMessage)}</div>
+    <div class="mini-card-meta">Order: ${esc(orderName)} · ${esc(ship.name)}</div>
+  </div>`
+      : ''
+  }
   <div class="footer">
     <div>Northblomst · northblomst.dk · Terminal instruction page</div>
     <div>${esc(orderName)}</div>
