@@ -177,10 +177,10 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         )}
         {isCancelled && <span className="badge badge-cancelled">Annulleret</span>}
       </div>
-      {(receivedStr || deliveryStr || isAdmin || (order.totalPaidAmount != null && order.totalPaidAmount > 0)) && (
+      {(deliveryStr || isAdmin || (order.totalPaidAmount != null && order.totalPaidAmount > 0) || (isAdmin && receivedStr)) && (
         <p className="order-timestamps">
-          {receivedStr && <span><strong>Modtaget:</strong> {receivedStr}</span>}
-          {receivedStr && (deliveryStr || isAdmin) && ' · '}
+          {isAdmin && receivedStr && <span><strong>Modtaget:</strong> {receivedStr}</span>}
+          {isAdmin && receivedStr && (deliveryStr || isAdmin) && ' · '}
           {isAdmin && !isCancelled ? (
             <span className="delivery-date-edit">
               <strong>Levering:</strong>{' '}
@@ -205,7 +205,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           )}
           {(order.totalPaidAmount != null && order.totalPaidAmount > 0) && (
             <>
-              {(receivedStr || deliveryStr || isAdmin) && ' · '}
+              {(deliveryStr || isAdmin || (isAdmin && receivedStr)) && ' · '}
               <span><strong>Kunde betalte:</strong> {order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} {order.currencyCode || 'DKK'}</span>
             </>
           )}
@@ -215,11 +215,13 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       <p className="order-customer">
         <strong>Kunde:</strong> {order.recipientName || order.customer?.name} ({order.phone || order.customer?.phone})
       </p>
-      <p>
-        <strong>Leveringsadresse:</strong><br />
-        {order.address || order.shippingAddress?.address1}<br />
-        {order.postcode || order.shippingAddress?.postalCode} {order.city || order.shippingAddress?.city}
-      </p>
+      {isAdmin && (
+        <p>
+          <strong>Leveringsadresse:</strong><br />
+          {order.address || order.shippingAddress?.address1}<br />
+          {order.postcode || order.shippingAddress?.postalCode} {order.city || order.shippingAddress?.city}
+        </p>
+      )}
       <div>
         <strong>Produkter:</strong>
         {order.productSummary ? (

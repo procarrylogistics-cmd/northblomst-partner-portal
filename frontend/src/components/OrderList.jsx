@@ -1,6 +1,13 @@
 import React from 'react';
 
-export default function OrderList({ orders, onSelect, selectedId, showPartner = false }) {
+export default function OrderList({
+  orders,
+  onSelect,
+  selectedId,
+  showPartner = false,
+  showReceived = true,
+  showAddress = true
+}) {
   return (
     <div className="order-list">
       {orders.map((o) => (
@@ -22,8 +29,8 @@ export default function OrderList({ orders, onSelect, selectedId, showPartner = 
           </div>
           <div className="order-meta">
             <span>{o.recipientName || o.customer?.name}</span>
-            <span>{o.postcode || o.shippingAddress?.postalCode} {o.city || o.shippingAddress?.city}</span>
-            {(o.receivedAt || o.createdAt) && (
+            {showAddress && <span>{o.postcode || o.shippingAddress?.postalCode} {o.city || o.shippingAddress?.city}</span>}
+            {showReceived && (o.receivedAt || o.createdAt) && (
               <span title="Modtaget">
                 Modtaget: {new Date(o.receivedAt || o.createdAt).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })} {new Date(o.receivedAt || o.createdAt).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}
               </span>

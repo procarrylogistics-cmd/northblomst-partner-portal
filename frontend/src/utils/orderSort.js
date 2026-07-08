@@ -19,6 +19,28 @@ export function sortOrdersNewestFirst(orders) {
   });
 }
 
+/**
+ * Sort orders by delivery date ascending (today, tomorrow, etc).
+ * Fallback: received/created ascending, then order number.
+ */
+export function sortOrdersByDeliveryDate(orders) {
+  return [...orders].sort((a, b) => {
+    const dA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER;
+    const dB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER;
+    if (dA !== dB) return dA - dB;
+
+    const rA = new Date(a.receivedAt || a.createdAt || 0).getTime();
+    const rB = new Date(b.receivedAt || b.createdAt || 0).getTime();
+    if (rA !== rB) return rA - rB;
+
+    const numA = parseOrderNumber(a);
+    const numB = parseOrderNumber(b);
+    if (numA != null && numB != null) return numA - numB;
+
+    return String(a._id || '').localeCompare(String(b._id || ''));
+  });
+}
+
 function parseOrderNumber(o) {
   const name = o.shopifyOrderName || o.orderNumber || o.shopifyOrderNumber || '';
   const m = String(name).match(/#?(\d+)/);
