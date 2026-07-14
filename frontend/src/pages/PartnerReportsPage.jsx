@@ -36,21 +36,18 @@ function weekdayLabel(weekday) {
 
 export default function PartnerReportsPage() {
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
-  const [feePercent, setFeePercent] = useState('2.39');
-  const [feeFixed, setFeeFixed] = useState('0');
-  const [platformPercent, setPlatformPercent] = useState('20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState(null);
 
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+  const platformPercent = report?.assumptions?.platformPercent ?? 20;
 
   const loadReport = async () => {
     setLoading(true);
     setError('');
     try {
-      const params = { weekStart, feePercent, feeFixed, platformPercent };
-      const res = await axios.get(`${API_BASE}/reports/partner-weekly`, { params });
+      const res = await axios.get(`${API_BASE}/reports/partner-weekly`, { params: { weekStart } });
       setReport(res.data || null);
     } catch (err) {
       setReport(null);
@@ -62,11 +59,11 @@ export default function PartnerReportsPage() {
 
   useEffect(() => {
     loadReport();
-  }, [weekStart, feePercent, feeFixed, platformPercent]);
+  }, [weekStart]);
 
   const exportExcel = async () => {
     try {
-      const params = new URLSearchParams({ weekStart, feePercent, feeFixed, platformPercent });
+      const params = new URLSearchParams({ weekStart });
       const res = await axios.get(`${API_BASE}/reports/partner-weekly.csv?${params}`, { responseType: 'text' });
       const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -90,18 +87,6 @@ export default function PartnerReportsPage() {
           Week start (Monday)
           <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </label>
-        <label>
-          Fee %
-          <input type="number" step="0.01" value={feePercent} onChange={(e) => setFeePercent(e.target.value)} />
-        </label>
-        <label>
-          Fixed fee (DKK)
-          <input type="number" step="0.01" value={feeFixed} onChange={(e) => setFeeFixed(e.target.value)} />
-        </label>
-        <label>
-          Platform %
-          <input type="number" step="0.01" value={platformPercent} onChange={(e) => setPlatformPercent(e.target.value)} />
-        </label>
         <button type="button" onClick={loadReport} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button type="button" className="btn-export" onClick={exportExcel}>Excel (CSV)</button>
         <button type="button" onClick={() => window.print()}>Print</button>
@@ -112,14 +97,10 @@ export default function PartnerReportsPage() {
           <div className="reports-summary">
             <p><strong>Period:</strong> {report.week?.from} → {report.week?.to}</p>
             <p><strong>Orders:</strong> {report.summary?.totals?.deliveries || 0}</p>
-            <p><strong>Gross:</strong> {money(report.summary?.totals?.gross)}</p>
-            <p><strong>Fee:</strong> {money(report.summary?.totals?.feeAmount)}</p>
-            <p><strong>Net after fee:</strong> {money(report.summary?.totals?.netAfterFee)}</p>
-            <p><strong>Shipping:</strong> {money(report.summary?.totals?.shipping)}</p>
-            <p><strong>Flowers:</strong> {money(report.summary?.totals?.flowerValue)}</p>
-            <p><strong>Platform ({platformPercent}%):</strong> {money(report.summary?.totals?.platformCommission)}</p>
-            <p><strong>Partner payout:</strong> {money(report.summary?.totals?.partnerPayout)}</p>
-            <small>Assumption: percentage fee + fixed fee (editable above).</small>
+            <p><strong>Flowers (after payment processing):</strong> {money(report.summary?.totals?.flowerValue)}</p>
+            <p><strong>Delivery (69 DKK per order):</strong> {money(report.summary?.totals?.shipping)}</p>
+            <p><strong>Platform fee ({platformPercent}% of flowers):</strong> {money(report.summary?.totals?.platformCommission)}</p>
+            <p><strong>Your payout:</strong> {money(report.summary?.totals?.partnerPayout)}</p>
           </div>
 
           <div className="reports-table-wrap">
@@ -128,13 +109,10 @@ export default function PartnerReportsPage() {
                 <tr>
                   <th>Day</th>
                   <th>Deliveries</th>
-                  <th>Gross</th>
-                  <th>Fee</th>
-                  <th>Net</th>
-                  <th>Shipping</th>
                   <th>Flowers</th>
-                  <th>Platform</th>
-                  <th>Partner</th>
+                  <th>Delivery</th>
+                  <th>Platform fee</th>
+                  <th>Your payout</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,11 +120,8 @@ export default function PartnerReportsPage() {
                   <tr key={d.weekday}>
                     <td>{weekdayLabel(d.weekday)}</td>
                     <td>{d.deliveries}</td>
-                    <td>{money(d.gross)}</td>
-                    <td>{money(d.feeAmount)}</td>
-                    <td>{money(d.netAfterFee)}</td>
-                    <td>{money(d.shipping)}</td>
                     <td>{money(d.flowerValue)}</td>
+                    <td>{money(d.shipping)}</td>
                     <td>{money(d.platformCommission)}</td>
                     <td>{money(d.partnerPayout)}</td>
                   </tr>
@@ -164,12 +139,10 @@ export default function PartnerReportsPage() {
                   <th>Status</th>
                   <th>Recipient</th>
                   <th>City</th>
-                  <th>Gross</th>
-                  <th>Fee</th>
-                  <th>Shipping</th>
                   <th>Flowers</th>
-                  <th>Platform</th>
-                  <th>Partner</th>
+                  <th>Delivery</th>
+                  <th>Platform fee</th>
+                  <th>Your payout</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,10 +153,8 @@ export default function PartnerReportsPage() {
                     <td>{o.status}</td>
                     <td>{o.recipientName || '-'}</td>
                     <td>{`${o.postcode || ''} ${o.city || ''}`.trim() || '-'}</td>
-                    <td>{money(o.gross)}</td>
-                    <td>{money(o.feeAmount)}</td>
-                    <td>{money(o.shipping)}</td>
                     <td>{money(o.flowerValue)}</td>
+                    <td>{money(o.shipping)}</td>
                     <td>{money(o.platformCommission)}</td>
                     <td>{money(o.partnerPayout)}</td>
                   </tr>
@@ -195,7 +166,7 @@ export default function PartnerReportsPage() {
       )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#6b7280' }}>
-        Calculation logic: Gross - fee = Net. From Net, shipping goes to the partner, and the platform takes the configured percentage from flowers.
+        Flowers = amount after payment processing, minus 69 DKK delivery. Platform fee is {platformPercent}% of flowers only. Delivery always goes to you.
       </p>
       <p style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>
         Current week: {weekStart} → {weekEnd}
@@ -203,4 +174,3 @@ export default function PartnerReportsPage() {
     </div>
   );
 }
-

@@ -5,6 +5,7 @@ import { resolveProductLink } from '../utils/productLink';
 import { toDateInputValue } from '../utils/dateInput';
 import { extractCardMessage } from '../utils/cardMessage';
 import { printCardText } from '../utils/printCardText';
+import { calculateOrderFinance, formatMoney, DEFAULT_PLATFORM_PERCENT } from '../utils/orderFinance';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -103,6 +104,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   };
 
   const cardMessage = extractCardMessage(order);
+  const finance = calculateOrderFinance(order);
 
   const handlePrintCardText = () => {
     if (!cardMessage) {
@@ -189,7 +191,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         )}
         {isCancelled && <span className="badge badge-cancelled">Annulleret</span>}
       </div>
-      {(deliveryStr || isAdmin || (order.totalPaidAmount != null && order.totalPaidAmount > 0) || (isAdmin && receivedStr)) && (
+      {(deliveryStr || isAdmin || (isAdmin && receivedStr)) && (
         <p className="order-timestamps">
           {isAdmin && receivedStr && <span><strong>Modtaget:</strong> {receivedStr}</span>}
           {isAdmin && receivedStr && (deliveryStr || isAdmin) && ' · '}
@@ -215,13 +217,30 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           ) : (
             deliveryStr && <span><strong>Levering:</strong> {deliveryStr}</span>
           )}
-          {(order.totalPaidAmount != null && order.totalPaidAmount > 0) && (
-            <>
-              {(deliveryStr || isAdmin || (isAdmin && receivedStr)) && ' · '}
-              <span><strong>Kunde betalte:</strong> {order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} {order.currencyCode || 'DKK'}</span>
-            </>
-          )}
         </p>
+      )}
+      {finance && (
+        <div className={`order-finance ${isAdmin ? 'order-finance-admin' : 'order-finance-partner'}`}>
+          <strong>{isAdmin ? 'Finance breakdown' : 'Your payout'}</strong>
+          {isAdmin ? (
+            <ul className="order-finance-list">
+              <li><span>Customer paid</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
+              <li><span>Payment processing fee</span><span>- {formatMoney(finance.feeAmount, finance.currency)}</span></li>
+              <li><span>Net after fee</span><span>{formatMoney(finance.netAfterFee, finance.currency)}</span></li>
+              <li><span>Flowers (after fee)</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
+              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
+              <li><span>Platform ({finance.platformPercent}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
+              <li className="order-finance-total"><span>Partner payout</span><span>{formatMoney(finance.partnerPayout, finance.currency)}</span></li>
+            </ul>
+          ) : (
+            <ul className="order-finance-list">
+              <li><span>Flowers</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
+              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
+              <li><span>Platform fee ({DEFAULT_PLATFORM_PERCENT}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
+              <li className="order-finance-total"><span>Your payout</span><span>{formatMoney(finance.partnerPayout, finance.currency)}</span></li>
+            </ul>
+          )}
+        </div>
       )}
       {deliveryDateMessage && <p className="delivery-date-msg">{deliveryDateMessage}</p>}
       <p className="order-customer">

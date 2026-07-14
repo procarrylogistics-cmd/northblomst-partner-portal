@@ -877,6 +877,54 @@ button {
   font-weight: 600;
 }
 
+.reports-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.reports-tabs button {
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+.reports-tabs button.active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.order-finance {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.6rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+.order-finance-partner {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.order-finance-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+.order-finance-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  font-size: 0.92rem;
+}
+.order-finance-list .order-finance-total {
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #d1d5db;
+  font-weight: 700;
+}
+
 @media print {
   .partner-reports-page .reports-filters,
   .app-header,
