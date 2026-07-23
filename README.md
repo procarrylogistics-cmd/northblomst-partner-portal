@@ -47,4 +47,4 @@ curl -X POST https://northblomst-partner-portal-1.onrender.com/api/admin/backfil
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Cookie: nb_token=<TOKEN>"
 ```
-sau din Admin portal (dacă există buton) sau Rulează scriptul local conectat la MongoDB producție (MONGODB_URI din Render).
+sau din Admin portal (dacă există buton) sau Rulează scriptul local conectat la MongoDB producție (MONGODB_URI din Render). 
