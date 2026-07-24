@@ -18,6 +18,7 @@ const { generateProductionSheetPdf } = require('../services/productionSheetPdf')
 const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
 const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
 const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
+const { syncCardTextOnOrder } = require('../utils/cardTextSync');
 
 const router = express.Router();
 
@@ -330,15 +331,25 @@ router.patch('/:id', async (req, res) => {
   const editable = ['recipientName', 'address', 'postcode', 'city', 'phone', 'deliveryDate', 'cardFlag', 'cardText', 'notes', 'productSummary'];
   const changes = [];
   editable.forEach((f) => {
-    if (data[f] !== undefined) {
-      const val = f === 'deliveryDate' && data[f] ? new Date(data[f]) : data[f];
-      if (f === 'cardFlag') order[f] = !!val;
-      else if (f === 'cardText' || f === 'notes' || f === 'productSummary') order[f] = String(val || '').trim();
-      else order[f] = val;
-      changes.push(f);
+    if (data[f] === undefined) return;
+    if (f === 'cardText') {
+      syncCardTextOnOrder(order, data.cardText);
+      changes.push('cardText', 'addOns', 'cardFlag');
+      return;
     }
+    const val = f === 'deliveryDate' && data[f] ? new Date(data[f]) : data[f];
+    if (f === 'cardFlag') order[f] = !!val;
+    else if (f === 'notes' || f === 'productSummary') order[f] = String(val || '').trim();
+    else order[f] = val;
+    changes.push(f);
   });
-  if (order.recipientName) order.customer = { ...order.customer, name: order.recipientName, phone: order.phone };
+  if (order.recipientName) {
+    order.customer = {
+      ...(order.customer?.toObject ? order.customer.toObject() : order.customer || {}),
+      name: order.recipientName,
+      phone: order.phone
+    };
+  }
   if (order.address) order.shippingAddress = { address1: order.address, postalCode: order.postcode, city: order.city };
 
   order.updatedAt = new Date();

@@ -998,6 +998,12 @@ button {
   margin-bottom: 0.5rem;
 }
 
+.form-hint {
+  margin: -0.25rem 0 0.75rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
 .create-order-form input,
 .create-order-form textarea,
 .create-order-form select {

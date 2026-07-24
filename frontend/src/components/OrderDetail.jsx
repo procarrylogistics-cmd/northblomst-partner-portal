@@ -301,9 +301,15 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       </div>
 
       <p>
-        <strong>Korttekst / bemærkninger:</strong><br />
-        {cardMessage || order.notes || 'Ingen besked'}
+        <strong>Korttekst:</strong><br />
+        {cardMessage || 'Ingen korttekst'}
       </p>
+      {order.notes ? (
+        <p>
+          <strong>Bemærkninger:</strong><br />
+          {order.notes}
+        </p>
+      ) : null}
 
       <div className="order-actions">
         {!isCancelled && (
@@ -373,6 +379,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           onClose={() => setShowEdit(false)}
           onSaved={(updated) => {
             setShowEdit(false);
+            if (updated) setDisplayOrder(updated);
             onUpdated();
           }}
         />

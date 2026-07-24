@@ -33,15 +33,21 @@ function isCardMessageAddon(addon) {
   return CARD_LABEL_PATTERNS.some((pattern) => norm.includes(pattern) || pattern.includes(norm));
 }
 
-/** Card message from tilvalg/add-ons first, then stored cardText fields. */
+/**
+ * Prefer manually saved cardText (including empty clear), then add-ons, then customer.message.
+ * Never fall back to order.notes — that is florist notes, not card text.
+ */
 export function extractCardMessage(order) {
   if (!order) return '';
+
+  if (typeof order.cardText === 'string') {
+    return order.cardText.trim();
+  }
 
   for (const addon of order.addOns || []) {
     if (isCardMessageAddon(addon)) return addon.value.trim();
   }
 
-  if (order.cardText?.trim()) return order.cardText.trim();
   if (order.customer?.message?.trim()) return order.customer.message.trim();
 
   return '';

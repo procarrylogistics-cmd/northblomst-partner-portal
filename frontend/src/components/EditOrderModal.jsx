@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { toDateInputValue } from '../utils/dateInput';
+import { extractCardMessage } from '../utils/cardMessage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -8,6 +9,7 @@ const editableFields = ['recipientName', 'address', 'postcode', 'city', 'phone',
 
 export default function EditOrderModal({ order, onClose, onSaved }) {
   const deliveryDateVal = toDateInputValue(order.deliveryDate) || toDateInputValue(new Date());
+  const initialCardText = extractCardMessage(order);
   const [form, setForm] = useState({
     recipientName: order.recipientName || order.customer?.name || '',
     address: order.address || order.shippingAddress?.address1 || '',
@@ -15,8 +17,8 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
     city: order.city || order.shippingAddress?.city || '',
     phone: order.phone || order.customer?.phone || '',
     deliveryDate: deliveryDateVal,
-    cardFlag: !!order.cardFlag,
-    cardText: order.cardText || '',
+    cardFlag: !!order.cardFlag || !!initialCardText,
+    cardText: initialCardText,
     notes: order.notes || '',
     productSummary: order.productSummary || ''
   });
@@ -31,7 +33,8 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
       const payload = {};
       editableFields.forEach((f) => {
         if (f === 'deliveryDate') payload[f] = form[f];
-        else if (f === 'cardFlag') payload[f] = form.cardFlag;
+        else if (f === 'cardFlag') payload[f] = !!form.cardText?.trim();
+        else if (f === 'cardText') payload[f] = form.cardText ?? '';
         else payload[f] = form[f]?.trim?.() ?? form[f];
       });
       const res = await axios.patch(`${API_BASE}/orders/${order._id}`, payload);
@@ -73,16 +76,40 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
             <input type="date" value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} required />
           </label>
           <label className="checkbox-label">
-            <input type="checkbox" checked={form.cardFlag} onChange={(e) => setForm({ ...form, cardFlag: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={form.cardFlag}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setForm({
+                  ...form,
+                  cardFlag: checked,
+                  cardText: checked ? form.cardText : ''
+                });
+              }}
+            />
             Kort medfølger
           </label>
-          {form.cardFlag && (
-            <label>Korttekst
-              <textarea value={form.cardText} onChange={(e) => setForm({ ...form, cardText: e.target.value })} rows={3} />
-            </label>
-          )}
-          <label>Bemærkninger
-            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <label>Korttekst
+            <textarea
+              value={form.cardText}
+              onChange={(e) => setForm({
+                ...form,
+                cardText: e.target.value,
+                cardFlag: !!e.target.value.trim()
+              })}
+              rows={5}
+              placeholder="Skriv korttekst her. Tom = ingen korttekst."
+            />
+          </label>
+          <p className="form-hint">Hvis du sletter korttekst her, fjernes den også fra tilvalg / print.</p>
+          <label>Bemærkninger (florist / intern)
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              rows={3}
+              placeholder="Ikke vist som korttekst"
+            />
           </label>
           <label>Produktoversigt
             <textarea value={form.productSummary} onChange={(e) => setForm({ ...form, productSummary: e.target.value })} rows={2} />
