@@ -61,7 +61,11 @@ app.use(express.json({ limit: '2mb' }));
 app.get('/', (req, res) => res.status(200).send('OK'));
 app.get('/healthz', (req, res) => res.status(200).send('OK'));
 app.get('/health', (req, res) => res.json({ ok: true }));
-app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' }));
+app.get('/api/health', (req, res) => res.json({
+  status: 'ok',
+  env: process.env.NODE_ENV || 'development',
+  ts: new Date().toISOString()
+}));
 
 // Shopify OAuth stored-token test (public, for verification)
 app.get('/api/shopify/test', async (req, res) => {
