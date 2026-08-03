@@ -1,5 +1,6 @@
 const FIXED_SHIPPING_DKK = 69;
-const DEFAULT_FEE_PERCENT = 2.39;
+const DEFAULT_FEE_PERCENT = 2.9;
+const DEFAULT_FEE_FIXED = 1.8;
 const DEFAULT_PLATFORM_PERCENT = 20;
 
 function toNumber(value, fallback = 0) {
@@ -13,7 +14,7 @@ function round2(n) {
 
 export function calculateOrderFinance(order, options = {}) {
   const feeRate = toNumber(options.feePercent, DEFAULT_FEE_PERCENT) / 100;
-  const feeFixed = toNumber(options.feeFixed, 0);
+  const feeFixed = toNumber(options.feeFixed, DEFAULT_FEE_FIXED);
   const platformCutRate = toNumber(options.platformPercent, DEFAULT_PLATFORM_PERCENT) / 100;
   const shipping = FIXED_SHIPPING_DKK;
 
@@ -45,4 +46,4 @@ export function formatMoney(value, currency = 'DKK') {
   return `${Number(value || 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-export { FIXED_SHIPPING_DKK, DEFAULT_PLATFORM_PERCENT };
+export { FIXED_SHIPPING_DKK, DEFAULT_PLATFORM_PERCENT, DEFAULT_FEE_PERCENT, DEFAULT_FEE_FIXED };

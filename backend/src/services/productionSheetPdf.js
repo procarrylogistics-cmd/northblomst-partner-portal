@@ -5,6 +5,7 @@
 
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const axios = require('axios');
+const { buildOrderFinanceRow } = require('../utils/orderFinance');
 
 async function fetchImageBytes(imageUrl) {
   if (!imageUrl) return null;
@@ -98,11 +99,14 @@ async function generateProductionSheetPdf(order) {
     ? new Date(order.deliveryDate).toLocaleDateString('da-DK')
     : '';
   draw(`Levering: ${delivery || '—'}`, 10);
-  if (order.totalPaidAmount != null) {
-    draw(
-      `Kunde betalte: ${Number(order.totalPaidAmount).toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${order.currencyCode || 'DKK'}`,
-      10
-    );
+  const finance = buildOrderFinanceRow(order);
+  if (finance.partnerPayout > 0) {
+    const cur = finance.currency || 'DKK';
+    const fmt = (n) => `${Number(n).toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${cur}`;
+    draw(`Flowers (after processing): ${fmt(finance.flowerValue)}`, 10);
+    draw(`Delivery: ${fmt(finance.shipping)}`, 10);
+    draw(`Platform fee (20%): - ${fmt(finance.platformCommission)}`, 10);
+    draw(`Your payout: ${fmt(finance.partnerPayout)}`, 10, { bold: true });
   }
   draw(`Kunde: ${order.recipientName || order.customer?.name || ''}`, 10);
   draw(`Tlf: ${order.phone || order.customer?.phone || ''}`, 10);

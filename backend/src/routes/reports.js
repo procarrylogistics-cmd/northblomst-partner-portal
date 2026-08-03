@@ -11,6 +11,8 @@ const {
   toPartnerFinanceView,
   aggregateFinanceWeek
 } = require('../utils/orderFinance');
+const User = require('../models/User');
+const { renderPartnerSettlementInvoice } = require('../services/partnerSettlementInvoice');
 
 const router = express.Router();
 
@@ -353,6 +355,39 @@ router.get('/admin-weekly.csv', requireRole('admin'), async (req, res) => {
     `attachment; filename=admin-weekly-${isoDateOnly(weekStart)}.csv`
   );
   res.send('\ufeff' + csv);
+});
+
+// GET /api/reports/admin-weekly-invoice - printable settlement invoice (requires partnerId)
+router.get('/admin-weekly-invoice', requireRole('admin'), async (req, res) => {
+  const partnerId = req.query.partnerId;
+  if (!partnerId) {
+    return res.status(400).json({ message: 'Select a partner to generate the settlement invoice' });
+  }
+
+  const weekStartInput = req.query.weekStart ? new Date(String(req.query.weekStart)) : new Date();
+  const weekStart = startOfWeekMonday(weekStartInput);
+  const weekEnd = endOfWeekSunday(weekStart);
+
+  const partner = await User.findById(partnerId).select('-passwordHash');
+  if (!partner || partner.role !== 'partner') {
+    return res.status(404).json({ message: 'Partner not found' });
+  }
+
+  const orders = await loadWeeklyFinanceOrders({ partnerId, weekStart, weekEnd });
+  const report = buildWeeklyFinanceReport(orders, req.query, { partnerView: false });
+  const week = { from: isoDateOnly(weekStart), to: isoDateOnly(weekEnd) };
+  const invoiceNumber = `NB-${week.from.replace(/-/g, '')}-${String(partner._id).slice(-4).toUpperCase()}`;
+
+  const html = renderPartnerSettlementInvoice({
+    partner,
+    week,
+    rows: report.orders,
+    totals: report.summary.totals,
+    invoiceNumber
+  });
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
 });
 
 module.exports = router;

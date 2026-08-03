@@ -13,6 +13,9 @@ const UserSchema = new mongoose.Schema(
     },
     phone: String,
     address: String,
+    cvr: String,
+    bankAccount: String,
+    bankName: String,
     zoneRanges: [String]
   },
   {

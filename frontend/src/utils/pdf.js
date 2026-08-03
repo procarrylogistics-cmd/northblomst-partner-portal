@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
+import { calculateOrderFinance, formatMoney } from './orderFinance';
 
 export async function generateOrderPdf(order) {
   const pdfDoc = await PDFDocument.create();
@@ -81,9 +82,12 @@ export async function generateOrderPdf(order) {
   }
 
   drawText('');
-  if (order.totalPaidAmount != null && order.totalPaidAmount > 0) {
-    const paidStr = `${order.totalPaidAmount.toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${order.currencyCode || 'DKK'}`;
-    drawText(`Kunde betalte: ${paidStr}`, 12);
+  const finance = calculateOrderFinance(order);
+  if (finance) {
+    drawText(`Flowers (after processing): ${formatMoney(finance.flowerValue, finance.currency)}`, 12);
+    drawText(`Delivery: ${formatMoney(finance.shipping, finance.currency)}`, 12);
+    drawText(`Platform fee (20%): - ${formatMoney(finance.platformCommission, finance.currency)}`, 12);
+    drawText(`Your payout: ${formatMoney(finance.partnerPayout, finance.currency)}`, 12);
     drawText('');
   }
   drawText('Korttekst / bemærkninger:', 14);

@@ -3,17 +3,23 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
+const emptyForm = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  cvr: '',
+  bankAccount: '',
+  bankName: '',
+  zoneRanges: '',
+  password: ''
+};
+
 export default function PartnerManager() {
   const [partners, setPartners] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    zoneRanges: '',
-    password: ''
-  });
+  const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState('');
 
   const load = async () => {
     const res = await axios.get(`${API_BASE}/partners`);
@@ -26,23 +32,21 @@ export default function PartnerManager() {
 
   const startNew = () => {
     setEditing(null);
-    setForm({
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      zoneRanges: '',
-      password: ''
-    });
+    setForm(emptyForm);
+    setError('');
   };
 
   const startEdit = (p) => {
     setEditing(p);
+    setError('');
     setForm({
       name: p.name,
       email: p.email,
       phone: p.phone || '',
       address: p.address || '',
+      cvr: p.cvr || '',
+      bankAccount: p.bankAccount || '',
+      bankName: p.bankName || '',
       zoneRanges: (p.zoneRanges || []).join(','),
       password: ''
     });
@@ -50,11 +54,19 @@ export default function PartnerManager() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    if (!form.cvr.trim() || !form.bankAccount.trim()) {
+      setError('CVR and bank account are required');
+      return;
+    }
     const payload = {
       name: form.name,
       email: form.email,
       phone: form.phone,
       address: form.address,
+      cvr: form.cvr.trim(),
+      bankAccount: form.bankAccount.trim(),
+      bankName: form.bankName.trim(),
       zoneRanges: form.zoneRanges
         .split(',')
         .map((z) => z.trim())
@@ -62,15 +74,21 @@ export default function PartnerManager() {
       password: form.password || undefined
     };
 
-    if (editing) {
-      await axios.put(`${API_BASE}/partners/${editing.id || editing._id}`, payload);
-    } else {
-      if (!form.password) return;
-      await axios.post(`${API_BASE}/partners`, { ...payload, password: form.password });
+    try {
+      if (editing) {
+        await axios.put(`${API_BASE}/partners/${editing.id || editing._id}`, payload);
+      } else {
+        if (!form.password) {
+          setError('Password is required for new partners');
+          return;
+        }
+        await axios.post(`${API_BASE}/partners`, { ...payload, password: form.password });
+      }
+      await load();
+      startNew();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save partner');
     }
-
-    await load();
-    startNew();
   };
 
   const handleDelete = async (p) => {
@@ -91,7 +109,8 @@ export default function PartnerManager() {
         {partners.map((p) => (
           <div key={p._id} className="partner-list-item">
             <button type="button" onClick={() => startEdit(p)} className="partner-name-btn">
-              {p.name} ({p.zoneRanges?.join(', ')})
+              {p.name} ({p.zoneRanges?.join(', ') || 'no zones'})
+              {p.cvr ? ` · CVR ${p.cvr}` : ''}
             </button>
             <button type="button" onClick={() => handleDelete(p)} className="btn-delete" title="Slet">
               Slet
@@ -102,6 +121,7 @@ export default function PartnerManager() {
       </div>
       <div className="partner-form">
         <h4>{editing ? 'Rediger partner' : 'Ny partner'}</h4>
+        {error && <div className="error" style={{ marginBottom: '0.5rem' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <label>
             Navn
@@ -137,6 +157,32 @@ export default function PartnerManager() {
             />
           </label>
           <label>
+            CVR <span className="required">*</span>
+            <input
+              value={form.cvr}
+              onChange={(e) => setForm({ ...form, cvr: e.target.value })}
+              required
+              placeholder="e.g. 12345678"
+            />
+          </label>
+          <label>
+            Bank account / IBAN <span className="required">*</span>
+            <input
+              value={form.bankAccount}
+              onChange={(e) => setForm({ ...form, bankAccount: e.target.value })}
+              required
+              placeholder="Reg.nr + account or IBAN"
+            />
+          </label>
+          <label>
+            Bank name
+            <input
+              value={form.bankName}
+              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+              placeholder="Optional"
+            />
+          </label>
+          <label>
             Zonerkort (f.eks. 1000-2999,4600)
             <input
               value={form.zoneRanges}
@@ -162,4 +208,3 @@ export default function PartnerManager() {
     </div>
   );
 }
-

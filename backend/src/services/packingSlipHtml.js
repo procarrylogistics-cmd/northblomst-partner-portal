@@ -4,6 +4,7 @@
 
 const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
+const { buildOrderFinanceRow } = require('../utils/orderFinance');
 
 function esc(s) {
   return String(s ?? '')
@@ -92,6 +93,7 @@ function buildContext(payload) {
   const subtotal = so.subtotal_price != null ? parseFloat(so.subtotal_price) : mongo.totalPaidAmount;
   const shipping = so.total_shipping_price_set?.shop_money?.amount ?? so.shipping_lines?.[0]?.price ?? 0;
   const total = so.total_price != null ? parseFloat(so.total_price) : mongo.totalPaidAmount;
+  const finance = buildOrderFinanceRow(mongo);
 
   return {
     lineItems,
@@ -107,19 +109,19 @@ function buildContext(payload) {
     currency,
     subtotal,
     shipping: parseFloat(shipping) || 0,
-    total
+    total,
+    finance
   };
 }
 
 function renderPage1(ctx) {
   const {
-    lineItems, mainItem, ship, bill, customer, orderName, createdAt, currency, subtotal, shipping, total
+    lineItems, mainItem, ship, bill, customer, orderName, createdAt, currency, finance
   } = ctx;
 
   const productRows = lineItems
     .map((li) => {
       const thumb = imgTag(li, 'thumb');
-      const price = money(li.line_total, currency);
       return `<tr>
         <td>
           <div class="product-flex">
@@ -131,7 +133,6 @@ function renderPage1(ctx) {
           </div>
         </td>
         <td class="qty">${esc(li.quantity)}</td>
-        <td class="price">${esc(price)}</td>
       </tr>`;
     })
     .join('');
@@ -139,6 +140,11 @@ function renderPage1(ctx) {
   const mainImg = mainItem && (mainItem.imageDataUri || mainItem.imageUrl)
     ? imgTag(mainItem, 'main-img')
     : '<div class="no-img">No product image</div>';
+
+  const payout = finance?.partnerPayout;
+  const flowerValue = finance?.flowerValue;
+  const delivery = finance?.shipping;
+  const platform = finance?.platformCommission;
 
   return `<div class="page">
   <div class="top-border"></div>
@@ -161,7 +167,7 @@ function renderPage1(ctx) {
     <div class="mini"><div class="label">Order</div><div class="value">${esc(orderName)}</div></div>
     <div class="mini"><div class="label">Order date</div><div class="value">${esc(fmtDate(createdAt))}</div></div>
     <div class="mini"><div class="label">Items</div><div class="value">${lineItems.length}</div></div>
-    <div class="mini"><div class="label">Total</div><div class="value">${esc(money(total, currency))}</div></div>
+    <div class="mini"><div class="label">Your payout</div><div class="value">${esc(money(payout, currency))}</div></div>
   </div>
 
   <div class="grid-2">
@@ -195,26 +201,26 @@ function renderPage1(ctx) {
         mainItem
           ? `<div class="main-product-title">${esc(mainItem.title)}</div>
       ${mainItem.variant_title ? `<div class="tag">Variant: ${esc(mainItem.variant_title)}</div>` : ''}
-      <div class="tag">Qty: ${esc(mainItem.quantity)}</div>
-      <div class="tag">Price: ${esc(money(mainItem.line_total, currency))}</div>`
+      <div class="tag">Qty: ${esc(mainItem.quantity)}</div>`
           : '<div class="muted">No main product</div>'
       }
     </div>
   </div>
 
   <div class="box">
-    <div class="box-title">Products / Add-ons / Internal price control</div>
+    <div class="box-title">Products / Add-ons</div>
     <table>
-      <thead><tr><th>Product</th><th class="qty">Qty</th><th class="price">Price</th></tr></thead>
-      <tbody>${productRows || '<tr><td colspan="3">No products</td></tr>'}</tbody>
+      <thead><tr><th>Product</th><th class="qty">Qty</th></tr></thead>
+      <tbody>${productRows || '<tr><td colspan="2">No products</td></tr>'}</tbody>
     </table>
     <div class="totals">
       <div></div>
       <div>
         <table class="summary">
-          <tr><td class="s-label">Subtotal</td><td class="s-value">${esc(money(subtotal, currency))}</td></tr>
-          <tr><td class="s-label">Shipping</td><td class="s-value">${esc(money(shipping, currency))}</td></tr>
-          <tr><td class="s-label">Total paid</td><td class="s-value">${esc(money(total, currency))}</td></tr>
+          <tr><td class="s-label">Flowers (after payment processing)</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
+          <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
+          <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">- ${esc(money(platform, currency))}</td></tr>
+          <tr><td class="s-label"><strong>Your payout</strong></td><td class="s-value"><strong>${esc(money(payout, currency))}</strong></td></tr>
         </table>
       </div>
     </div>
@@ -243,7 +249,8 @@ function renderPage1(ctx) {
           mainItem
             ? `<div class="tear-big">${esc(mainItem.title)}</div>
         ${mainItem.variant_title ? `<div>Variant: ${esc(mainItem.variant_title)}</div>` : ''}
-        <div>Qty: ${esc(mainItem.quantity)}</div>`
+        <div>Qty: ${esc(mainItem.quantity)}</div>
+        <div style="margin-top:4px;"><strong>Payout:</strong> ${esc(money(payout, currency))}</div>`
             : ''
         }
       </div>

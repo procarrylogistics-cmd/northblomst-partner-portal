@@ -4,7 +4,9 @@ function toNumber(value, fallback = 0) {
 }
 
 const FIXED_SHIPPING_DKK = toNumber(process.env.FIXED_SHIPPING_DKK, 69);
-const DEFAULT_FEE_PERCENT = toNumber(process.env.STRIPE_FEE_PERCENT, 2.39);
+// Slightly conservative vs raw Shopify payout so platform does not pay Stripe from own cut.
+const DEFAULT_FEE_PERCENT = toNumber(process.env.STRIPE_FEE_PERCENT, 2.9);
+const DEFAULT_FEE_FIXED = toNumber(process.env.STRIPE_FEE_FIXED, 1.8);
 const DEFAULT_PLATFORM_PERCENT = toNumber(process.env.PLATFORM_CUT_PERCENT, 20);
 
 function round2(n) {
@@ -14,7 +16,7 @@ function round2(n) {
 function getFinanceOptions(query = {}) {
   return {
     feeRate: toNumber(query.feePercent, DEFAULT_FEE_PERCENT) / 100,
-    feeFixed: toNumber(query.feeFixed, 0),
+    feeFixed: toNumber(query.feeFixed, DEFAULT_FEE_FIXED),
     platformCutRate: toNumber(query.platformPercent, DEFAULT_PLATFORM_PERCENT) / 100,
     fixedShipping: FIXED_SHIPPING_DKK
   };
@@ -168,6 +170,7 @@ function aggregateFinanceWeek(rows, partnerView = false) {
 module.exports = {
   FIXED_SHIPPING_DKK,
   DEFAULT_FEE_PERCENT,
+  DEFAULT_FEE_FIXED,
   DEFAULT_PLATFORM_PERCENT,
   getFinanceOptions,
   buildOrderFinanceRow,

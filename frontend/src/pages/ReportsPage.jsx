@@ -132,6 +132,30 @@ export default function ReportsPage() {
     }
   };
 
+  const openSettlementInvoice = async () => {
+    if (!partnerId) {
+      setError('Select a partner to generate the settlement invoice (Faktura)');
+      return;
+    }
+    setError('');
+    try {
+      const params = { weekStart, partnerId };
+      const res = await axios.get(`${API_BASE}/reports/admin-weekly-invoice`, {
+        params,
+        responseType: 'text'
+      });
+      const win = window.open('', '_blank');
+      if (!win) {
+        setError('Allow pop-ups to open the settlement invoice');
+        return;
+      }
+      win.document.write(res.data);
+      win.document.close();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not generate settlement invoice');
+    }
+  };
+
   const formatDate = (d) => {
     if (!d) return '';
     return new Date(d).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -163,6 +187,15 @@ export default function ReportsPage() {
             </label>
             <button type="button" onClick={loadFinanceReport} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
             <button type="button" className="btn-export" onClick={handleFinanceExport}>Excel (CSV)</button>
+            <button
+              type="button"
+              className="btn-export"
+              onClick={openSettlementInvoice}
+              title={partnerId ? 'Open weekly settlement invoice' : 'Select a partner first'}
+              style={{ background: partnerId ? '#0f766e' : '#9ca3af' }}
+            >
+              Faktura / Settlement
+            </button>
             <button type="button" onClick={() => window.print()}>Print</button>
           </>
         ) : (
