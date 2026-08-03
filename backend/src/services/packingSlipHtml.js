@@ -143,6 +143,9 @@ function renderPage1(ctx) {
 
   const payout = finance?.partnerPayout;
   const flowerValue = finance?.flowerValue;
+  const payoutEx = finance?.partnerPayoutExMoms;
+  const payoutMoms = finance?.partnerPayoutMoms;
+  const momsPercent = finance?.momsPercent ?? 25;
   const delivery = finance?.shipping;
   const platform = finance?.platformCommission;
 
@@ -220,7 +223,9 @@ function renderPage1(ctx) {
           <tr><td class="s-label">Flower price</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
           <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
           <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">- ${esc(money(platform, currency))}</td></tr>
-          <tr><td class="s-label"><strong>Your payout</strong></td><td class="s-value"><strong>${esc(money(payout, currency))}</strong></td></tr>
+          <tr><td class="s-label">Excl. MOMS</td><td class="s-value">${esc(money(payoutEx, currency))}</td></tr>
+          <tr><td class="s-label">MOMS (${esc(momsPercent)}%)</td><td class="s-value">${esc(money(payoutMoms, currency))}</td></tr>
+          <tr><td class="s-label"><strong>Your payout (inkl. MOMS)</strong></td><td class="s-value"><strong>${esc(money(payout, currency))}</strong></td></tr>
         </table>
       </div>
     </div>

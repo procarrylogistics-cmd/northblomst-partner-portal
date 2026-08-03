@@ -106,7 +106,9 @@ async function generateProductionSheetPdf(order) {
     draw(`Flower price: ${fmt(finance.flowerValue)}`, 10);
     draw(`Delivery: ${fmt(finance.shipping)}`, 10);
     draw(`Platform fee (20%): - ${fmt(finance.platformCommission)}`, 10);
-    draw(`Your payout: ${fmt(finance.partnerPayout)}`, 10, { bold: true });
+    draw(`Excl. MOMS: ${fmt(finance.partnerPayoutExMoms)}`, 10);
+    draw(`MOMS (${finance.momsPercent}%): ${fmt(finance.partnerPayoutMoms)}`, 10);
+    draw(`Your payout (inkl. MOMS): ${fmt(finance.partnerPayout)}`, 10, { bold: true });
   }
   draw(`Kunde: ${order.recipientName || order.customer?.name || ''}`, 10);
   draw(`Tlf: ${order.phone || order.customer?.phone || ''}`, 10);

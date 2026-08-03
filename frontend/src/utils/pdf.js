@@ -87,7 +87,9 @@ export async function generateOrderPdf(order) {
     drawText(`Flower price: ${formatMoney(finance.flowerValue, finance.currency)}`, 12);
     drawText(`Delivery: ${formatMoney(finance.shipping, finance.currency)}`, 12);
     drawText(`Platform fee (20%): - ${formatMoney(finance.platformCommission, finance.currency)}`, 12);
-    drawText(`Your payout: ${formatMoney(finance.partnerPayout, finance.currency)}`, 12);
+    drawText(`Excl. MOMS: ${formatMoney(finance.partnerPayoutExMoms, finance.currency)}`, 12);
+    drawText(`MOMS (${finance.momsPercent}%): ${formatMoney(finance.partnerPayoutMoms, finance.currency)}`, 12);
+    drawText(`Your payout (inkl. MOMS): ${formatMoney(finance.partnerPayout, finance.currency)}`, 12);
     drawText('');
   }
   drawText('Korttekst / bemærkninger:', 14);

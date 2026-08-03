@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 /** Northblomst partner production sheet – matches Shopify packing slip Liquid CSS */
 module.exports.PACKING_SLIP_CSS = `
   * { box-sizing: border-box; }
@@ -161,5 +164,7 @@ module.exports.PACKING_SLIP_CSS = `
   }
 `;
 
-module.exports.LOGO_URL =
-  'https://cdn.shopify.com/s/files/1/1000/9988/3340/files/ChatGPT_Image_May_13_2026_10_26_32_AM_6d7e7b69-8370-482f-8ba2-2810758cce46.png?v=1778699581';
+/** Cream-flattened logo — transparent/black PNG prints as a solid black square in many browsers */
+module.exports.LOGO_URL = `data:image/png;base64,${fs
+  .readFileSync(path.join(__dirname, '../../assets/northblomst-logo-invoice.png'))
+  .toString('base64')}`;

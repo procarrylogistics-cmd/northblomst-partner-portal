@@ -8,9 +8,25 @@ const FIXED_SHIPPING_DKK = toNumber(process.env.FIXED_SHIPPING_DKK, 69);
 const DEFAULT_FEE_PERCENT = toNumber(process.env.STRIPE_FEE_PERCENT, 2.9);
 const DEFAULT_FEE_FIXED = toNumber(process.env.STRIPE_FEE_FIXED, 1.8);
 const DEFAULT_PLATFORM_PERCENT = toNumber(process.env.PLATFORM_CUT_PERCENT, 20);
+/** Danish standard VAT — all displayed finance amounts are inclusive of MOMS. */
+const MOMS_RATE = toNumber(process.env.MOMS_RATE, 0.25);
 
 function round2(n) {
   return Math.round(n * 100) / 100;
+}
+
+/** Split an inkl. MOMS amount into excl. / MOMS / inkl. */
+function splitInclusiveMoms(inclusiveAmount, rate = MOMS_RATE) {
+  const inclusive = round2(Math.max(0, toNumber(inclusiveAmount, 0)));
+  const exclusive = round2(inclusive / (1 + rate));
+  const moms = round2(inclusive - exclusive);
+  return {
+    exclusive,
+    moms,
+    inclusive,
+    momsRate: rate,
+    momsPercent: round2(rate * 100)
+  };
 }
 
 function getFinanceOptions(query = {}) {
@@ -36,6 +52,7 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
   const platformCommission = round2(Math.max(0, flowerValue * options.platformCutRate));
   const partnerFlowerShare = round2(Math.max(0, flowerValue - platformCommission));
   const partnerPayout = round2(partnerFlowerShare + shipping);
+  const partnerMoms = splitInclusiveMoms(partnerPayout);
   const deliveryDate = order.deliveryDate || order.createdAt;
 
   return {
@@ -57,6 +74,10 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
     platformCommission,
     partnerFlowerShare,
     partnerPayout,
+    partnerPayoutExMoms: partnerMoms.exclusive,
+    partnerPayoutMoms: partnerMoms.moms,
+    partnerPayoutInclMoms: partnerMoms.inclusive,
+    momsPercent: partnerMoms.momsPercent,
     currency: order.currencyCode || 'DKK'
   };
 }
@@ -76,6 +97,10 @@ function toPartnerFinanceView(row) {
     shipping: row.shipping,
     platformCommission: row.platformCommission,
     partnerPayout: row.partnerPayout,
+    partnerPayoutExMoms: row.partnerPayoutExMoms,
+    partnerPayoutMoms: row.partnerPayoutMoms,
+    partnerPayoutInclMoms: row.partnerPayoutInclMoms,
+    momsPercent: row.momsPercent,
     currency: row.currency
   };
 }
@@ -164,6 +189,17 @@ function aggregateFinanceWeek(rows, partnerView = false) {
   totals.partnerFlowerShare = round2(totals.partnerFlowerShare);
   totals.partnerPayout = round2(totals.partnerPayout);
 
+  // Re-split MOMS from the rounded inkl. total (avoids line-sum rounding drift).
+  const attachMoms = (bucket) => {
+    const split = splitInclusiveMoms(bucket.partnerPayout);
+    bucket.partnerPayoutExMoms = split.exclusive;
+    bucket.partnerPayoutMoms = split.moms;
+    bucket.partnerPayoutInclMoms = split.inclusive;
+    bucket.momsPercent = split.momsPercent;
+  };
+  Object.values(dayMap).forEach(attachMoms);
+  attachMoms(totals);
+
   return { totals, days: dayKeys.map((d) => dayMap[String(d)]) };
 }
 
@@ -172,6 +208,8 @@ module.exports = {
   DEFAULT_FEE_PERCENT,
   DEFAULT_FEE_FIXED,
   DEFAULT_PLATFORM_PERCENT,
+  MOMS_RATE,
+  splitInclusiveMoms,
   getFinanceOptions,
   buildOrderFinanceRow,
   toPartnerFinanceView,

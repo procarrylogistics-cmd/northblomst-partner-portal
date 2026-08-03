@@ -1,4 +1,12 @@
-const { LOGO_URL } = require('../services/packingSlipStyles');
+const fs = require('fs');
+const path = require('path');
+
+/** Cream-background logo — avoids black/transparent PNG printing as a black square */
+function loadInvoiceLogoDataUri() {
+  const logoPath = path.join(__dirname, '../../assets/northblomst-logo-invoice.png');
+  const buf = fs.readFileSync(logoPath);
+  return `data:image/png;base64,${buf.toString('base64')}`;
+}
 
 /** Northblomst / Procarry company details for settlement invoices */
 module.exports = {
@@ -12,6 +20,6 @@ module.exports = {
     email: 'info@northblomst.dk',
     website: 'northblomst.dk',
     tagline: 'Deliver flowers with a smile · Deliver worldwide',
-    logoUrl: LOGO_URL
+    logoUrl: loadInvoiceLogoDataUri()
   }
 };

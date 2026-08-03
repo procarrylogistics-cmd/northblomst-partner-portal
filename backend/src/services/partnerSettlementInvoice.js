@@ -1,4 +1,5 @@
 const { COMPANY } = require('../config/company');
+const { splitInclusiveMoms } = require('../utils/orderFinance');
 
 function esc(value) {
   return String(value ?? '')
@@ -20,6 +21,8 @@ function money(amount) {
  * Issued by Northblomst to document what to pay the partner.
  */
 function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNumber }) {
+  const partnerMoms = splitInclusiveMoms(totals?.partnerPayout);
+  const momsPercent = partnerMoms.momsPercent;
   const orderRows = (rows || [])
     .map(
       (r) => `<tr>
@@ -76,8 +79,8 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
       display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
     }
     .brand-logo {
-      width: 72px; height: 72px; object-fit: contain;
-      background: #fffdf8; border: 1px solid #d8c28d; border-radius: 10px; padding: 4px;
+      width: 148px; height: auto; max-height: 48px; object-fit: contain;
+      display: block;
     }
     .brand { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
     .tagline {
@@ -108,9 +111,10 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
     td { border-bottom: 1px solid #eadfca; padding: 7px 4px; vertical-align: top; }
     .num { text-align: right; white-space: nowrap; }
     .totals {
-      margin-top: 14px; display: grid; grid-template-columns: 1.4fr 260px; gap: 12px; align-items: start;
+      margin-top: 14px; display: grid; grid-template-columns: 1.2fr 300px; gap: 12px; align-items: start;
     }
     .totals table td { border: none; padding: 4px 2px; }
+    .totals .moms-block td { padding-top: 2px; padding-bottom: 2px; color: #444; font-size: 12.5px; }
     .totals .grand td {
       border-top: 2px solid #111; padding-top: 8px; font-size: 15px; font-weight: 700;
     }
@@ -118,11 +122,11 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
       margin-top: 0; padding: 14px; border: 1px solid #d8c28d; border-radius: 10px;
       background: linear-gradient(135deg, #fff8ea 0%, #fffdf8 100%);
       font-size: 12.5px;
-      display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center;
+      display: grid; grid-template-columns: 132px 1fr; gap: 14px; align-items: center;
     }
     .note-logo {
-      width: 88px; height: 88px; object-fit: contain;
-      background: #fff; border: 1px solid #d8c28d; border-radius: 12px; padding: 6px;
+      width: 132px; height: auto; object-fit: contain;
+      display: block;
     }
     .note-tagline {
       color: #6a5a35; font-style: italic; font-weight: 700; margin-bottom: 6px; font-size: 13px;
@@ -183,6 +187,7 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
       Amounts use <strong>flower price</strong> after fees, with
       fixed delivery <strong>69 DKK</strong> per order and platform fee
       <strong>20%</strong> on flower price only.
+      All amounts are <strong>inclusive of MOMS (${esc(momsPercent)}%)</strong>.
     </p>
 
     <table>
@@ -217,10 +222,12 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
       <div>
         <table>
           <tr><td>Orders</td><td class="num">${esc(totals?.deliveries || 0)}</td></tr>
-          <tr><td>Flower price</td><td class="num">${esc(money(totals?.flowerValue))}</td></tr>
+          <tr><td>Flower price (inkl. MOMS)</td><td class="num">${esc(money(totals?.flowerValue))}</td></tr>
           <tr><td>Delivery (69 DKK × orders)</td><td class="num">${esc(money(totals?.shipping))}</td></tr>
           <tr><td>Platform fee (20%)</td><td class="num">- ${esc(money(totals?.platformCommission))}</td></tr>
-          <tr class="grand"><td>Amount to partner</td><td class="num">${esc(money(totals?.partnerPayout))}</td></tr>
+          <tr class="moms-block"><td>Amount excl. MOMS</td><td class="num">${esc(money(partnerMoms.exclusive))}</td></tr>
+          <tr class="moms-block"><td>MOMS (${esc(momsPercent)}%)</td><td class="num">${esc(money(partnerMoms.moms))}</td></tr>
+          <tr class="grand"><td>Amount to partner (inkl. MOMS)</td><td class="num">${esc(money(partnerMoms.inclusive))}</td></tr>
         </table>
       </div>
     </div>
