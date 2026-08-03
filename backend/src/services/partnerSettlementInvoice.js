@@ -77,7 +77,7 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
     }
     .brand-logo {
       width: 72px; height: 72px; object-fit: contain;
-      background: #111; border-radius: 10px; padding: 6px;
+      background: #fffdf8; border: 1px solid #d8c28d; border-radius: 10px; padding: 4px;
     }
     .brand { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
     .tagline {
@@ -122,7 +122,7 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
     }
     .note-logo {
       width: 88px; height: 88px; object-fit: contain;
-      background: #111; border-radius: 12px; padding: 8px;
+      background: #fff; border: 1px solid #d8c28d; border-radius: 12px; padding: 6px;
     }
     .note-tagline {
       color: #6a5a35; font-style: italic; font-weight: 700; margin-bottom: 6px; font-size: 13px;
