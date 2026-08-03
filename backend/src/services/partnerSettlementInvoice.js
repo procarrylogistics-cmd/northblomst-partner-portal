@@ -209,7 +209,9 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
           <div class="note-tagline">${esc(company.tagline)}</div>
           Thank you for delivering beautiful flowers with care.<br />
           Please use this settlement as the basis for payment —
-          no separate partner invoice is required for this period.
+          no separate partner invoice is required for this period.<br /><br />
+          <strong>Payment terms:</strong> Payment is made within
+          <strong>7 working days</strong> from the issue date of this settlement.
         </div>
       </div>
       <div>
