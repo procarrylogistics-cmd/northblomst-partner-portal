@@ -134,9 +134,9 @@ function normalCardHtml({ text, orderName, senderName }) {
 }
 
 /**
- * A4 portrait bi-fold funeral card (fold in half like a card/envelope).
- * Top half = black cover printed upside-down so it is upright when folded down.
- * Bottom half = inside message.
+ * Small bi-fold funeral enclosure card (attaches with flowers).
+ * Folded ~85×115 mm; flat ~85×230 mm — cut out from A4, then fold.
+ * Top = black cover (printed upside-down); bottom = inside message.
  */
 function funeralCardHtml({ text, orderName, senderName }) {
   const logo = logoUrl();
@@ -146,7 +146,7 @@ function funeralCardHtml({ text, orderName, senderName }) {
   <meta charset="utf-8" />
   <title>Begravelseskort ${orderName}</title>
   <style>
-    @page { size: A4 portrait; margin: 0; }
+    @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: #fff; }
     body {
@@ -156,7 +156,7 @@ function funeralCardHtml({ text, orderName, senderName }) {
       print-color-adjust: exact;
     }
     .no-print {
-      padding: 14px 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      padding: 12px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
       border-bottom: 1px solid #ddd; background: #fafafa;
     }
     .no-print button {
@@ -164,61 +164,74 @@ function funeralCardHtml({ text, orderName, senderName }) {
       border: 1px solid #111; background: #111; color: #fff; font-family: Arial, sans-serif;
     }
     .no-print .hint {
-      font-family: Arial, sans-serif; font-size: 12px; color: #444; max-width: 560px; line-height: 1.35;
+      font-family: Arial, sans-serif; font-size: 12px; color: #444; max-width: 520px; line-height: 1.35;
     }
-    .sheet {
-      width: 210mm; height: 297mm;
-      display: grid; grid-template-rows: 1fr 1fr;
-      position: relative; margin: 0 auto;
+    .page {
+      padding: 8mm 0 12mm;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .order-ref {
+      font-family: Arial, sans-serif; font-size: 10px; font-weight: 800;
+      letter-spacing: 0.4px; color: #444; margin-bottom: 6px; text-transform: uppercase;
+    }
+    .cut-caption {
+      font-family: Arial, sans-serif; font-size: 9px; font-weight: 800;
+      letter-spacing: 0.6px; text-transform: uppercase; color: #555; margin: 4px 0 6px;
+    }
+    /* Folded size ~85×115 mm — small enough to attach with the bouquet */
+    .card {
+      width: 85mm;
+      border: 1.5px dashed #333;
+      position: relative;
+      page-break-inside: avoid;
     }
     .fold {
       position: absolute; left: 0; right: 0; top: 50%; height: 0;
-      border-top: 1px dashed rgba(184, 148, 83, 0.65);
+      border-top: 1px dashed rgba(184, 148, 83, 0.85);
       z-index: 2; pointer-events: none;
     }
     .fold-label {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-family: Arial, sans-serif; font-size: 8px; letter-spacing: 1px;
-      text-transform: uppercase; color: #8a7a55; background: rgba(255,255,255,0.9);
-      padding: 2px 10px; white-space: nowrap; z-index: 3;
+      font-family: Arial, sans-serif; font-size: 7px; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #8a7a55; background: rgba(255,255,255,0.92);
+      padding: 1px 7px; white-space: nowrap; z-index: 3;
     }
     .panel {
-      height: 148.5mm; padding: 14mm 18mm;
+      width: 85mm; height: 115mm; padding: 10mm 8mm;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       text-align: center;
     }
     .cover {
       background: #0b0b0b; color: #e8dcc8;
-      /* Upside-down so it reads correctly after folding the top half down */
       transform: rotate(180deg);
     }
     .cover-inner {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; min-height: 70%;
+      gap: 8px;
     }
     .cross {
-      width: 48px; height: 70px; position: relative;
+      width: 28px; height: 42px; position: relative;
     }
     .cross::before, .cross::after {
       content: ""; position: absolute; background: #d4c09a;
       left: 50%; top: 50%; transform: translate(-50%, -50%);
     }
-    .cross::before { width: 7px; height: 70px; border-radius: 2px; }
-    .cross::after { width: 40px; height: 7px; border-radius: 2px; top: 38%; }
+    .cross::before { width: 4.5px; height: 42px; border-radius: 1px; }
+    .cross::after { width: 24px; height: 4.5px; border-radius: 1px; top: 38%; }
     .cover-brand {
-      font-size: 24px; letter-spacing: 1.6px; font-weight: 700;
+      font-size: 15px; letter-spacing: 1px; font-weight: 700;
       color: #f0e6d4;
     }
     .cover-emblem {
-      width: 140px; max-height: 44px; object-fit: contain;
+      width: 88px; max-height: 28px; object-fit: contain;
       filter: brightness(0) invert(1) sepia(0.25) saturate(0.4);
       opacity: 0.92;
     }
     .cover-line {
-      width: 52px; height: 1px; background: rgba(212, 192, 154, 0.7); margin: 2px 0;
+      width: 32px; height: 1px; background: rgba(212, 192, 154, 0.7); margin: 1px 0;
     }
     .cover-tag {
-      font-size: 11px; letter-spacing: 2.2px; text-transform: uppercase;
+      font-size: 8px; letter-spacing: 1.6px; text-transform: uppercase;
       color: #b9a782; font-family: Arial, Helvetica, sans-serif;
     }
     .inside {
@@ -226,41 +239,33 @@ function funeralCardHtml({ text, orderName, senderName }) {
       color: #1c1c1c;
     }
     .inside-eyebrow {
-      font-size: 11px; letter-spacing: 2.2px; text-transform: uppercase;
-      color: #8a7348; margin-bottom: 10px; font-weight: 600;
+      font-size: 8px; letter-spacing: 1.6px; text-transform: uppercase;
+      color: #8a7348; margin-bottom: 6px; font-weight: 600;
     }
     .inside-rule {
-      width: 42px; height: 1px; background: #c4a86a; margin: 0 auto 14px;
+      width: 28px; height: 1px; background: #c4a86a; margin: 0 auto 8px;
     }
     .inside-message {
-      font-size: 18px; line-height: 1.55; white-space: pre-wrap;
-      max-width: 150mm; font-style: italic; color: #222;
+      font-size: 12.5px; line-height: 1.45; white-space: pre-wrap;
+      max-width: 68mm; font-style: italic; color: #222;
     }
     .inside-sender {
-      margin-top: 20px; font-size: 13px; font-style: normal;
-      letter-spacing: 0.4px; color: #4a4030; font-weight: 700;
+      margin-top: 12px; font-size: 10px; font-style: normal;
+      letter-spacing: 0.3px; color: #4a4030; font-weight: 700;
     }
     .inside-footer {
-      margin-top: auto; padding-top: 12px;
-      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      margin-top: auto; padding-top: 8px;
+      font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase;
       color: #9a8a68;
-    }
-    .order-chip {
-      position: absolute; bottom: 5mm; right: 8mm;
-      font-family: Arial, sans-serif; font-size: 8px; color: #888;
     }
     @media print {
       .no-print { display: none !important; }
       .fold-label { display: none !important; }
-      .order-chip { display: none !important; }
-      .sheet { width: 210mm; height: 297mm; }
+      .page { padding-top: 4mm; }
     }
     @media screen {
-      body { padding-bottom: 24px; }
-      .sheet {
-        box-shadow: 0 8px 28px rgba(0,0,0,0.18);
-        margin-top: 12px; margin-bottom: 20px;
-      }
+      body { padding-bottom: 20px; }
+      .card { box-shadow: 0 6px 20px rgba(0,0,0,0.14); }
     }
   </style>
 </head>
@@ -268,34 +273,37 @@ function funeralCardHtml({ text, orderName, senderName }) {
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
     <span class="hint">
-      Begravelseskort · print i <strong>A4 stående</strong>.
-      Fold den <strong>øverste (sorte) halvdel ned</strong> over hilsenen —
-      forsiden bliver sort med kors og Northblomst.
-      Når kortet åbnes, ses hilsenen indeni.
+      Lille begravelseskort (~8,5 × 11,5 cm når det er foldet).
+      <strong>Klip</strong> langs den stiplede kant, fold den sorte halvdel ned —
+      til blomsterbuketten.
     </span>
   </div>
-  <div class="sheet">
-    <div class="fold"></div>
-    <div class="fold-label">Fold her</div>
-    ${orderName ? `<div class="order-chip">Ordre: ${orderName}</div>` : ''}
+  <div class="page">
+    ${orderName ? `<div class="order-ref">Ordre: ${orderName}</div>` : ''}
+    <div class="cut-caption">✂ Klip her · lille foldet kort</div>
+    <div class="card">
+      <div class="fold"></div>
+      <div class="fold-label">Fold</div>
 
-    <div class="panel cover">
-      <div class="cover-inner">
-        <div class="cross" aria-hidden="true"></div>
-        <div class="cover-line"></div>
-        <img class="cover-emblem" src="${logo}" alt="Northblomst" />
-        <div class="cover-brand">Northblomst</div>
-        <div class="cover-tag">Med deltagelse</div>
+      <div class="panel cover">
+        <div class="cover-inner">
+          <div class="cross" aria-hidden="true"></div>
+          <div class="cover-line"></div>
+          <img class="cover-emblem" src="${logo}" alt="Northblomst" />
+          <div class="cover-brand">Northblomst</div>
+          <div class="cover-tag">Med deltagelse</div>
+        </div>
+      </div>
+
+      <div class="panel inside">
+        <div class="inside-eyebrow">I kærlig erindring</div>
+        <div class="inside-rule"></div>
+        <div class="inside-message">${esc(text)}</div>
+        ${senderName ? `<div class="inside-sender">${senderName}</div>` : ''}
+        <div class="inside-footer">Northblomst</div>
       </div>
     </div>
-
-    <div class="panel inside">
-      <div class="inside-eyebrow">I kærlig erindring</div>
-      <div class="inside-rule"></div>
-      <div class="inside-message">${esc(text)}</div>
-      ${senderName ? `<div class="inside-sender">${senderName}</div>` : ''}
-      <div class="inside-footer">Northblomst</div>
-    </div>
+    <div class="cut-caption">✂ Klip her</div>
   </div>
   <script>
     window.addEventListener('load', function () {

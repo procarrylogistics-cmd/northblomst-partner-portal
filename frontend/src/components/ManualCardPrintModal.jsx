@@ -19,7 +19,7 @@ export default function ManualCardPrintModal({ open, onClose }) {
 
   const hint = useMemo(() => {
     if (variant === CARD_VARIANTS.funeral) {
-      return 'Begravelseskort: A4 stående, fold øverste halvdel ned — sort forside med kors, hilsen indeni.';
+      return 'Lille begravelseskort (~8,5×11,5 cm foldet): klip ud, fold den sorte side ned — til blomsterne.';
     }
     return 'Normalt kort: lille udskæringskort med logo og korttekst.';
   }, [variant]);
