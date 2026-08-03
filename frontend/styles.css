@@ -1080,3 +1080,65 @@ button {
   border: none;
 }
 
+.manual-card-modal {
+  max-width: 520px;
+  width: 100%;
+}
+
+.manual-card-modal label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.manual-card-modal textarea,
+.manual-card-modal input[type='text'],
+.manual-card-modal input:not([type]) {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  margin-top: 0.25rem;
+  font: inherit;
+}
+
+.manual-card-modal textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.manual-card-variant {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.manual-card-variant label {
+  flex: 1;
+  display: flex !important;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 !important;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: #fff;
+}
+
+.manual-card-variant label.is-active {
+  border-color: #1d1d1d;
+  background: #fff8ea;
+}
+
+.form-hint.warn {
+  color: #b45309;
+}
+
+.btn-funeral-card {
+  border-color: #2c2c2c !important;
+  color: #1a1a1a;
+}
+

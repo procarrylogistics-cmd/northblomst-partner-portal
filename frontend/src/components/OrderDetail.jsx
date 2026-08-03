@@ -4,7 +4,7 @@ import EditOrderModal from './EditOrderModal';
 import { resolveProductLink } from '../utils/productLink';
 import { toDateInputValue } from '../utils/dateInput';
 import { extractCardMessage } from '../utils/cardMessage';
-import { printCardText } from '../utils/printCardText';
+import { printCardText, CARD_VARIANTS } from '../utils/printCardText';
 import { calculateOrderFinance, formatMoney, DEFAULT_PLATFORM_PERCENT } from '../utils/orderFinance';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
@@ -106,12 +106,12 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const cardMessage = extractCardMessage(order);
   const finance = calculateOrderFinance(order);
 
-  const handlePrintCardText = () => {
+  const handlePrintCardText = (variant = CARD_VARIANTS.normal) => {
     if (!cardMessage) {
       alert('Ingen korttekst fundet på denne ordre.');
       return;
     }
-    printCardText(order, cardMessage);
+    printCardText(order, cardMessage, { variant });
   };
 
   const handlePrint = async () => {
@@ -347,11 +347,20 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         <button
           type="button"
           className="secondary"
-          onClick={handlePrintCardText}
+          onClick={() => handlePrintCardText(CARD_VARIANTS.normal)}
           disabled={isCancelled || !cardMessage}
-          title={cardMessage ? 'Print kun korttekst til udskæring' : 'Ingen korttekst på ordren'}
+          title={cardMessage ? 'Print normalt kort til udskæring' : 'Ingen korttekst på ordren'}
         >
-          Print korttekst
+          Print kort (normal)
+        </button>
+        <button
+          type="button"
+          className="secondary btn-funeral-card"
+          onClick={() => handlePrintCardText(CARD_VARIANTS.funeral)}
+          disabled={isCancelled || !cardMessage}
+          title={cardMessage ? 'Print begravelseskort (foldes på midten)' : 'Ingen korttekst på ordren'}
+        >
+          Print kort (begravelse)
         </button>
         {isAdmin && order.shopifyOrderId && (
           <button

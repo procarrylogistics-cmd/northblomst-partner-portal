@@ -32,6 +32,11 @@ export default function App() {
         <nav className="nav">
           {isAuthReady && user?.role === 'admin' && <Link to="/admin">Admin</Link>}
           {isAuthReady && user?.role === 'admin' && <Link to="/reports">Rapporter</Link>}
+          {isAuthReady && user?.role === 'admin' && (
+            <Link to="/admin" state={{ openManualCard: true }}>
+              Print kort
+            </Link>
+          )}
           {isAuthReady && user?.role === 'partner' && <Link to="/partner">Mine ordrer</Link>}
           {isAuthReady && user?.role === 'partner' && <Link to="/partner/reports">Reports</Link>}
           {isAuthReady && !user && <Link to="/login">Login</Link>}

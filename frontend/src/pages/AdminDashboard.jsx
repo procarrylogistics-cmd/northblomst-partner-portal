@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import OrderList from '../components/OrderList';
 import { sortOrdersNewestFirst } from '../utils/orderSort';
 import OrderDetail from '../components/OrderDetail';
 import PartnerManager from '../components/PartnerManager';
 import CreateOrderModal from '../components/CreateOrderModal';
+import ManualCardPrintModal from '../components/ManualCardPrintModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 const LS_DELIVERY_PRESET = 'northblomst_admin_deliveryPreset';
@@ -28,6 +29,7 @@ function getInitialDeliveryDate() {
 
 export default function AdminDashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -35,6 +37,7 @@ export default function AdminDashboard() {
   const [deliveryPreset, setDeliveryPreset] = useState(getInitialDeliveryPreset);
   const [deliveryDate, setDeliveryDate] = useState(getInitialDeliveryDate);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showManualCard, setShowManualCard] = useState(false);
   const [webhooks, setWebhooks] = useState([]);
   const [webhookMsg, setWebhookMsg] = useState('');
   const [webhookLoading, setWebhookLoading] = useState(false);
@@ -81,6 +84,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadOrders();
   }, [statusFilter, postalFilter, deliveryPreset, deliveryDate]);
+
+  useEffect(() => {
+    if (location.state?.openManualCard) {
+      setShowManualCard(true);
+      navigate('/admin', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   useEffect(() => {
     loadWebhooks();
@@ -248,6 +258,9 @@ export default function AdminDashboard() {
           <button type="button" className="btn-primary" onClick={() => setShowCreateOrder(true)}>
             Opret ordre
           </button>
+          <button type="button" className="btn-secondary" onClick={() => setShowManualCard(true)}>
+            Print kort manuelt
+          </button>
         </div>
         {proxyTestMsg && (
           <div style={{ marginTop: 8, fontSize: 13, color: proxyTestMsg.startsWith('✓') ? '#2e7d32' : '#c62828' }}>
@@ -350,6 +363,7 @@ export default function AdminDashboard() {
           onCreated={handleOrderCreated}
         />
       )}
+      <ManualCardPrintModal open={showManualCard} onClose={() => setShowManualCard(false)} />
     </div>
   );
 }
