@@ -72,6 +72,13 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
       display: grid; grid-template-columns: 1.2fr 1fr;
       gap: 20px; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 16px;
     }
+    .brand-row {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+    }
+    .brand-logo {
+      width: 72px; height: 72px; object-fit: contain;
+      background: #111; border-radius: 10px; padding: 6px;
+    }
     .brand { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
     .tagline {
       margin-top: 6px; color: #6a5a35; font-style: italic; font-size: 13px;
@@ -101,22 +108,31 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
     td { border-bottom: 1px solid #eadfca; padding: 7px 4px; vertical-align: top; }
     .num { text-align: right; white-space: nowrap; }
     .totals {
-      margin-top: 14px; display: grid; grid-template-columns: 1fr 280px; gap: 12px;
+      margin-top: 14px; display: grid; grid-template-columns: 1.4fr 260px; gap: 12px; align-items: start;
     }
     .totals table td { border: none; padding: 4px 2px; }
     .totals .grand td {
       border-top: 2px solid #111; padding-top: 8px; font-size: 15px; font-weight: 700;
     }
     .note {
-      margin-top: 18px; padding: 12px; border-left: 4px solid #b89453;
-      background: #fff8ea; font-size: 12.5px;
+      margin-top: 0; padding: 14px; border: 1px solid #d8c28d; border-radius: 10px;
+      background: linear-gradient(135deg, #fff8ea 0%, #fffdf8 100%);
+      font-size: 12.5px;
+      display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center;
+    }
+    .note-logo {
+      width: 88px; height: 88px; object-fit: contain;
+      background: #111; border-radius: 12px; padding: 8px;
+    }
+    .note-tagline {
+      color: #6a5a35; font-style: italic; font-weight: 700; margin-bottom: 6px; font-size: 13px;
     }
     .footer {
       margin-top: 22px; border-top: 1px solid #e3d9c5; padding-top: 8px;
       display: flex; justify-content: space-between; color: #666; font-size: 11px;
     }
     @media print {
-      body { padding: 12px; }
+      body { padding: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .no-print { display: none !important; }
     }
   </style>
@@ -130,8 +146,13 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
 
     <div class="top">
       <div>
-        <div class="brand">${esc(company.brandName)}</div>
-        <div>${esc(company.legalName)}</div>
+        <div class="brand-row">
+          <img class="brand-logo" src="${esc(company.logoUrl)}" alt="Northblomst" />
+          <div>
+            <div class="brand">${esc(company.brandName)}</div>
+            <div>${esc(company.legalName)}</div>
+          </div>
+        </div>
         <div>CVR ${esc(company.cvr)}</div>
         <div>${esc(company.address1)}</div>
         <div>${esc(company.address2)}</div>
@@ -183,10 +204,13 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
 
     <div class="totals">
       <div class="note">
-        <strong>${esc(company.tagline)}</strong><br />
-        Thank you for delivering beautiful flowers with care.
-        Please use this settlement as the basis for payment —
-        no separate partner invoice is required for this period.
+        <img class="note-logo" src="${esc(company.logoUrl)}" alt="Northblomst" />
+        <div>
+          <div class="note-tagline">${esc(company.tagline)}</div>
+          Thank you for delivering beautiful flowers with care.<br />
+          Please use this settlement as the basis for payment —
+          no separate partner invoice is required for this period.
+        </div>
       </div>
       <div>
         <table>
@@ -206,7 +230,18 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
   </div>
   <script>
     window.addEventListener('load', function () {
-      setTimeout(function () { /* ready for print */ }, 200);
+      var imgs = document.querySelectorAll('img');
+      var pending = 0;
+      function maybeReady() {
+        if (pending <= 0) return;
+      }
+      imgs.forEach(function (img) {
+        if (!img.complete) {
+          pending++;
+          img.addEventListener('load', function () { pending--; });
+          img.addEventListener('error', function () { pending--; });
+        }
+      });
     });
   </script>
 </body>

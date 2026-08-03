@@ -1,3 +1,5 @@
+const { LOGO_URL } = require('../services/packingSlipStyles');
+
 /** Northblomst / Procarry company details for settlement invoices */
 module.exports = {
   COMPANY: {
@@ -9,6 +11,7 @@ module.exports = {
     country: 'Denmark',
     email: 'info@northblomst.dk',
     website: 'northblomst.dk',
-    tagline: 'Deliver flowers with a smile · Deliver worldwide'
+    tagline: 'Deliver flowers with a smile · Deliver worldwide',
+    logoUrl: LOGO_URL
   }
 };
