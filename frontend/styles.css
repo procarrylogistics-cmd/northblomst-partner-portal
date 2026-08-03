@@ -1073,11 +1073,28 @@ button {
   border-radius: 0.5rem;
   border: 1px solid #d1d5db;
   background: white;
+  color: #111827;
   font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.modal-actions .btn-primary {
+.modal-actions .btn-primary,
+.modal-actions button.btn-primary {
   border: none;
+  background: #111827;
+  color: #fff;
+}
+
+.modal-actions .btn-primary:hover,
+.modal-actions button.btn-primary:hover {
+  background: #000;
+}
+
+.modal-actions .btn-secondary,
+.modal-actions button.btn-secondary {
+  background: #fff;
+  color: #111827;
+  border: 1px solid #c4c4c4;
 }
 
 .manual-card-modal {
