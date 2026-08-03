@@ -98,10 +98,10 @@ export default function PartnerReportsPage() {
             <p><strong>Period:</strong> {report.week?.from} → {report.week?.to}</p>
             <p><strong>Orders:</strong> {report.summary?.totals?.deliveries || 0}</p>
             <p><strong>Flower price:</strong> {money(report.summary?.totals?.flowerValue)}</p>
-            <p><strong>Delivery (69 DKK per order):</strong> {money(report.summary?.totals?.shipping)}</p>
             <p><strong>Platform fee ({platformPercent}% of flowers):</strong> {money(report.summary?.totals?.platformCommission)}</p>
             <p><strong>Excl. MOMS:</strong> {money(report.summary?.totals?.partnerPayoutExMoms)}</p>
             <p><strong>MOMS (25%):</strong> {money(report.summary?.totals?.partnerPayoutMoms)}</p>
+            <p><strong>Delivery (69 DKK per order):</strong> {money(report.summary?.totals?.shipping)}</p>
             <p><strong>Your payout (inkl. MOMS):</strong> {money(report.summary?.totals?.partnerPayout)}</p>
           </div>
 

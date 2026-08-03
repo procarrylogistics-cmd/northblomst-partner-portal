@@ -225,10 +225,10 @@ export default function ReportsPage() {
             <p><strong>Stripe fee:</strong> {money(financeReport.summary?.totals?.feeAmount)}</p>
             <p><strong>Net after fee:</strong> {money(financeReport.summary?.totals?.netAfterFee)}</p>
             <p><strong>Flower price:</strong> {money(financeReport.summary?.totals?.flowerValue)}</p>
-            <p><strong>Delivery (69 DKK/order):</strong> {money(financeReport.summary?.totals?.shipping)}</p>
             <p><strong>Platform ({platformPercent}%):</strong> {money(financeReport.summary?.totals?.platformCommission)}</p>
             <p><strong>Partner excl. MOMS:</strong> {money(financeReport.summary?.totals?.partnerPayoutExMoms)}</p>
             <p><strong>MOMS (25%):</strong> {money(financeReport.summary?.totals?.partnerPayoutMoms)}</p>
+            <p><strong>Delivery (69 DKK/order):</strong> {money(financeReport.summary?.totals?.shipping)}</p>
             <p><strong>Partner payout (inkl. MOMS):</strong> {money(financeReport.summary?.totals?.partnerPayout)}</p>
           </div>
 

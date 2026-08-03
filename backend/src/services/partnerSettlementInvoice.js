@@ -223,10 +223,10 @@ function renderPartnerSettlementInvoice({ partner, week, rows, totals, invoiceNu
         <table>
           <tr><td>Orders</td><td class="num">${esc(totals?.deliveries || 0)}</td></tr>
           <tr><td>Flower price (inkl. MOMS)</td><td class="num">${esc(money(totals?.flowerValue))}</td></tr>
-          <tr><td>Delivery (69 DKK × orders)</td><td class="num">${esc(money(totals?.shipping))}</td></tr>
           <tr><td>Platform fee (20%)</td><td class="num">- ${esc(money(totals?.platformCommission))}</td></tr>
           <tr class="moms-block"><td>Amount excl. MOMS</td><td class="num">${esc(money(partnerMoms.exclusive))}</td></tr>
           <tr class="moms-block"><td>MOMS (${esc(momsPercent)}%)</td><td class="num">${esc(money(partnerMoms.moms))}</td></tr>
+          <tr><td>Delivery (69 DKK × orders)</td><td class="num">${esc(money(totals?.shipping))}</td></tr>
           <tr class="grand"><td>Amount to partner (inkl. MOMS)</td><td class="num">${esc(money(partnerMoms.inclusive))}</td></tr>
         </table>
       </div>

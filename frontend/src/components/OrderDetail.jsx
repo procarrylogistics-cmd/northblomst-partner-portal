@@ -228,19 +228,19 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               <li><span>Payment processing fee</span><span>- {formatMoney(finance.feeAmount, finance.currency)}</span></li>
               <li><span>Net after fee</span><span>{formatMoney(finance.netAfterFee, finance.currency)}</span></li>
               <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
-              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li><span>Platform ({finance.platformPercent}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
               <li><span>Partner excl. MOMS</span><span>{formatMoney(finance.partnerPayoutExMoms, finance.currency)}</span></li>
               <li><span>MOMS ({finance.momsPercent}%)</span><span>{formatMoney(finance.partnerPayoutMoms, finance.currency)}</span></li>
+              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li className="order-finance-total"><span>Partner payout (inkl. MOMS)</span><span>{formatMoney(finance.partnerPayoutInclMoms ?? finance.partnerPayout, finance.currency)}</span></li>
             </ul>
           ) : (
             <ul className="order-finance-list">
               <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
-              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li><span>Platform fee ({DEFAULT_PLATFORM_PERCENT}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
               <li><span>Excl. MOMS</span><span>{formatMoney(finance.partnerPayoutExMoms, finance.currency)}</span></li>
               <li><span>MOMS ({finance.momsPercent}%)</span><span>{formatMoney(finance.partnerPayoutMoms, finance.currency)}</span></li>
+              <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li className="order-finance-total"><span>Your payout (inkl. MOMS)</span><span>{formatMoney(finance.partnerPayoutInclMoms ?? finance.partnerPayout, finance.currency)}</span></li>
             </ul>
           )}

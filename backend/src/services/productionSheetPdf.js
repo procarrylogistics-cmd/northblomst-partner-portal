@@ -104,10 +104,10 @@ async function generateProductionSheetPdf(order) {
     const cur = finance.currency || 'DKK';
     const fmt = (n) => `${Number(n).toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${cur}`;
     draw(`Flower price: ${fmt(finance.flowerValue)}`, 10);
-    draw(`Delivery: ${fmt(finance.shipping)}`, 10);
     draw(`Platform fee (20%): - ${fmt(finance.platformCommission)}`, 10);
     draw(`Excl. MOMS: ${fmt(finance.partnerPayoutExMoms)}`, 10);
     draw(`MOMS (${finance.momsPercent}%): ${fmt(finance.partnerPayoutMoms)}`, 10);
+    draw(`Delivery: ${fmt(finance.shipping)}`, 10);
     draw(`Your payout (inkl. MOMS): ${fmt(finance.partnerPayout)}`, 10, { bold: true });
   }
   draw(`Kunde: ${order.recipientName || order.customer?.name || ''}`, 10);
