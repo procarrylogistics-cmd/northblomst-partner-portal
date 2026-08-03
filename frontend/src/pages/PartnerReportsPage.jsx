@@ -97,7 +97,7 @@ export default function PartnerReportsPage() {
           <div className="reports-summary">
             <p><strong>Period:</strong> {report.week?.from} → {report.week?.to}</p>
             <p><strong>Orders:</strong> {report.summary?.totals?.deliveries || 0}</p>
-            <p><strong>Flowers (after payment processing):</strong> {money(report.summary?.totals?.flowerValue)}</p>
+            <p><strong>Flower price:</strong> {money(report.summary?.totals?.flowerValue)}</p>
             <p><strong>Delivery (69 DKK per order):</strong> {money(report.summary?.totals?.shipping)}</p>
             <p><strong>Platform fee ({platformPercent}% of flowers):</strong> {money(report.summary?.totals?.platformCommission)}</p>
             <p><strong>Your payout:</strong> {money(report.summary?.totals?.partnerPayout)}</p>
@@ -109,7 +109,7 @@ export default function PartnerReportsPage() {
                 <tr>
                   <th>Day</th>
                   <th>Deliveries</th>
-                  <th>Flowers</th>
+                  <th>Flower price</th>
                   <th>Delivery</th>
                   <th>Platform fee</th>
                   <th>Your payout</th>
@@ -139,7 +139,7 @@ export default function PartnerReportsPage() {
                   <th>Status</th>
                   <th>Recipient</th>
                   <th>City</th>
-                  <th>Flowers</th>
+                  <th>Flower price</th>
                   <th>Delivery</th>
                   <th>Platform fee</th>
                   <th>Your payout</th>
@@ -166,7 +166,7 @@ export default function PartnerReportsPage() {
       )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#6b7280' }}>
-        Flowers = amount after payment processing, minus 69 DKK delivery. Platform fee is {platformPercent}% of flowers only. Delivery always goes to you.
+        Flower price is after fees, minus 69 DKK delivery. Platform fee is {platformPercent}% of flower price only. Delivery always goes to you.
       </p>
       <p style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: '#6b7280' }}>
         Current week: {weekStart} → {weekEnd}

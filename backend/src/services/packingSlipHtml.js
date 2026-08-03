@@ -217,7 +217,7 @@ function renderPage1(ctx) {
       <div></div>
       <div>
         <table class="summary">
-          <tr><td class="s-label">Flowers (after payment processing)</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
+          <tr><td class="s-label">Flower price</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
           <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
           <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">- ${esc(money(platform, currency))}</td></tr>
           <tr><td class="s-label"><strong>Your payout</strong></td><td class="s-value"><strong>${esc(money(payout, currency))}</strong></td></tr>

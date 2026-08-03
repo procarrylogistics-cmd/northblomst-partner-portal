@@ -227,14 +227,14 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               <li><span>Customer paid</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
               <li><span>Payment processing fee</span><span>- {formatMoney(finance.feeAmount, finance.currency)}</span></li>
               <li><span>Net after fee</span><span>{formatMoney(finance.netAfterFee, finance.currency)}</span></li>
-              <li><span>Flowers (after fee)</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
+              <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
               <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li><span>Platform ({finance.platformPercent}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
               <li className="order-finance-total"><span>Partner payout</span><span>{formatMoney(finance.partnerPayout, finance.currency)}</span></li>
             </ul>
           ) : (
             <ul className="order-finance-list">
-              <li><span>Flowers</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
+              <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
               <li><span>Delivery</span><span>{formatMoney(finance.shipping, finance.currency)}</span></li>
               <li><span>Platform fee ({DEFAULT_PLATFORM_PERCENT}%)</span><span>- {formatMoney(finance.platformCommission, finance.currency)}</span></li>
               <li className="order-finance-total"><span>Your payout</span><span>{formatMoney(finance.partnerPayout, finance.currency)}</span></li>

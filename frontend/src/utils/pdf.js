@@ -84,7 +84,7 @@ export async function generateOrderPdf(order) {
   drawText('');
   const finance = calculateOrderFinance(order);
   if (finance) {
-    drawText(`Flowers (after processing): ${formatMoney(finance.flowerValue, finance.currency)}`, 12);
+    drawText(`Flower price: ${formatMoney(finance.flowerValue, finance.currency)}`, 12);
     drawText(`Delivery: ${formatMoney(finance.shipping, finance.currency)}`, 12);
     drawText(`Platform fee (20%): - ${formatMoney(finance.platformCommission, finance.currency)}`, 12);
     drawText(`Your payout: ${formatMoney(finance.partnerPayout, finance.currency)}`, 12);

@@ -224,7 +224,7 @@ export default function ReportsPage() {
             <p><strong>Gross:</strong> {money(financeReport.summary?.totals?.gross)}</p>
             <p><strong>Stripe fee:</strong> {money(financeReport.summary?.totals?.feeAmount)}</p>
             <p><strong>Net after fee:</strong> {money(financeReport.summary?.totals?.netAfterFee)}</p>
-            <p><strong>Flowers:</strong> {money(financeReport.summary?.totals?.flowerValue)}</p>
+            <p><strong>Flower price:</strong> {money(financeReport.summary?.totals?.flowerValue)}</p>
             <p><strong>Delivery (69 DKK/order):</strong> {money(financeReport.summary?.totals?.shipping)}</p>
             <p><strong>Platform ({platformPercent}%):</strong> {money(financeReport.summary?.totals?.platformCommission)}</p>
             <p><strong>Partner payout:</strong> {money(financeReport.summary?.totals?.partnerPayout)}</p>
@@ -235,7 +235,7 @@ export default function ReportsPage() {
               <thead>
                 <tr>
                   <th>Day</th><th>Deliveries</th><th>Gross</th><th>Stripe</th><th>Net</th>
-                  <th>Flowers</th><th>Delivery</th><th>Platform</th><th>Partner</th>
+                  <th>Flower price</th><th>Delivery</th><th>Platform</th><th>Partner</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,7 +261,7 @@ export default function ReportsPage() {
               <thead>
                 <tr>
                   <th>Order</th><th>Partner</th><th>Date</th><th>Status</th>
-                  <th>Gross</th><th>Stripe</th><th>Flowers</th><th>Delivery</th><th>Platform</th><th>Partner payout</th>
+                  <th>Gross</th><th>Stripe</th><th>Flower price</th><th>Delivery</th><th>Platform</th><th>Partner payout</th>
                 </tr>
               </thead>
               <tbody>

@@ -103,7 +103,7 @@ async function generateProductionSheetPdf(order) {
   if (finance.partnerPayout > 0) {
     const cur = finance.currency || 'DKK';
     const fmt = (n) => `${Number(n).toLocaleString('da-DK', { minimumFractionDigits: 2 })} ${cur}`;
-    draw(`Flowers (after processing): ${fmt(finance.flowerValue)}`, 10);
+    draw(`Flower price: ${fmt(finance.flowerValue)}`, 10);
     draw(`Delivery: ${fmt(finance.shipping)}`, 10);
     draw(`Platform fee (20%): - ${fmt(finance.platformCommission)}`, 10);
     draw(`Your payout: ${fmt(finance.partnerPayout)}`, 10, { bold: true });
