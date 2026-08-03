@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import OrderList from '../components/OrderList';
 import { sortOrdersByDeliveryDate } from '../utils/orderSort';
@@ -28,6 +28,7 @@ function getInitialDeliveryDate() {
 
 export default function PartnerDashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -36,6 +37,7 @@ export default function PartnerDashboard() {
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [weeklyView, setWeeklyView] = useState(false);
   const [selectedDayIso, setSelectedDayIso] = useState('');
+  const pendingSelectIdRef = useRef(null);
 
   const toIsoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const startOfWeek = (date) => {
@@ -78,10 +80,13 @@ export default function PartnerDashboard() {
     const sorted = sortOrdersByDeliveryDate(res.data);
     setOrders(sorted);
     setSelectedOrder((prev) => {
-      const selectId = location.state?.selectOrderId;
-      if (selectId) {
-        const found = sorted.find((o) => String(o._id) === String(selectId));
-        if (found) return found;
+      const pendingId = pendingSelectIdRef.current || location.state?.selectOrderId;
+      if (pendingId) {
+        const found = sorted.find((o) => String(o._id) === String(pendingId));
+        if (found) {
+          pendingSelectIdRef.current = null;
+          return found;
+        }
       }
       if (!prev && sorted.length > 0) return sorted[0];
       const updated = sorted.find((o) => o._id === prev?._id);
@@ -92,6 +97,21 @@ export default function PartnerDashboard() {
   useEffect(() => {
     loadOrders();
   }, [statusFilter, deliveryPreset, deliveryDate, weeklyView]);
+
+  /** Open order from notification bell — clear filters so the order is visible. */
+  useEffect(() => {
+    const selectId = location.state?.selectOrderId;
+    if (!selectId) return;
+    pendingSelectIdRef.current = String(selectId);
+    setStatusFilter('');
+    setWeeklyView(false);
+    setDeliveryPreset('');
+    navigate('/partner', { replace: true, state: {} });
+    // If filters were already empty, force a reload for selection
+    if (!statusFilter && !weeklyView && !deliveryPreset) {
+      loadOrders();
+    }
+  }, [location.state?.selectOrderId]);
 
   const weekDays = useMemo(() => {
     const days = [];

@@ -90,6 +90,18 @@ async function autoAssignPartnerForOrder(order, options = {}) {
   order.partner = picked._id;
   if (!order.assignedAt) order.assignedAt = new Date();
   await order.save();
+
+  try {
+    const { notifyPartnerOrderAssigned } = require('./partnerNotifications');
+    await notifyPartnerOrderAssigned({
+      partnerId: picked._id,
+      order,
+      source: 'auto'
+    });
+  } catch (err) {
+    console.error('Auto-assign notification failed', err);
+  }
+
   return { changed: true, partner: picked };
 }
 

@@ -18,6 +18,7 @@ const shopifyRoutes = require('./src/routes/shopify');
 const zapierRoutes = require('./src/routes/zapier');
 const emailRoutes = require('./src/routes/email');
 const reportsRoutes = require('./src/routes/reports');
+const notificationsRoutes = require('./src/routes/notifications');
 const setupRoutes = require('./src/routes/setup');
 const shopifyProxyRoutes = require('./src/routes/shopifyProxy');
 const shopifyOAuthRoutes = require('./src/routes/shopifyOAuth');
@@ -112,6 +113,7 @@ app.use('/api/partners', authMiddleware, partnerRoutes);
 app.use('/api/orders', authMiddleware, orderRoutes);
 app.use('/api/email', authMiddleware, emailRoutes);
 app.use('/api/reports', authMiddleware, reportsRoutes);
+app.use('/api/notifications', authMiddleware, notificationsRoutes);
 app.use('/api/shopify', shopifyProxyRoutes);
 app.use('/api', authMiddleware, setupRoutes);
 

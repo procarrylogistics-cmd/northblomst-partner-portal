@@ -471,6 +471,16 @@ async function handleAssignOrder(req, res) {
   sendOrderAssignedToPartner(partner, order).catch((err) =>
     console.error('Order assignment email failed', err)
   );
+  try {
+    const { notifyPartnerOrderAssigned } = require('../services/partnerNotifications');
+    await notifyPartnerOrderAssigned({
+      partnerId: partner._id,
+      order,
+      source: 'admin'
+    });
+  } catch (err) {
+    console.error('Order assignment notification failed', err);
+  }
   return order;
 }
 
