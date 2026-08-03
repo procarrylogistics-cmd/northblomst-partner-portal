@@ -25,6 +25,7 @@ const AddOnSchema = new mongoose.Schema(
     currency: String,
     lineItemTitle: String,
     sku: String,
+    previousValue: String,
     rawKey: String
   },
   { _id: false }

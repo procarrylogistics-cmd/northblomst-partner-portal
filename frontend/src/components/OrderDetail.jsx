@@ -289,7 +289,17 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
             {order.addOns.map((a, idx) => (
               <li key={idx}>
                 <strong>{a.label}</strong>
-                {a.value && `: ${a.value}`}
+                {a.previousValue && a.previousValue !== a.value ? (
+                  <>
+                    :{' '}
+                    <span className="addon-previous-value" title="Previous value">{a.previousValue}</span>
+                    {' → '}
+                    <span className="addon-updated-value">{a.value}</span>
+                    <span className="addon-updated-badge"> updated</span>
+                  </>
+                ) : (
+                  a.value && `: ${a.value}`
+                )}
                 {a.quantity > 1 && ` (${a.quantity} stk)`}
                 {a.price && ` · ${a.quantity > 1 ? `${a.quantity} × ` : ''}${a.price} ${a.currency || 'DKK'}`}
               </li>

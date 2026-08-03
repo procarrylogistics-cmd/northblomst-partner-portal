@@ -19,6 +19,7 @@ const { enrichProductLinks, orderNeedsProductLinks } = require('../services/prod
 const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
 const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
 const { syncCardTextOnOrder } = require('../utils/cardTextSync');
+const { syncDeliveryAddressOnOrder } = require('../utils/addressSync');
 
 const router = express.Router();
 
@@ -350,7 +351,20 @@ router.patch('/:id', async (req, res) => {
       phone: order.phone
     };
   }
-  if (order.address) order.shippingAddress = { address1: order.address, postalCode: order.postcode, city: order.city };
+  if (order.address || order.postcode || order.city) {
+    order.shippingAddress = {
+      ...(order.shippingAddress?.toObject ? order.shippingAddress.toObject() : order.shippingAddress || {}),
+      address1: order.address || order.shippingAddress?.address1,
+      postalCode: order.postcode || order.shippingAddress?.postalCode,
+      city: order.city || order.shippingAddress?.city
+    };
+  }
+
+  const addressChanged = changes.some((f) => ['address', 'postcode', 'city'].includes(f));
+  if (addressChanged) {
+    syncDeliveryAddressOnOrder(order);
+    if (!changes.includes('addOns')) changes.push('addOns');
+  }
 
   order.updatedAt = new Date();
   order.updatedByRole = req.user.role;
