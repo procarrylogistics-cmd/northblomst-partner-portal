@@ -53,7 +53,7 @@ function imgTag(li, className) {
   return `<img class="${className}" src="${esc(src)}" alt="" />`;
 }
 
-function truncate(value, max = 120) {
+function truncate(value, max = 160) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1).trimEnd()}…`;
@@ -88,27 +88,27 @@ function collectInstructions(ctx) {
   };
 
   for (const a of mongo.addOns || []) {
-    push(a.label || a.key, a.value);
+    push(a.label || a.key, a.value, 160);
   }
 
   for (const attr of noteAttributes || []) {
-    push(attr.name, attr.value);
+    push(attr.name, attr.value, 160);
   }
 
   for (const li of lineItems || []) {
     for (const p of li.properties || []) {
-      push(p.name, p.value);
+      push(p.name, p.value, 160);
     }
   }
 
   const card = String(mongo.cardText || '').trim();
   const orderNote = String(note || mongo.notes || '').trim();
   if (orderNote && orderNote !== card) {
-    push('Order note', orderNote, 180);
+    push('Order note', orderNote, 200);
   }
 
   // Hard cap so dense Shopify props never blow past one page
-  return rows.slice(0, 12);
+  return rows.slice(0, 10);
 }
 
 function buildContext(payload) {
@@ -163,36 +163,39 @@ function renderCompactSheet(ctx) {
   } = ctx;
 
   const instructions = collectInstructions(ctx);
-  const cardText = truncate(mongo.cardText || '', 220);
+  const cardText = truncate(mongo.cardText || '', 280);
   const sender =
     (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
     '';
 
   const productRows = (lineItems || [])
-    .slice(0, 8)
+    .slice(0, 6)
     .map((li) => {
-      const title = truncate(li.title, 70);
-      const variant = li.variant_title ? truncate(li.variant_title, 40) : '';
+      const title = truncate(li.title, 90);
+      const variant = li.variant_title ? truncate(li.variant_title, 50) : '';
       return `<tr>
         <td>
-          <span class="product-name">${esc(title)}</span>
-          ${variant ? `<span class="small"> · ${esc(variant)}</span>` : ''}
+          <div class="product-name">${esc(title)}</div>
+          ${variant ? `<div class="small">Variant: ${esc(variant)}</div>` : ''}
         </td>
         <td class="qty">${esc(li.quantity)}</td>
       </tr>`;
     })
     .join('');
 
-  const extraCount = Math.max(0, (lineItems || []).length - 8);
-  const mainThumb =
+  const extraCount = Math.max(0, (lineItems || []).length - 6);
+  const mainImg =
     mainItem && (mainItem.imageDataUri || mainItem.imageUrl)
-      ? imgTag(mainItem, 'main-thumb')
-      : '<div class="main-thumb no-img">—</div>';
+      ? imgTag(mainItem, 'main-img')
+      : '<div class="main-img no-img">No image</div>';
 
   const payout = finance?.partnerPayout;
   const flowerValue = finance?.flowerValue;
   const delivery = finance?.shipping;
   const platform = finance?.platformCommission;
+  const payoutEx = finance?.partnerPayoutExMoms;
+  const payoutMoms = finance?.partnerPayoutMoms;
+  const momsPercent = finance?.momsPercent ?? 25;
 
   const instructionRows = instructions
     .map(
@@ -207,49 +210,64 @@ function renderCompactSheet(ctx) {
       <img class="logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
     </div>
     <div class="doc-title">
-      <h1>Production</h1>
-      <p>${esc(orderName)} · ${esc(fmtDateTime())}</p>
+      <h1>Partner Production</h1>
+      <p>${esc(orderName)} · printed ${esc(fmtDateTime())}</p>
     </div>
     <div class="status-box">
       <div class="status-pill">1 page</div>
+      <div><strong>Items:</strong> ${(lineItems || []).length}</div>
     </div>
   </div>
 
   <div class="order-row">
     <div class="mini"><div class="label">Order</div><div class="value">${esc(orderName)}</div></div>
     <div class="mini"><div class="label">Ordered</div><div class="value">${esc(fmtDate(createdAt))}</div></div>
-    <div class="mini"><div class="label">Delivery</div><div class="value">${esc(fmtDate(deliveryDate))}</div></div>
-    <div class="mini"><div class="label">Payout</div><div class="value">${esc(money(payout, currency))}</div></div>
+    <div class="mini"><div class="label">Delivery date</div><div class="value">${esc(fmtDate(deliveryDate))}</div></div>
+    <div class="mini"><div class="label">Your payout</div><div class="value">${esc(money(payout, currency))}</div></div>
   </div>
 
-  <div class="grid-main">
-    <div class="box recipient">
-      <div class="box-title">Recipient</div>
-      <div class="name">${esc(ship.name)}</div>
-      ${ship.company ? `<div class="line">${esc(ship.company)}</div>` : ''}
-      <div class="line">${esc(ship.address1)}${ship.address2 ? `, ${esc(ship.address2)}` : ''}</div>
-      <div class="line">${esc(ship.zip)} ${esc(ship.city)}</div>
-      ${ship.phone ? `<div class="line strong">Tel: ${esc(ship.phone)}</div>` : ''}
-    </div>
-    <div class="box main-product">
-      <div class="box-title">Main product</div>
-      <div class="main-flex">
-        ${mainThumb}
-        <div>
-          ${
-            mainItem
-              ? `<div class="main-product-title">${esc(truncate(mainItem.title, 80))}</div>
-          ${mainItem.variant_title ? `<div class="small">${esc(truncate(mainItem.variant_title, 50))}</div>` : ''}
-          <div class="tag">Qty ${esc(mainItem.quantity)}</div>`
-              : '<div class="muted">No main product</div>'
-          }
-        </div>
+  <div class="produce-box">
+    <div class="produce-title">What to produce</div>
+    <div class="produce-flex">
+      ${mainImg}
+      <div>
+        ${
+          mainItem
+            ? `<div class="main-product-title">${esc(truncate(mainItem.title, 110))}</div>
+        ${mainItem.variant_title ? `<div class="small">Variant: ${esc(truncate(mainItem.variant_title, 70))}</div>` : ''}
+        <div class="tag">Qty ${esc(mainItem.quantity)}</div>
+        <div class="tag">Make this bouquet</div>`
+            : '<div class="muted">No main product</div>'
+        }
       </div>
     </div>
   </div>
 
+  <div class="grid-2">
+    <div class="box">
+      <div class="box-title">Recipient / Delivery</div>
+      <div class="name">${esc(ship.name)}</div>
+      ${ship.company ? `<div class="line">${esc(ship.company)}</div>` : ''}
+      <div class="line">${esc(ship.address1)}</div>
+      ${ship.address2 ? `<div class="line">${esc(ship.address2)}</div>` : ''}
+      <div class="line">${esc(ship.zip)} ${esc(ship.city)}</div>
+      ${ship.phone ? `<div class="line strong" style="margin-top:3px;">Phone: ${esc(ship.phone)}</div>` : ''}
+    </div>
+    <div class="box">
+      <div class="box-title">Payout / Price</div>
+      <table class="summary">
+        <tr><td class="s-label">Flower price</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
+        <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">− ${esc(money(platform, currency))}</td></tr>
+        <tr><td class="s-label">Excl. MOMS</td><td class="s-value">${esc(money(payoutEx, currency))}</td></tr>
+        <tr><td class="s-label">MOMS (${esc(momsPercent)}%)</td><td class="s-value">${esc(money(payoutMoms, currency))}</td></tr>
+        <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
+        <tr class="total"><td class="s-label">Your payout (inkl. MOMS)</td><td class="s-value">${esc(money(payout, currency))}</td></tr>
+      </table>
+    </div>
+  </div>
+
   <div class="box">
-    <div class="box-title">Products / Add-ons ${extraCount ? `(+${extraCount} more)` : ''}</div>
+    <div class="box-title">Products / Add-ons ${extraCount ? `(showing 6 of ${(lineItems || []).length})` : ''}</div>
     <table>
       <thead><tr><th>Product</th><th class="qty">Qty</th></tr></thead>
       <tbody>${productRows || '<tr><td colspan="2">No products</td></tr>'}</tbody>
@@ -258,7 +276,7 @@ function renderCompactSheet(ctx) {
 
   ${
     instructionRows
-      ? `<div class="box info-box">
+      ? `<div class="box">
     <div class="box-title">Florist notes / Tilvalg</div>
     ${instructionRows}
   </div>`
@@ -267,29 +285,22 @@ function renderCompactSheet(ctx) {
 
   ${
     cardText
-      ? `<div class="box card-box">
-    <div class="box-title">Korttekst ${sender ? `· ${esc(truncate(sender, 40))}` : ''}</div>
+      ? `<div class="box">
+    <div class="box-title">Korttekst ${sender ? `· ${esc(truncate(sender, 50))}` : ''}</div>
     <div class="card-message">${esc(cardText)}</div>
   </div>`
       : ''
   }
 
-  <div class="finance-bar">
-    <span>Flower ${esc(money(flowerValue, currency))}</span>
-    <span>Platform −${esc(money(platform, currency))}</span>
-    <span>Delivery ${esc(money(delivery, currency))}</span>
-    <span class="finance-total">Payout ${esc(money(payout, currency))}</span>
-  </div>
-
   <div class="signature-area">
-    <div class="check"><span class="square"></span>Product</div>
-    <div class="check"><span class="square"></span>Card</div>
-    <div class="check"><span class="square"></span>Add-ons</div>
-    <div class="check"><span class="square"></span>Photo</div>
+    <div class="check"><span class="square"></span>Product checked</div>
+    <div class="check"><span class="square"></span>Card / message</div>
+    <div class="check"><span class="square"></span>Add-ons packed</div>
+    <div class="check"><span class="square"></span>Photo taken</div>
   </div>
 
   <div class="footer">
-    <div>Northblomst · single-page production</div>
+    <div>Northblomst · 1-page production sheet · use Print kort for greeting card</div>
     <div>${esc(orderName)}</div>
   </div>
 </div>`;
