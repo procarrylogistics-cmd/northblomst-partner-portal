@@ -1,5 +1,5 @@
 /**
- * Partner production sheet HTML – port of Shopify packing slip Liquid template.
+ * Partner production sheet HTML – single A4 page, compact for dense flower orders.
  */
 
 const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
@@ -53,20 +53,62 @@ function imgTag(li, className) {
   return `<img class="${className}" src="${esc(src)}" alt="" />`;
 }
 
-function renderPropertiesHtml(properties) {
-  if (!properties?.length) return '<div class="muted">No properties.</div>';
-  return properties
-    .filter((p) => p.name && !String(p.name).startsWith('_'))
-    .map((p) => `<strong>${esc(p.name)}:</strong>\n${esc(p.value)}`)
-    .join('\n\n');
+function truncate(value, max = 120) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function renderNoteAttributes(attrs) {
-  if (!attrs?.length) return '';
-  return attrs
-    .filter((a) => a.name && a.value != null && !String(a.name).startsWith('_'))
-    .map((a) => `<strong>${esc(a.name)}:</strong>\n${esc(a.value)}`)
-    .join('\n\n');
+function isNoiseKey(name) {
+  const n = String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (!n || n.startsWith('_')) return true;
+  // Skip fields already shown elsewhere on the sheet
+  return /recipient name|leveringsadresse|delivery address|phone|telefon|delivery date|leveringsdato|sender name|afsender/.test(
+    n
+  );
+}
+
+/** Collect unique tilvalg / properties for the florist, capped for one page. */
+function collectInstructions(ctx) {
+  const { lineItems, noteAttributes, mongo, note } = ctx;
+  const rows = [];
+  const seen = new Set();
+
+  const push = (label, value, maxLen = 140) => {
+    const l = String(label || '').trim();
+    const v = truncate(value, maxLen);
+    if (!l || !v || isNoiseKey(l)) return;
+    const key = `${l.toLowerCase()}::${v.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push({ label: l, value: v });
+  };
+
+  for (const a of mongo.addOns || []) {
+    push(a.label || a.key, a.value);
+  }
+
+  for (const attr of noteAttributes || []) {
+    push(attr.name, attr.value);
+  }
+
+  for (const li of lineItems || []) {
+    for (const p of li.properties || []) {
+      push(p.name, p.value);
+    }
+  }
+
+  const card = String(mongo.cardText || '').trim();
+  const orderNote = String(note || mongo.notes || '').trim();
+  if (orderNote && orderNote !== card) {
+    push('Order note', orderNote, 180);
+  }
+
+  // Hard cap so dense Shopify props never blow past one page
+  return rows.slice(0, 12);
 }
 
 function buildContext(payload) {
@@ -82,326 +124,172 @@ function buildContext(payload) {
     phone: mongo.phone || mongo.customer?.phone,
     company: ''
   };
-  const bill = so.billing_address || ship;
   const customer = so.customer || mongo.customer || {};
   const orderName = so.name || mongo.shopifyOrderName || `#${mongo.shopifyOrderNumber || ''}`;
   const createdAt = so.created_at || mongo.orderDate || mongo.receivedAt;
-  const note = so.note || mongo.notes || mongo.cardText || '';
+  const deliveryDate = mongo.deliveryDate || null;
+  const note = so.note || mongo.notes || '';
   const noteAttributes = so.note_attributes || [];
   const mainItem = pickMainLineItem(lineItems);
-
-  const subtotal = so.subtotal_price != null ? parseFloat(so.subtotal_price) : mongo.totalPaidAmount;
-  const shipping = so.total_shipping_price_set?.shop_money?.amount ?? so.shipping_lines?.[0]?.price ?? 0;
-  const total = so.total_price != null ? parseFloat(so.total_price) : mongo.totalPaidAmount;
   const finance = buildOrderFinanceRow(mongo);
 
   return {
     lineItems,
     mainItem,
     ship,
-    bill,
     customer,
     orderName,
     createdAt,
+    deliveryDate,
     note,
     noteAttributes,
     mongo,
     currency,
-    subtotal,
-    shipping: parseFloat(shipping) || 0,
-    total,
     finance
   };
 }
 
-function renderPage1(ctx) {
+function renderCompactSheet(ctx) {
   const {
-    lineItems, mainItem, ship, bill, customer, orderName, createdAt, currency, finance
+    lineItems,
+    mainItem,
+    ship,
+    orderName,
+    createdAt,
+    deliveryDate,
+    mongo,
+    currency,
+    finance
   } = ctx;
 
-  const productRows = lineItems
+  const instructions = collectInstructions(ctx);
+  const cardText = truncate(mongo.cardText || '', 220);
+  const sender =
+    (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
+    '';
+
+  const productRows = (lineItems || [])
+    .slice(0, 8)
     .map((li) => {
-      const thumb = imgTag(li, 'thumb');
+      const title = truncate(li.title, 70);
+      const variant = li.variant_title ? truncate(li.variant_title, 40) : '';
       return `<tr>
         <td>
-          <div class="product-flex">
-            <div>${thumb}</div>
-            <div>
-              <div class="product-name">${esc(li.title)}</div>
-              ${li.variant_title ? `<div class="small">Variant: ${esc(li.variant_title)}</div>` : ''}
-            </div>
-          </div>
+          <span class="product-name">${esc(title)}</span>
+          ${variant ? `<span class="small"> · ${esc(variant)}</span>` : ''}
         </td>
         <td class="qty">${esc(li.quantity)}</td>
       </tr>`;
     })
     .join('');
 
-  const mainImg = mainItem && (mainItem.imageDataUri || mainItem.imageUrl)
-    ? imgTag(mainItem, 'main-img')
-    : '<div class="no-img">No product image</div>';
+  const extraCount = Math.max(0, (lineItems || []).length - 8);
+  const mainThumb =
+    mainItem && (mainItem.imageDataUri || mainItem.imageUrl)
+      ? imgTag(mainItem, 'main-thumb')
+      : '<div class="main-thumb no-img">—</div>';
 
   const payout = finance?.partnerPayout;
   const flowerValue = finance?.flowerValue;
-  const payoutEx = finance?.partnerPayoutExMoms;
-  const payoutMoms = finance?.partnerPayoutMoms;
-  const momsPercent = finance?.momsPercent ?? 25;
   const delivery = finance?.shipping;
   const platform = finance?.platformCommission;
 
+  const instructionRows = instructions
+    .map(
+      (r) =>
+        `<div class="info-row"><span class="info-label">${esc(r.label)}</span><span class="info-value">${esc(r.value)}</span></div>`
+    )
+    .join('');
+
   return `<div class="page">
-  <div class="top-border"></div>
   <div class="header">
     <div class="logo-wrap">
       <img class="logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
-      <div class="logo-site">northblomst.dk</div>
     </div>
     <div class="doc-title">
-      <h1>Partner Production Sheet</h1>
-      <p>Page 1 · Order overview · Product control</p>
+      <h1>Production</h1>
+      <p>${esc(orderName)} · ${esc(fmtDateTime())}</p>
     </div>
     <div class="status-box">
-      <div class="status-pill">Internal copy</div>
-      <div><strong>Printed:</strong> ${esc(fmtDateTime())}</div>
+      <div class="status-pill">1 page</div>
     </div>
   </div>
 
   <div class="order-row">
     <div class="mini"><div class="label">Order</div><div class="value">${esc(orderName)}</div></div>
-    <div class="mini"><div class="label">Order date</div><div class="value">${esc(fmtDate(createdAt))}</div></div>
-    <div class="mini"><div class="label">Items</div><div class="value">${lineItems.length}</div></div>
-    <div class="mini"><div class="label">Your payout</div><div class="value">${esc(money(payout, currency))}</div></div>
+    <div class="mini"><div class="label">Ordered</div><div class="value">${esc(fmtDate(createdAt))}</div></div>
+    <div class="mini"><div class="label">Delivery</div><div class="value">${esc(fmtDate(deliveryDate))}</div></div>
+    <div class="mini"><div class="label">Payout</div><div class="value">${esc(money(payout, currency))}</div></div>
   </div>
 
-  <div class="grid-2">
-    <div class="box">
-      <div class="box-title">Recipient / Delivery address</div>
+  <div class="grid-main">
+    <div class="box recipient">
+      <div class="box-title">Recipient</div>
       <div class="name">${esc(ship.name)}</div>
       ${ship.company ? `<div class="line">${esc(ship.company)}</div>` : ''}
-      <div class="line">${esc(ship.address1)}</div>
-      ${ship.address2 ? `<div class="line">${esc(ship.address2)}</div>` : ''}
+      <div class="line">${esc(ship.address1)}${ship.address2 ? `, ${esc(ship.address2)}` : ''}</div>
       <div class="line">${esc(ship.zip)} ${esc(ship.city)}</div>
-      <div class="line">${esc(ship.country)}</div>
-      ${ship.phone ? `<div class="line" style="margin-top:4px;"><span class="strong">Phone:</span> ${esc(ship.phone)}</div>` : ''}
+      ${ship.phone ? `<div class="line strong">Tel: ${esc(ship.phone)}</div>` : ''}
     </div>
-    <div class="box">
-      <div class="box-title">Customer / Ordered by</div>
-      <div class="name">${esc(bill.name || customer.name || ship.name)}</div>
-      ${customer.email ? `<div class="line"><span class="strong">Email:</span> ${esc(customer.email)}</div>` : ''}
-      ${bill.phone ? `<div class="line"><span class="strong">Phone:</span> ${esc(bill.phone)}</div>` : ''}
-      ${bill.address1 ? `<div class="line" style="margin-top:4px;">${esc(bill.address1)}</div>` : ''}
-      ${bill.address2 ? `<div class="line">${esc(bill.address2)}</div>` : ''}
-      ${bill.zip ? `<div class="line">${esc(bill.zip)} ${esc(bill.city)}</div>` : ''}
-      ${bill.country ? `<div class="line">${esc(bill.country)}</div>` : ''}
-    </div>
-  </div>
-
-  <div class="main-area">
-    <div class="main-image-card">${mainImg}</div>
-    <div class="box">
-      <div class="box-title">Main product / Florist instruction</div>
-      ${
-        mainItem
-          ? `<div class="main-product-title">${esc(mainItem.title)}</div>
-      ${mainItem.variant_title ? `<div class="tag">Variant: ${esc(mainItem.variant_title)}</div>` : ''}
-      <div class="tag">Qty: ${esc(mainItem.quantity)}</div>`
-          : '<div class="muted">No main product</div>'
-      }
+    <div class="box main-product">
+      <div class="box-title">Main product</div>
+      <div class="main-flex">
+        ${mainThumb}
+        <div>
+          ${
+            mainItem
+              ? `<div class="main-product-title">${esc(truncate(mainItem.title, 80))}</div>
+          ${mainItem.variant_title ? `<div class="small">${esc(truncate(mainItem.variant_title, 50))}</div>` : ''}
+          <div class="tag">Qty ${esc(mainItem.quantity)}</div>`
+              : '<div class="muted">No main product</div>'
+          }
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="box">
-    <div class="box-title">Products / Add-ons</div>
+    <div class="box-title">Products / Add-ons ${extraCount ? `(+${extraCount} more)` : ''}</div>
     <table>
       <thead><tr><th>Product</th><th class="qty">Qty</th></tr></thead>
       <tbody>${productRows || '<tr><td colspan="2">No products</td></tr>'}</tbody>
     </table>
-    <div class="totals">
-      <div></div>
-      <div>
-        <table class="summary">
-          <tr><td class="s-label">Flower price</td><td class="s-value">${esc(money(flowerValue, currency))}</td></tr>
-          <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">- ${esc(money(platform, currency))}</td></tr>
-          <tr><td class="s-label">Excl. MOMS</td><td class="s-value">${esc(money(payoutEx, currency))}</td></tr>
-          <tr><td class="s-label">MOMS (${esc(momsPercent)}%)</td><td class="s-value">${esc(money(payoutMoms, currency))}</td></tr>
-          <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
-          <tr><td class="s-label"><strong>Your payout (inkl. MOMS)</strong></td><td class="s-value"><strong>${esc(money(payout, currency))}</strong></td></tr>
-        </table>
-      </div>
-    </div>
   </div>
 
-  <div class="signature-area">
-    <div class="check"><span class="square"></span>Product checked</div>
-    <div class="check"><span class="square"></span>Card/message</div>
-    <div class="check"><span class="square"></span>Add-ons packed</div>
-    <div class="check"><span class="square"></span>Photo taken</div>
-  </div>
-
-  <div class="cut"><span>CUT HERE · TEAR-OFF PRODUCTION SLIP</span></div>
-  <div class="tear">
-    <div class="tear-grid">
-      <div>
-        <div class="tear-title">Order</div>
-        <div class="tear-big">${esc(orderName)}</div>
-        <div>${esc(fmtDate(createdAt))}</div>
-        <div style="margin-top:3px;"><strong>${esc(ship.name)}</strong></div>
-        <div>${esc(ship.zip)} ${esc(ship.city)}</div>
-      </div>
-      <div>
-        <div class="tear-title">Product to make</div>
-        ${
-          mainItem
-            ? `<div class="tear-big">${esc(mainItem.title)}</div>
-        ${mainItem.variant_title ? `<div>Variant: ${esc(mainItem.variant_title)}</div>` : ''}
-        <div>Qty: ${esc(mainItem.quantity)}</div>
-        <div style="margin-top:4px;"><strong>Payout:</strong> ${esc(money(payout, currency))}</div>`
-            : ''
-        }
-      </div>
-      <div>
-        <div class="tear-title">Production status</div>
-        <div><span class="square"></span>Made</div>
-        <div><span class="square"></span>Card</div>
-        <div><span class="square"></span>Add-ons</div>
-        <div><span class="square"></span>Ready</div>
-      </div>
-    </div>
-  </div>
-  <div class="footer">
-    <div>Northblomst · northblomst.dk · Internal partner production document</div>
-    <div>${esc(orderName)}</div>
-  </div>
-</div>`;
-}
-
-function renderPage2(ctx) {
-  const { lineItems, mainItem, ship, orderName, note, noteAttributes, mongo } = ctx;
-
-  const allProps = lineItems
-    .filter((li) => li.properties?.length)
-    .map(
-      (li) =>
-        `<strong>${esc(li.title)}</strong>\n${li.properties
-          .map((p) => `${esc(p.name)}: ${esc(p.value)}`)
-          .join('\n')}`
-    )
-    .join('\n\n');
-
-  const mainProps = mainItem ? renderPropertiesHtml(mainItem.properties) : 'No main product properties.';
-  const attrsHtml = renderNoteAttributes(noteAttributes);
-  const mongoAddons = (mongo.addOns || [])
-    .map((a) => `${esc(a.label)}${a.value ? `: ${esc(a.value)}` : ''}`)
-    .join('\n');
-
-  const deliveryNote = mongo.addOnsSummary || mongo.cardText || '';
-  const miniCardMessage = String(mongo.cardText || note || '').trim().slice(0, 260);
-
-  return `<div class="page">
-  <div class="top-border"></div>
-  <div class="header">
-    <div class="logo-wrap">
-      <img class="logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
-      <div class="logo-site">northblomst.dk</div>
-    </div>
-    <div class="doc-title">
-      <h1>Terminal Instructions</h1>
-      <p>Page 2 · Notes · Attributes · Card message</p>
-    </div>
-    <div class="status-box">
-      <div class="status-pill">Very important</div>
-      <div><strong>Order:</strong> ${esc(orderName)}</div>
-    </div>
-  </div>
-
-  <div class="terminal-note-box">
-    <div class="terminal-note-title">IMPORTANT TERMINAL NOTE / WHAT TO PREPARE</div>
-
-    <div class="terminal-section">
-      <div class="terminal-section-title">Order note</div>
-      <div class="terminal-text-large">${note ? esc(note) : 'No order note.'}</div>
-    </div>
-
-    ${
-      attrsHtml
-        ? `<div class="terminal-section">
-      <div class="terminal-section-title">Note attributes / Custom order details</div>
-      <div class="terminal-text">${attrsHtml}</div>
-    </div>`
-        : ''
-    }
-
-    ${
-      mongoAddons
-        ? `<div class="terminal-section">
-      <div class="terminal-section-title">Portal add-ons</div>
-      <div class="terminal-text">${mongoAddons}</div>
-    </div>`
-        : ''
-    }
-
-    ${
-      deliveryNote && deliveryNote !== note
-        ? `<div class="terminal-section">
-      <div class="terminal-section-title">Delivery / card</div>
-      <div class="terminal-text-large">${esc(deliveryNote)}</div>
-    </div>`
-        : ''
-    }
-
-    <div class="terminal-grid-2">
-      <div class="terminal-section">
-        <div class="terminal-section-title">Main product properties</div>
-        <div class="terminal-text">${mainProps}</div>
-      </div>
-      <div class="terminal-section">
-        <div class="terminal-section-title">All product attributes / Add-ons</div>
-        <div class="terminal-text">${allProps || 'No line item properties.'}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="signature-area">
-    <div class="check"><span class="square"></span>Instructions read</div>
-    <div class="check"><span class="square"></span>Bouquet style followed</div>
-    <div class="check"><span class="square"></span>Card message written</div>
-    <div class="check"><span class="square"></span>Ready for delivery</div>
-  </div>
-
-  <div class="cut"><span>CUT HERE · TERMINAL NOTE COPY</span></div>
-  <div class="tear">
-    <div class="tear-grid">
-      <div>
-        <div class="tear-title">Order</div>
-        <div class="tear-big">${esc(orderName)}</div>
-        <div><strong>${esc(ship.name)}</strong></div>
-        <div>${esc(ship.zip)} ${esc(ship.city)}</div>
-      </div>
-      <div>
-        <div class="tear-title">Main note</div>
-        <div>${esc(String(note || mongo.cardText || '').slice(0, 160))}</div>
-      </div>
-      <div>
-        <div class="tear-title">Done</div>
-        <div><span class="square"></span>Made</div>
-        <div><span class="square"></span>Card</div>
-        <div><span class="square"></span>Photo</div>
-        <div><span class="square"></span>Ready</div>
-      </div>
-    </div>
-  </div>
   ${
-    miniCardMessage
-      ? `<div class="mini-card-cut"><span>CUT HERE · MINI CARD</span></div>
-  <div class="mini-card">
-    <div class="mini-card-title">Greeting card</div>
-    <div class="mini-card-message">${esc(miniCardMessage)}</div>
-    <div class="mini-card-meta">Order: ${esc(orderName)} · ${esc(ship.name)}</div>
+    instructionRows
+      ? `<div class="box info-box">
+    <div class="box-title">Florist notes / Tilvalg</div>
+    ${instructionRows}
   </div>`
       : ''
   }
+
+  ${
+    cardText
+      ? `<div class="box card-box">
+    <div class="box-title">Korttekst ${sender ? `· ${esc(truncate(sender, 40))}` : ''}</div>
+    <div class="card-message">${esc(cardText)}</div>
+  </div>`
+      : ''
+  }
+
+  <div class="finance-bar">
+    <span>Flower ${esc(money(flowerValue, currency))}</span>
+    <span>Platform −${esc(money(platform, currency))}</span>
+    <span>Delivery ${esc(money(delivery, currency))}</span>
+    <span class="finance-total">Payout ${esc(money(payout, currency))}</span>
+  </div>
+
+  <div class="signature-area">
+    <div class="check"><span class="square"></span>Product</div>
+    <div class="check"><span class="square"></span>Card</div>
+    <div class="check"><span class="square"></span>Add-ons</div>
+    <div class="check"><span class="square"></span>Photo</div>
+  </div>
+
   <div class="footer">
-    <div>Northblomst · northblomst.dk · Terminal instruction page</div>
+    <div>Northblomst · single-page production</div>
     <div>${esc(orderName)}</div>
   </div>
 </div>`;
@@ -415,15 +303,15 @@ function renderPackingSlipHtml(payload) {
 <html lang="da">
 <head>
   <meta charset="utf-8" />
-  <title>Packing slip ${esc(orderName)}</title>
+  <title>Production ${esc(orderName)}</title>
   <style>${PACKING_SLIP_CSS}</style>
 </head>
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
+    <span class="no-print-hint">Optimized for 1× A4 — use “Print kort” for greeting/funeral cards.</span>
   </div>
-  ${renderPage1(ctx)}
-  ${renderPage2(ctx)}
+  ${renderCompactSheet(ctx)}
   <script>
     window.addEventListener('load', function () {
       var imgs = document.querySelectorAll('img');
@@ -437,9 +325,9 @@ function renderPackingSlipHtml(payload) {
       });
       function done() {
         pending--;
-        if (pending <= 0) setTimeout(function () { window.print(); }, 300);
+        if (pending <= 0) setTimeout(function () { window.print(); }, 250);
       }
-      if (pending === 0) setTimeout(function () { window.print(); }, 500);
+      if (pending === 0) setTimeout(function () { window.print(); }, 350);
     });
   </script>
 </body>
