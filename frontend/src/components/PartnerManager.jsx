@@ -12,6 +12,7 @@ const emptyForm = {
   bankAccount: '',
   bankName: '',
   zoneRanges: '',
+  handlesDelivery: true,
   password: ''
 };
 
@@ -48,6 +49,7 @@ export default function PartnerManager() {
       bankAccount: p.bankAccount || '',
       bankName: p.bankName || '',
       zoneRanges: (p.zoneRanges || []).join(','),
+      handlesDelivery: p.handlesDelivery !== false,
       password: ''
     });
   };
@@ -71,6 +73,7 @@ export default function PartnerManager() {
         .split(',')
         .map((z) => z.trim())
         .filter(Boolean),
+      handlesDelivery: !!form.handlesDelivery,
       password: form.password || undefined
     };
 
@@ -111,6 +114,7 @@ export default function PartnerManager() {
             <button type="button" onClick={() => startEdit(p)} className="partner-name-btn">
               {p.name} ({p.zoneRanges?.join(', ') || 'no zones'})
               {p.cvr ? ` · CVR ${p.cvr}` : ''}
+              {p.handlesDelivery === false ? ' · uden transport' : ' · +69 transport'}
             </button>
             <button type="button" onClick={() => handleDelete(p)} className="btn-delete" title="Slet">
               Slet
@@ -189,6 +193,22 @@ export default function PartnerManager() {
               onChange={(e) => setForm({ ...form, zoneRanges: e.target.value })}
             />
           </label>
+          <fieldset className="partner-delivery-fieldset">
+            <legend>Transport / Delivery (69 DKK)</legend>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={!!form.handlesDelivery}
+                onChange={(e) => setForm({ ...form, handlesDelivery: e.target.checked })}
+              />
+              Partner/terminal handles delivery — include 69 DKK in payout
+            </label>
+            <p className="form-hint">
+              {form.handlesDelivery
+                ? 'Normal florist: payout = 80% flowers + 69 DKK delivery.'
+                : 'Terminal / Northblomst delivers: payout = 80% flowers only (no 69 DKK). Shows Stripe → platform → remaining + MOMS.'}
+            </p>
+          </fieldset>
           <label>
             Adgangskode {editing && <span>(tom = uændret)</span>}
             <input

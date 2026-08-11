@@ -41,7 +41,7 @@ async function loadWeeklyFinanceOrders({ partnerId, weekStart, weekEnd }) {
   if (partnerId) query.partner = partnerId;
 
   return Order.find(query)
-    .populate('partner', 'name email')
+    .populate('partner', 'name email handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: 1 })
     .limit(5000);
 }
@@ -115,7 +115,7 @@ router.get('/orders', requireRole('admin'), async (req, res) => {
   if (status) query.status = status;
 
   const orders = await Order.find(query)
-    .populate('partner', 'name email')
+    .populate('partner', 'name email handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: 1 })
     .limit(1000);
 
@@ -150,7 +150,7 @@ router.get('/orders.csv', requireRole('admin'), async (req, res) => {
   if (status) query.status = status;
 
   const orders = await Order.find(query)
-    .populate('partner', 'name email')
+    .populate('partner', 'name email handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: 1 })
     .limit(5000);
 

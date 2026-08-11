@@ -34,24 +34,44 @@ function getFinanceOptions(query = {}) {
     feeRate: toNumber(query.feePercent, DEFAULT_FEE_PERCENT) / 100,
     feeFixed: toNumber(query.feeFixed, DEFAULT_FEE_FIXED),
     platformCutRate: toNumber(query.platformPercent, DEFAULT_PLATFORM_PERCENT) / 100,
-    fixedShipping: FIXED_SHIPPING_DKK
+    fixedShipping: FIXED_SHIPPING_DKK,
+    includeShipping:
+      query.includeShipping != null
+        ? !(query.includeShipping === false || query.includeShipping === 'false')
+        : null
   };
+}
+
+function resolvePartnerHandlesDelivery(order, options = {}) {
+  if (options.includeShipping != null) return !!options.includeShipping;
+  if (options.handlesDelivery != null) return !!options.handlesDelivery;
+  const partner = order?.partner;
+  if (partner && typeof partner === 'object' && partner.handlesDelivery != null) {
+    return partner.handlesDelivery !== false;
+  }
+  return true;
 }
 
 function orderDisplayNumber(order) {
   return order.orderNumber || order.shopifyOrderName || order.shopifyOrderNumber || String(order._id);
 }
 
-/** Full finance row (admin). Stripe fee deducted first, then fixed 69 DKK shipping. */
+/**
+ * Full finance row (admin).
+ * Stripe fee first, then fixed 69 DKK delivery is split from net for flower price.
+ * If partner.handlesDelivery is false (e.g. terminal), 69 DKK stays with platform — not in partner payout.
+ */
 function buildOrderFinanceRow(order, options = getFinanceOptions()) {
   const gross = toNumber(order.totalPaidAmount ?? order.totalPrice, 0);
-  const shipping = options.fixedShipping;
+  const deliveryComponent = options.fixedShipping;
+  const partnerHandlesDelivery = resolvePartnerHandlesDelivery(order, options);
+  const shippingToPartner = partnerHandlesDelivery ? deliveryComponent : 0;
   const feeAmount = round2(Math.max(0, gross * options.feeRate + options.feeFixed));
   const netAfterFee = round2(Math.max(0, gross - feeAmount));
-  const flowerValue = round2(Math.max(0, netAfterFee - shipping));
+  const flowerValue = round2(Math.max(0, netAfterFee - deliveryComponent));
   const platformCommission = round2(Math.max(0, flowerValue * options.platformCutRate));
   const partnerFlowerShare = round2(Math.max(0, flowerValue - platformCommission));
-  const partnerPayout = round2(partnerFlowerShare + shipping);
+  const partnerPayout = round2(partnerFlowerShare + shippingToPartner);
   const partnerMoms = splitInclusiveMoms(partnerPayout);
   const deliveryDate = order.deliveryDate || order.createdAt;
 
@@ -69,7 +89,9 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
     gross,
     feeAmount,
     netAfterFee,
-    shipping,
+    shipping: shippingToPartner,
+    deliveryComponent,
+    handlesDelivery: partnerHandlesDelivery,
     flowerValue,
     platformCommission,
     partnerFlowerShare,
@@ -95,6 +117,8 @@ function toPartnerFinanceView(row) {
     city: row.city,
     flowerValue: row.flowerValue,
     shipping: row.shipping,
+    deliveryComponent: row.deliveryComponent,
+    handlesDelivery: row.handlesDelivery,
     platformCommission: row.platformCommission,
     partnerPayout: row.partnerPayout,
     partnerPayoutExMoms: row.partnerPayoutExMoms,

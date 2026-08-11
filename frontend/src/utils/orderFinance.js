@@ -28,28 +28,42 @@ export function splitInclusiveMoms(inclusiveAmount, rate = MOMS_RATE) {
   };
 }
 
+function partnerHandlesDelivery(order, options = {}) {
+  if (options.handlesDelivery != null) return !!options.handlesDelivery;
+  if (options.includeShipping != null) return !!options.includeShipping;
+  const partner = order?.partner;
+  if (partner && typeof partner === 'object' && partner.handlesDelivery != null) {
+    return partner.handlesDelivery !== false;
+  }
+  return true;
+}
+
 export function calculateOrderFinance(order, options = {}) {
   const feeRate = toNumber(options.feePercent, DEFAULT_FEE_PERCENT) / 100;
   const feeFixed = toNumber(options.feeFixed, DEFAULT_FEE_FIXED);
   const platformCutRate = toNumber(options.platformPercent, DEFAULT_PLATFORM_PERCENT) / 100;
-  const shipping = FIXED_SHIPPING_DKK;
+  const deliveryComponent = FIXED_SHIPPING_DKK;
+  const handlesDelivery = partnerHandlesDelivery(order, options);
+  const shippingToPartner = handlesDelivery ? deliveryComponent : 0;
 
   const gross = toNumber(order?.totalPaidAmount ?? order?.totalPrice, 0);
   if (gross <= 0) return null;
 
   const feeAmount = round2(Math.max(0, gross * feeRate + feeFixed));
   const netAfterFee = round2(Math.max(0, gross - feeAmount));
-  const flowerValue = round2(Math.max(0, netAfterFee - shipping));
+  const flowerValue = round2(Math.max(0, netAfterFee - deliveryComponent));
   const platformCommission = round2(Math.max(0, flowerValue * platformCutRate));
   const partnerFlowerShare = round2(Math.max(0, flowerValue - platformCommission));
-  const partnerPayout = round2(partnerFlowerShare + shipping);
+  const partnerPayout = round2(partnerFlowerShare + shippingToPartner);
   const partnerMoms = splitInclusiveMoms(partnerPayout);
 
   return {
     gross,
     feeAmount,
     netAfterFee,
-    shipping,
+    shipping: shippingToPartner,
+    deliveryComponent,
+    handlesDelivery,
     flowerValue,
     platformCommission,
     partnerFlowerShare,

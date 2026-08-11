@@ -16,7 +16,9 @@ const UserSchema = new mongoose.Schema(
     cvr: String,
     bankAccount: String,
     bankName: String,
-    zoneRanges: [String]
+    zoneRanges: [String],
+    /** When true, partner gets fixed 69 DKK delivery in payout. When false (e.g. terminal), Northblomst keeps delivery. */
+    handlesDelivery: { type: Boolean, default: true }
   },
   {
     timestamps: true

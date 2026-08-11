@@ -18,6 +18,7 @@ function partnerPublicJson(partner, extra = {}) {
     bankAccount: partner.bankAccount || '',
     bankName: partner.bankName || '',
     zoneRanges: partner.zoneRanges,
+    handlesDelivery: partner.handlesDelivery !== false,
     ...extra
   };
 }
@@ -30,7 +31,7 @@ router.get('/', requireRole('admin'), async (req, res) => {
 
 // Admin: create partner
 router.post('/', requireRole('admin'), async (req, res) => {
-  const { name, email, password, phone, address, cvr, bankAccount, bankName, zoneRanges } = req.body;
+  const { name, email, password, phone, address, cvr, bankAccount, bankName, zoneRanges, handlesDelivery } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
@@ -54,6 +55,7 @@ router.post('/', requireRole('admin'), async (req, res) => {
     bankAccount: String(bankAccount).trim(),
     bankName: String(bankName || '').trim(),
     zoneRanges: zoneRanges || [],
+    handlesDelivery: handlesDelivery !== false && handlesDelivery !== 'false',
     role: 'partner'
   });
 
@@ -64,7 +66,7 @@ router.post('/', requireRole('admin'), async (req, res) => {
 
 // Admin: update partner
 router.put('/:id', requireRole('admin'), async (req, res) => {
-  const { name, email, phone, address, cvr, bankAccount, bankName, zoneRanges, password } = req.body;
+  const { name, email, phone, address, cvr, bankAccount, bankName, zoneRanges, password, handlesDelivery } = req.body;
   const partner = await User.findById(req.params.id);
   if (!partner || partner.role !== 'partner') {
     return res.status(404).json({ message: 'Partner not found' });
@@ -78,6 +80,9 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   if (bankAccount !== undefined) partner.bankAccount = String(bankAccount || '').trim();
   if (bankName !== undefined) partner.bankName = String(bankName || '').trim();
   if (Array.isArray(zoneRanges)) partner.zoneRanges = zoneRanges;
+  if (handlesDelivery !== undefined) {
+    partner.handlesDelivery = handlesDelivery !== false && handlesDelivery !== 'false';
+  }
   if (password) {
     partner.passwordHash = await User.hashPassword(password);
   }

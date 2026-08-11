@@ -1216,6 +1216,23 @@ button {
   gap: 0.75rem;
 }
 
+.partner-delivery-fieldset {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.partner-delivery-fieldset legend {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0 0.35rem;
+}
+
+.partner-form .partner-delivery-fieldset .form-hint {
+  margin: 0.35rem 0 0.5rem;
+}
+
 .checkbox-label {
   display: flex !important;
   align-items: center;

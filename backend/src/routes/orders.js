@@ -86,7 +86,7 @@ router.get('/partner', async (req, res) => {
   const deliveryQuery = buildDeliveryDateQuery(deliveryPreset, deliveryDate, from, to);
   if (deliveryQuery) Object.assign(query, deliveryQuery);
   const orders = await Order.find(query)
-    .populate('partner', 'name email')
+    .populate('partner', 'name email handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: -1 })
     .limit(200);
   res.json(orders);
@@ -106,7 +106,7 @@ router.get('/admin', requireRole('admin'), async (req, res) => {
   if (deliveryQuery) Object.assign(query, deliveryQuery);
 
   const orders = await Order.find(query)
-    .populate('partner', 'name email')
+    .populate('partner', 'name email handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: -1 })
     .limit(200);
   res.json(orders);
@@ -233,7 +233,7 @@ router.get('/my', async (req, res) => {
 });
 
 async function loadOrderForUser(req) {
-  const order = await Order.findById(req.params.id).populate('partner', 'name email');
+  const order = await Order.findById(req.params.id).populate('partner', 'name email handlesDelivery');
   if (!order) return { error: { status: 404, message: 'Order not found' } };
   if (req.user.role === 'partner' && (!order.partner || String(order.partner._id) !== String(req.user.id))) {
     return { error: { status: 403, message: 'Forbidden' } };

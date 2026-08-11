@@ -260,7 +260,7 @@ function renderCompactSheet(ctx) {
         <tr><td class="s-label">Platform fee (20%)</td><td class="s-value">− ${esc(money(platform, currency))}</td></tr>
         <tr><td class="s-label">Excl. MOMS</td><td class="s-value">${esc(money(payoutEx, currency))}</td></tr>
         <tr><td class="s-label">MOMS (${esc(momsPercent)}%)</td><td class="s-value">${esc(money(payoutMoms, currency))}</td></tr>
-        <tr><td class="s-label">Delivery</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
+        <tr><td class="s-label">${finance?.handlesDelivery === false ? 'Delivery (not included)' : 'Delivery'}</td><td class="s-value">${esc(money(delivery, currency))}</td></tr>
         <tr class="total"><td class="s-label">Your payout (inkl. MOMS)</td><td class="s-value">${esc(money(payout, currency))}</td></tr>
       </table>
     </div>
