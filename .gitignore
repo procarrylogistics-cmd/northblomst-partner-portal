@@ -6,3 +6,17 @@ dist/
 build/
 *.log
 .DS_Store
+
+# Google / Northblomst secrets — never commit
+.northblomst-secrets/
+**/.northblomst-secrets/**
+**/northblomst-agent-read.json
+**/*service-account*.json
+**/google-credentials*.json
+**/gcp-key*.json
+client_secret*.json
+*-credentials.json
+token.json
+tokens.json
+.gcloud/
+**/mcp.local.json
