@@ -67,8 +67,10 @@ function mapShopifyPayloadToOrder(data) {
   };
 }
 
-/** Auto-asignează partner pe bază de zone/postal. */
+/** Auto-asignează partner pe bază de zone/postal (gated by AUTO_ASSIGN_PARTNERS). */
 async function assignPartnerIfMatch(order) {
+  const { isAutoAssignEnabled } = require('../services/partnerAutoAssign');
+  if (!isAutoAssignEnabled()) return null;
   const zone = order.zone;
   if (!zone) return null;
   const partners = await User.find({ role: 'partner' });

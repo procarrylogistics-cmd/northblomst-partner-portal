@@ -1,5 +1,14 @@
 const User = require('../models/User');
 
+/**
+ * Auto-assign is OFF by default — admin assigns partners manually.
+ * Set AUTO_ASSIGN_PARTNERS=true on the server to re-enable zone-based assignment.
+ */
+function isAutoAssignEnabled() {
+  const raw = String(process.env.AUTO_ASSIGN_PARTNERS || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 function toPostalNumber(postalCodeRaw) {
   const numeric = parseInt(String(postalCodeRaw || '').trim(), 10);
   return Number.isNaN(numeric) ? null : numeric;
@@ -69,6 +78,9 @@ function isFallbackPartner(partner) {
 }
 
 async function autoAssignPartnerForOrder(order, options = {}) {
+  if (!isAutoAssignEnabled()) {
+    return { changed: false, partner: null, skipped: true, reason: 'auto_assign_disabled' };
+  }
   if (!order) return { changed: false, partner: null };
   const keepAssignedNonFallback = options.keepAssignedNonFallback !== false;
   const postalCode = order.shippingAddress?.postalCode || order.postcode || '';
@@ -106,6 +118,9 @@ async function autoAssignPartnerForOrder(order, options = {}) {
 }
 
 async function rebalanceOpenOrdersByPostal() {
+  if (!isAutoAssignEnabled()) {
+    return { checked: 0, changed: 0, skipped: true, reason: 'auto_assign_disabled' };
+  }
   const orders = await require('../models/Order')
     .find({ status: { $ne: 'cancelled' } })
     .select('_id partner shippingAddress postcode assignedAt status');
@@ -119,6 +134,7 @@ async function rebalanceOpenOrdersByPostal() {
 }
 
 module.exports = {
+  isAutoAssignEnabled,
   autoAssignPartnerForOrder,
   rebalanceOpenOrdersByPostal,
   selectPartnerForPostal
