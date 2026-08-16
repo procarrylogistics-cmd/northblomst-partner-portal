@@ -34,6 +34,7 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [postalFilter, setPostalFilter] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
   const [deliveryPreset, setDeliveryPreset] = useState(getInitialDeliveryPreset);
   const [deliveryDate, setDeliveryDate] = useState(getInitialDeliveryDate);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -65,6 +66,8 @@ export default function AdminDashboard() {
     const params = {};
     if (statusFilter) params.status = statusFilter;
     if (postalFilter) params.postalCode = postalFilter;
+    const search = orderSearch.trim();
+    if (search) params.q = search;
     const isoDate = getDeliveryDateParam();
     if (isoDate) params.deliveryDate = isoDate;
     const res = await axios.get(`${API_BASE}/orders/admin`, { params });
@@ -83,7 +86,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadOrders();
-  }, [statusFilter, postalFilter, deliveryPreset, deliveryDate]);
+  }, [statusFilter, postalFilter, orderSearch, deliveryPreset, deliveryDate]);
 
   useEffect(() => {
     if (location.state?.openManualCard) {
@@ -283,6 +286,13 @@ export default function AdminDashboard() {
           </div>
         )}
         <div className="filters">
+          <input
+            placeholder="Søg ordrenummer"
+            value={orderSearch}
+            onChange={(e) => setOrderSearch(e.target.value)}
+            title="Søg efter ordrenummer"
+            aria-label="Søg ordrenummer"
+          />
           <input
             placeholder="Postnummer"
             value={postalFilter}

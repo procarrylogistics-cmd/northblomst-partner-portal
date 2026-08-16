@@ -92,18 +92,51 @@ router.get('/partner', async (req, res) => {
   res.json(orders);
 });
 
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Normalize order number input: trim and strip leading #. */
+function normalizeOrderNumberInput(raw) {
+  return String(raw || '').trim().replace(/^#+/, '').trim();
+}
+
+function buildOrderNumberSearchClause(raw) {
+  const term = normalizeOrderNumberInput(raw);
+  if (!term) return null;
+  const re = new RegExp(escapeRegex(term), 'i');
+  return {
+    $or: [
+      { orderNumber: re },
+      { shopifyOrderNumber: re },
+      { shopifyOrderName: re }
+    ]
+  };
+}
+
 // Admin: list all orders, sorted by deliveryDate then createdAt
 router.get('/admin', requireRole('admin'), async (req, res) => {
   const { status, postalCode, partnerId, deliveryPreset, deliveryDate, from, to } = req.query;
+  const searchRaw = req.query.q || req.query.orderNumber || req.query.search || '';
   const query = {};
   if (status) query.status = status;
-  if (postalCode) query.$or = [
-    { 'shippingAddress.postalCode': postalCode },
-    { postcode: postalCode }
-  ];
   if (partnerId) query.partner = partnerId;
   const deliveryQuery = buildDeliveryDateQuery(deliveryPreset, deliveryDate, from, to);
   if (deliveryQuery) Object.assign(query, deliveryQuery);
+
+  const andClauses = [];
+  if (postalCode) {
+    andClauses.push({
+      $or: [
+        { 'shippingAddress.postalCode': postalCode },
+        { postcode: postalCode }
+      ]
+    });
+  }
+  const searchClause = buildOrderNumberSearchClause(searchRaw);
+  if (searchClause) andClauses.push(searchClause);
+  if (andClauses.length === 1) Object.assign(query, andClauses[0]);
+  else if (andClauses.length > 1) query.$and = andClauses;
 
   const orders = await Order.find(query)
     .populate('partner', 'name email phone address handlesDelivery')
@@ -172,7 +205,23 @@ router.post('/manual', async (req, res) => {
 
   const deliveryDateVal = data.deliveryDate ? new Date(data.deliveryDate) : new Date();
   const receivedAt = new Date();
-  const orderNumber = await ensureUniqueOrderNumber();
+
+  const customRaw = data.orderNumber || data.shopifyOrderName || data.shopifyOrderNumber || '';
+  let orderNumber;
+  if (String(customRaw).trim()) {
+    orderNumber = normalizeOrderNumberInput(customRaw);
+    if (!orderNumber) {
+      return res.status(400).json({ message: 'Ugyldigt ordrenummer' });
+    }
+    const taken = await isOrderNumberTaken(orderNumber);
+    if (taken) {
+      return res.status(409).json({
+        message: `Ordrenummer ${orderNumber} findes allerede. Vælg et andet nummer.`
+      });
+    }
+  } else {
+    orderNumber = await ensureUniqueOrderNumber();
+  }
 
   const createdByRole = role === 'partner' ? 'partner' : 'admin';
   const createdByPartnerId = role === 'partner' ? user.id : null;
@@ -431,14 +480,28 @@ function generateOrderNumber() {
   return String(Math.floor(1000000 + Math.random() * 9000000));
 }
 
+async function isOrderNumberTaken(num) {
+  const stripped = normalizeOrderNumberInput(num);
+  if (!stripped) return false;
+  const withHash = `#${stripped}`;
+  const found = await Order.findOne({
+    $or: [
+      { orderNumber: stripped },
+      { shopifyOrderNumber: stripped },
+      { shopifyOrderName: stripped },
+      { shopifyOrderName: withHash }
+    ]
+  });
+  return !!found;
+}
+
 async function ensureUniqueOrderNumber() {
   let num;
   let exists = true;
   let attempts = 0;
   while (exists && attempts < 20) {
     num = generateOrderNumber();
-    const found = await Order.findOne({ orderNumber: num });
-    exists = !!found;
+    exists = await isOrderNumberTaken(num);
     attempts++;
   }
   return num;

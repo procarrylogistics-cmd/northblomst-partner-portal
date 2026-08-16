@@ -6,6 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_B
 export default function CreateOrderModal({ isAdmin, onClose, onCreated }) {
   const [partners, setPartners] = useState([]);
   const [form, setForm] = useState({
+    orderNumber: '',
     recipientName: '',
     address: '',
     postcode: '',
@@ -44,6 +45,8 @@ export default function CreateOrderModal({ isAdmin, onClose, onCreated }) {
         notes: form.notes.trim(),
         productSummary: form.productSummary.trim()
       };
+      const customOrderNumber = form.orderNumber.trim();
+      if (customOrderNumber) payload.orderNumber = customOrderNumber;
       if (isAdmin && form.partnerId) payload.partnerId = form.partnerId;
       const res = await axios.post(`${API_BASE}/orders/manual`, payload);
       onCreated(res.data);
@@ -53,6 +56,7 @@ export default function CreateOrderModal({ isAdmin, onClose, onCreated }) {
       const fallback = `Fejl ${status || ''}: ${err.response?.statusText || 'Kunne ikke oprette ordre'}`;
       if (status === 401) setError('Ikke logget ind');
       else if (status === 403) setError(msg || 'Ingen adgang (rolle)');
+      else if (status === 409) setError(msg || 'Ordrenummer findes allerede');
       else setError(msg || fallback);
     } finally {
       setSubmitting(false);
@@ -70,6 +74,15 @@ export default function CreateOrderModal({ isAdmin, onClose, onCreated }) {
         </div>
         {error && <div className="error modal-error">{error}</div>}
         <form onSubmit={handleSubmit} className="create-order-form">
+          <label>
+            Ordrenummer
+            <input
+              value={form.orderNumber}
+              onChange={(e) => setForm({ ...form, orderNumber: e.target.value })}
+              placeholder="Valgfri – genereres automatisk hvis tom"
+              autoComplete="off"
+            />
+          </label>
           <label>
             Modtager <span className="required">*</span>
             <input
