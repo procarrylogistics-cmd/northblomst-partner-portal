@@ -8,6 +8,7 @@ const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
+const { isDeliveryAddressAddon } = require('../utils/addressSync');
 
 function esc(s) {
   return String(s ?? '')
@@ -125,6 +126,73 @@ function findAddonFlag(mongo, patterns) {
   return null;
 }
 
+/** Danish 8-digit phone spacing, e.g. 42833316 → 42 83 33 16 */
+function formatCompanyPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 8) {
+    return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)}`;
+  }
+  return String(raw || '').trim();
+}
+
+/**
+ * Prefer portal-synced delivery fields (edited address / Tilvalg) over Shopify snapshot.
+ * Never use billing or partner/terminal address for the cut-out label.
+ */
+function resolveDeliveryShip(mongo, shopifyOrder) {
+  const so = shopifyOrder || {};
+  const sa = so.shipping_address || {};
+  const ms = mongo.shippingAddress || {};
+
+  const address1 = String(mongo.address || ms.address1 || sa.address1 || '').trim();
+  const address2 = String(ms.address2 || sa.address2 || '').trim();
+  const zip = String(mongo.postcode || ms.postalCode || sa.zip || sa.postal_code || '').trim();
+  const city = String(mongo.city || ms.city || sa.city || '').trim();
+  const name = String(
+    mongo.recipientName || sa.name || mongo.customer?.name || ''
+  ).trim();
+  const phone = String(
+    mongo.phone || ms.phone || sa.phone || mongo.customer?.phone || ''
+  ).trim();
+  const company = String(sa.company || ms.company || '').trim();
+  const country = String(ms.country || sa.country || '').trim();
+
+  // Fallback: parse Tilvalg "Delivery address" if street fields still empty
+  if (!address1 && !zip && !city) {
+    const addon = (mongo.addOns || []).find((a) => isDeliveryAddressAddon(a));
+    const raw = String(addon?.value || '').trim();
+    if (raw) {
+      const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const zipCity = parts[parts.length - 1];
+        const m = zipCity.match(/^(\d{4})\s+(.+)$/);
+        return {
+          name,
+          address1: parts.slice(0, -1).join(', '),
+          address2: '',
+          zip: m ? m[1] : '',
+          city: m ? m[2] : zipCity,
+          country,
+          phone,
+          company: ''
+        };
+      }
+      return {
+        name,
+        address1: raw,
+        address2: '',
+        zip: '',
+        city: '',
+        country,
+        phone,
+        company: ''
+      };
+    }
+  }
+
+  return { name, address1, address2, zip, city, country, phone, company };
+}
+
 function collectInstructions(ctx) {
   const { lineItems, noteAttributes, mongo, note } = ctx;
   const rows = [];
@@ -166,16 +234,7 @@ function collectInstructions(ctx) {
 function buildContext(payload) {
   const { mongo, shopifyOrder, lineItems, currency } = payload;
   const so = shopifyOrder || {};
-  const ship = so.shipping_address || {
-    name: mongo.recipientName || mongo.customer?.name,
-    address1: mongo.address || mongo.shippingAddress?.address1,
-    address2: mongo.shippingAddress?.address2,
-    zip: mongo.postcode || mongo.shippingAddress?.postalCode,
-    city: mongo.city || mongo.shippingAddress?.city,
-    country: mongo.shippingAddress?.country,
-    phone: mongo.phone || mongo.customer?.phone,
-    company: ''
-  };
+  const ship = resolveDeliveryShip(mongo, so);
   const customer = so.customer || mongo.customer || {};
   const orderName = so.name || mongo.shopifyOrderName || `#${mongo.shopifyOrderNumber || ''}`;
   const createdAt = so.created_at || mongo.orderDate || mongo.receivedAt;
@@ -187,7 +246,6 @@ function buildContext(payload) {
   const trackPodBarcode = resolveTrackPodBarcode(mongo, orderName);
   const doorFlag = findAddonFlag(mongo, ['dor', 'door', 'doer']);
   const neighborFlag = findAddonFlag(mongo, ['nabo', 'neighbor', 'neighbour']);
-  const partner = mongo.partner && typeof mongo.partner === 'object' ? mongo.partner : null;
 
   return {
     lineItems,
@@ -204,20 +262,16 @@ function buildContext(payload) {
     finance,
     trackPodBarcode,
     doorFlag,
-    neighborFlag,
-    partner
+    neighborFlag
   };
 }
 
 function renderDeliveryLabel(ctx, qrDataUrl) {
-  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, partner } = ctx;
-  const footerName = partner?.name || COMPANY.brandName;
-  const footerLine2 = partner?.address
-    ? partner.address
-    : `${COMPANY.address1}, ${COMPANY.address2}`;
-  const footerLine3 = partner?.phone
-    ? `${COMPANY.website} · ${partner.phone}`
-    : `${COMPANY.website}${COMPANY.email ? ` · ${COMPANY.email}` : ''}`;
+  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag } = ctx;
+  // Always Northblomst on cut-out label — never partner/terminal name, address, or phone
+  const phoneDisplay = formatCompanyPhone(COMPANY.phone || '42833316');
+  const footerPhone = `Telefon: ${phoneDisplay}`;
+  const footerWeb = COMPANY.website || 'northblomst.dk';
 
   const flags = [];
   if (doorFlag) flags.push(`Dør: ${doorFlag}`);
@@ -233,13 +287,12 @@ function renderDeliveryLabel(ctx, qrDataUrl) {
         <div class="dl-line">${esc(ship.address1 || '')}</div>
         ${ship.address2 ? `<div class="dl-line">${esc(ship.address2)}</div>` : ''}
         <div class="dl-line">${esc([ship.zip, ship.city].filter(Boolean).join(' '))}</div>
-        ${ship.phone ? `<div class="dl-line">Telefon: ${esc(ship.phone)}</div>` : ''}
         <div class="dl-date">${esc(fmtDeliveryLabelDate(deliveryDate))}</div>
       </div>
       <div class="dl-footer">
-        <div class="dl-partner">${esc(footerName)}</div>
-        <div class="dl-line muted">${esc(footerLine2)}</div>
-        <div class="dl-line muted">${esc(footerLine3)}</div>
+        <div class="dl-partner">${esc(COMPANY.brandName)}</div>
+        <div class="dl-line muted">${esc(footerPhone)}</div>
+        <div class="dl-line muted">${esc(footerWeb)}</div>
       </div>
     </div>
     <div class="dl-right">

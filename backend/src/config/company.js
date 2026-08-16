@@ -17,6 +17,8 @@ module.exports = {
     address1: 'Gørdingvej 59',
     address2: '6771 Gredstedbro',
     country: 'Denmark',
+    /** Public customer/driver contact on packing-slip cut-out label */
+    phone: '42833316',
     email: 'info@northblomst.dk',
     website: 'northblomst.dk',
     tagline: 'Deliver flowers with a smile · Deliver worldwide',
