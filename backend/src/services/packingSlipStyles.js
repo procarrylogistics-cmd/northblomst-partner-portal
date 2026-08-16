@@ -116,48 +116,50 @@ module.exports.PACKING_SLIP_CSS = `
     display: flex; justify-content: space-between; color: #777; font-size: 9px;
   }
   .label-cut {
-    margin: 8px 0 5px; border-top: 2px dashed #111; text-align: center; height: 10px;
+    margin: 8px auto 4px; border-top: 2px dashed #111; text-align: center; height: 10px;
+    width: 100%; max-width: 98mm;
   }
   .label-cut span {
-    position: relative; top: -8px; background: #fff; padding: 0 8px;
-    font-size: 9px; font-weight: 900; color: #333; letter-spacing: 0.4px;
+    position: relative; top: -8px; background: #fff; padding: 0 6px;
+    font-size: 8px; font-weight: 900; color: #333; letter-spacing: 0.35px;
     text-transform: uppercase;
   }
   .delivery-label {
-    display: grid; grid-template-columns: 1.35fr 0.9fr;
-    width: 100%; max-width: 170mm; margin: 0 auto;
-    border: 1.8px dashed #111; border-radius: 4px;
+    display: grid; grid-template-columns: 1.2fr 0.8fr;
+    width: 100%; max-width: 98mm; margin: 0 auto;
+    border: 1.6px dashed #111; border-radius: 4px;
     background: #fff; overflow: hidden;
     page-break-inside: avoid;
-    min-height: 48mm;
+    min-height: 42mm;
   }
   .dl-left {
     display: flex; flex-direction: column; border-right: 1px solid #111;
-    padding: 0;
+    padding: 0; min-width: 0;
   }
-  .dl-recipient { padding: 7px 9px 6px; flex: 1; }
-  .dl-name { font-size: 15px; font-weight: 900; margin-bottom: 3px; line-height: 1.15; }
-  .dl-line { font-size: 11.5px; line-height: 1.3; }
-  .dl-date { margin-top: 6px; font-size: 12px; font-weight: 800; }
+  .dl-recipient { padding: 5px 6px 4px; flex: 1; }
+  .dl-name { font-size: 13px; font-weight: 900; margin-bottom: 2px; line-height: 1.15; }
+  .dl-line { font-size: 10.5px; line-height: 1.25; }
+  .dl-date { margin-top: 4px; font-size: 11px; font-weight: 800; }
   .dl-footer {
-    border-top: 1px solid #111; padding: 5px 9px 6px; background: #fafafa;
+    border-top: 1px solid #111; padding: 3px 6px 4px; background: #fafafa;
   }
-  .dl-partner { font-size: 11.5px; font-weight: 900; }
-  .dl-line.muted { color: #444; font-size: 10px; }
+  .dl-partner { font-size: 10.5px; font-weight: 900; }
+  .dl-line.muted { color: #444; font-size: 9px; }
   .dl-right {
-    padding: 6px 8px; display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 4px 5px; display: flex; flex-direction: column; align-items: center; text-align: center;
+    min-width: 0;
   }
-  .dl-order { font-size: 13px; font-weight: 900; margin-bottom: 3px; letter-spacing: 0.2px; }
-  .dl-flags { font-size: 10.5px; font-weight: 700; margin-bottom: 4px; line-height: 1.25; }
+  .dl-order { font-size: 11.5px; font-weight: 900; margin-bottom: 2px; letter-spacing: 0.15px; }
+  .dl-flags { font-size: 9.5px; font-weight: 700; margin-bottom: 3px; line-height: 1.2; }
   .dl-qr-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .dl-qr-title { font-size: 10px; font-weight: 800; margin-bottom: 3px; }
-  .dl-qr { width: 72px; height: 72px; display: block; }
+  .dl-qr-title { font-size: 9px; font-weight: 800; margin-bottom: 2px; }
+  .dl-qr { width: 60px; height: 60px; display: block; }
   .dl-barcode {
-    margin-top: 3px; font-size: 10px; font-weight: 800; letter-spacing: 0.3px;
+    margin-top: 2px; font-size: 9px; font-weight: 800; letter-spacing: 0.2px;
     word-break: break-all; max-width: 100%;
   }
   .dl-logo {
-    margin-top: 4px; width: 72px; max-height: 22px; object-fit: contain; opacity: 0.9;
+    margin-top: 3px; width: 62px; max-height: 18px; object-fit: contain; opacity: 0.9;
   }
   .no-print { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
   .no-print button { padding: 8px 14px; font-weight: 700; cursor: pointer; }
