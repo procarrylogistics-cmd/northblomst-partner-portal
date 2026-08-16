@@ -11,19 +11,13 @@ const LS_DELIVERY_PRESET = 'northblomst_partner_deliveryPreset';
 const LS_DELIVERY_DATE = 'northblomst_partner_deliveryDate';
 const WEEKDAY_LABELS = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
 
+/**
+ * Partners always land on today's deliveries when opening /partner.
+ * Do not restore localStorage here — empty ("alle leveringsdatoer") or a
+ * stale date would hide today's work. In-session changes still persist below.
+ */
 function getInitialDeliveryPreset() {
-  try {
-    const s = localStorage.getItem(LS_DELIVERY_PRESET);
-    if (s && ['', 'today', 'tomorrow', 'date'].includes(s)) return s;
-  } catch (_) {}
   return 'today';
-}
-
-function getInitialDeliveryDate() {
-  try {
-    return localStorage.getItem(LS_DELIVERY_DATE) || '';
-  } catch (_) {}
-  return '';
 }
 
 export default function PartnerDashboard() {
@@ -33,11 +27,19 @@ export default function PartnerDashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [deliveryPreset, setDeliveryPreset] = useState(getInitialDeliveryPreset);
-  const [deliveryDate, setDeliveryDate] = useState(getInitialDeliveryDate);
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [weeklyView, setWeeklyView] = useState(false);
   const [selectedDayIso, setSelectedDayIso] = useState('');
   const pendingSelectIdRef = useRef(null);
+
+  // Align stored preference with the open-on-today default
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_DELIVERY_PRESET, 'today');
+      localStorage.removeItem(LS_DELIVERY_DATE);
+    } catch (_) {}
+  }, []);
 
   const toIsoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const startOfWeek = (date) => {
