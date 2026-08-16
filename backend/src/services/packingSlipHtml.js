@@ -1,10 +1,13 @@
-/**
+﻿/**
  * Partner production sheet HTML – single A4 page, compact for dense flower orders.
+ * Includes Bloomit-style cut-out delivery label with TrackPod QR (plain order barcode).
  */
 
+const QRCode = require('qrcode');
 const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
+const { COMPANY } = require('../config/company');
 
 function esc(s) {
   return String(s ?? '')
@@ -37,6 +40,21 @@ function fmtDateTime() {
   return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
 }
 
+/** Danish weekday + date for delivery label, e.g. "søndag 16.08.2026" */
+function fmtDeliveryLabelDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    const days = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const yyyy = dt.getFullYear();
+    return `${days[dt.getDay()]} ${dd}.${mm}.${yyyy}`;
+  } catch {
+    return '—';
+  }
+}
+
 function money(amount, currency = 'DKK') {
   const n = parseFloat(amount);
   if (Number.isNaN(n)) return '';
@@ -65,13 +83,48 @@ function isNoiseKey(name) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   if (!n || n.startsWith('_')) return true;
-  // Skip fields already shown elsewhere on the sheet
   return /recipient name|leveringsadresse|delivery address|phone|telefon|delivery date|leveringsdato|sender name|afsender/.test(
     n
   );
 }
 
-/** Collect unique tilvalg / properties for the florist, capped for one page. */
+/**
+ * Track-POD barcode value for QR scan (Load Check / delivery).
+ * Plain text — must match Track-POD "Generate barcode by" / Order Barcode field.
+ */
+function resolveTrackPodBarcode(mongo, orderName) {
+  const tracking = String(mongo.trackingNumber || '').trim();
+  if (tracking) return tracking;
+
+  const shopifyNum = String(mongo.shopifyOrderNumber || '').trim();
+  if (shopifyNum) return shopifyNum.replace(/^#/, '');
+
+  const orderNum = String(mongo.orderNumber || '').trim();
+  if (orderNum) return orderNum.replace(/^#/, '');
+
+  const name = String(mongo.shopifyOrderName || orderName || '').trim();
+  if (name) return name.replace(/^#/, '');
+
+  return String(mongo._id || mongo.id || '').trim();
+}
+
+function findAddonFlag(mongo, patterns) {
+  const list = [...(mongo.addOns || [])];
+  for (const a of list) {
+    const label = String(a.label || a.key || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (!patterns.some((p) => label.includes(p))) continue;
+    const v = String(a.value || '').trim().toLowerCase();
+    if (!v) continue;
+    if (/^(ja|yes|true|1|y)$/i.test(v)) return 'Ja';
+    if (/^(nej|no|false|0|n)$/i.test(v)) return 'Nej';
+    return String(a.value).trim();
+  }
+  return null;
+}
+
 function collectInstructions(ctx) {
   const { lineItems, noteAttributes, mongo, note } = ctx;
   const rows = [];
@@ -107,7 +160,6 @@ function collectInstructions(ctx) {
     push('Order note', orderNote, 200);
   }
 
-  // Hard cap so dense Shopify props never blow past one page
   return rows.slice(0, 10);
 }
 
@@ -132,6 +184,10 @@ function buildContext(payload) {
   const noteAttributes = so.note_attributes || [];
   const mainItem = pickMainLineItem(lineItems);
   const finance = buildOrderFinanceRow(mongo);
+  const trackPodBarcode = resolveTrackPodBarcode(mongo, orderName);
+  const doorFlag = findAddonFlag(mongo, ['dor', 'door', 'doer']);
+  const neighborFlag = findAddonFlag(mongo, ['nabo', 'neighbor', 'neighbour']);
+  const partner = mongo.partner && typeof mongo.partner === 'object' ? mongo.partner : null;
 
   return {
     lineItems,
@@ -145,11 +201,61 @@ function buildContext(payload) {
     noteAttributes,
     mongo,
     currency,
-    finance
+    finance,
+    trackPodBarcode,
+    doorFlag,
+    neighborFlag,
+    partner
   };
 }
 
-function renderCompactSheet(ctx) {
+function renderDeliveryLabel(ctx, qrDataUrl) {
+  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, partner } = ctx;
+  const footerName = partner?.name || COMPANY.brandName;
+  const footerLine2 = partner?.address
+    ? partner.address
+    : `${COMPANY.address1}, ${COMPANY.address2}`;
+  const footerLine3 = partner?.phone
+    ? `${COMPANY.website} · ${partner.phone}`
+    : `${COMPANY.website}${COMPANY.email ? ` · ${COMPANY.email}` : ''}`;
+
+  const flags = [];
+  if (doorFlag) flags.push(`Dør: ${doorFlag}`);
+  if (neighborFlag) flags.push(`Nabo: ${neighborFlag}`);
+
+  return `
+  <div class="label-cut"><span>✂ Klip her · Leveringslabel (sæt på plic / blomst)</span></div>
+  <div class="delivery-label">
+    <div class="dl-left">
+      <div class="dl-recipient">
+        <div class="dl-name">${esc(ship.name || '—')}</div>
+        ${ship.company ? `<div class="dl-line">${esc(ship.company)}</div>` : ''}
+        <div class="dl-line">${esc(ship.address1 || '')}</div>
+        ${ship.address2 ? `<div class="dl-line">${esc(ship.address2)}</div>` : ''}
+        <div class="dl-line">${esc([ship.zip, ship.city].filter(Boolean).join(' '))}</div>
+        ${ship.phone ? `<div class="dl-line">Telefon: ${esc(ship.phone)}</div>` : ''}
+        <div class="dl-date">${esc(fmtDeliveryLabelDate(deliveryDate))}</div>
+      </div>
+      <div class="dl-footer">
+        <div class="dl-partner">${esc(footerName)}</div>
+        <div class="dl-line muted">${esc(footerLine2)}</div>
+        <div class="dl-line muted">${esc(footerLine3)}</div>
+      </div>
+    </div>
+    <div class="dl-right">
+      <div class="dl-order">${esc(orderName)}</div>
+      ${flags.length ? `<div class="dl-flags">${flags.map((f) => esc(f)).join('<br/>')}</div>` : ''}
+      <div class="dl-qr-wrap">
+        <div class="dl-qr-title">Til chauffør:</div>
+        ${qrDataUrl ? `<img class="dl-qr" src="${esc(qrDataUrl)}" alt="TrackPod QR ${esc(trackPodBarcode)}" />` : '<div class="dl-qr">QR n/a</div>'}
+        <div class="dl-barcode">${esc(trackPodBarcode)}</div>
+      </div>
+      <img class="dl-logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
+    </div>
+  </div>`;
+}
+
+function renderCompactSheet(ctx, qrDataUrl) {
   const {
     lineItems,
     mainItem,
@@ -299,16 +405,31 @@ function renderCompactSheet(ctx) {
     <div class="check"><span class="square"></span>Photo taken</div>
   </div>
 
+  ${renderDeliveryLabel(ctx, qrDataUrl)}
+
   <div class="footer">
-    <div>Northblomst · 1-page production sheet · use Print kort for greeting card</div>
+    <div>Northblomst · 1-page production · klip leveringslabel · TrackPod QR = ordre-nr</div>
     <div>${esc(orderName)}</div>
   </div>
 </div>`;
 }
 
-function renderPackingSlipHtml(payload) {
+async function renderPackingSlipHtml(payload) {
   const ctx = buildContext(payload);
   const orderName = ctx.orderName;
+  const barcode = ctx.trackPodBarcode || orderName.replace(/^#/, '');
+
+  let qrDataUrl = '';
+  try {
+    qrDataUrl = await QRCode.toDataURL(String(barcode), {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 180,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+  } catch (err) {
+    console.error('TrackPod QR generation failed', err.message);
+  }
 
   return `<!DOCTYPE html>
 <html lang="da">
@@ -320,9 +441,9 @@ function renderPackingSlipHtml(payload) {
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">Optimized for 1× A4 — use “Print kort” for greeting/funeral cards.</span>
+    <span class="no-print-hint">1× A4 · klip leveringslabel med TrackPod QR (ordre ${esc(barcode)})</span>
   </div>
-  ${renderCompactSheet(ctx)}
+  ${renderCompactSheet(ctx, qrDataUrl)}
   <script>
     window.addEventListener('load', function () {
       var imgs = document.querySelectorAll('img');
@@ -345,4 +466,4 @@ function renderPackingSlipHtml(payload) {
 </html>`;
 }
 
-module.exports = { renderPackingSlipHtml };
+module.exports = { renderPackingSlipHtml, resolveTrackPodBarcode };
