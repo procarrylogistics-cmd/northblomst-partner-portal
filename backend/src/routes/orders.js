@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const { requireRole } = require('../middleware/auth');
 const { triggerZapierForOrder } = require('../services/zapier');
+const { pushOrderToProcarryTrack } = require('../services/procarryTrack');
 const { sendOrderAssignedToPartner, sendStatusChangeToAdmin } = require('../services/email');
 const { buildDeliveryDateQuery } = require('../utils/deliveryFilter');
 const { extractDeliveryFromOrderDoc, extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtractor');
@@ -470,6 +471,14 @@ router.patch('/:id/status', async (req, res) => {
   if (['in_production', 'ready', 'fulfilled'].includes(status)) {
     sendStatusChangeToAdmin(order, status).catch((err) =>
       console.error('Status notification email failed', err)
+    );
+  }
+
+  // Push to procarry-track when florist marks ready (Klar til levering).
+  // Prefer ready over assign so Track receives finished bouquets.
+  if (status === 'ready') {
+    pushOrderToProcarryTrack(order).catch((err) =>
+      console.error('procarry-track push failed', err?.response?.data || err.message || err)
     );
   }
 

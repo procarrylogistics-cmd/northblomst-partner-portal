@@ -16,6 +16,7 @@ const partnerRoutes = require('./src/routes/partners');
 const orderRoutes = require('./src/routes/orders');
 const shopifyRoutes = require('./src/routes/shopify');
 const zapierRoutes = require('./src/routes/zapier');
+const procarryTrackWebhookRoutes = require('./src/routes/procarryTrack');
 const emailRoutes = require('./src/routes/email');
 const reportsRoutes = require('./src/routes/reports');
 const notificationsRoutes = require('./src/routes/notifications');
@@ -107,6 +108,7 @@ app.get('/api/email/check', (req, res) => {
 app.use(shopifyOAuthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/webhooks/zapier', zapierRoutes);
+app.use('/api/webhooks/procarry-track', procarryTrackWebhookRoutes);
 
 // Protected routes
 app.use('/api/partners', authMiddleware, partnerRoutes);

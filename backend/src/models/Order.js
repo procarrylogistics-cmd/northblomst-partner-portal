@@ -119,6 +119,8 @@ const OrderSchema = new mongoose.Schema(
     trackingNumber: String,
 
     zapierJobId: String,
+    /** procarry-track order UUID (direct API integration) */
+    procarryTrackOrderId: { type: String, index: true },
     notesInternal: String,
     funeralFlag: { type: Boolean, default: false }
   },
