@@ -1,6 +1,6 @@
 ﻿/**
  * Partner production sheet HTML – single A4 page, compact for dense flower orders.
- * Includes Bloomit-style cut-out delivery label with TrackPod QR (plain order barcode).
+ * Includes Bloomit-style cut-out delivery label with TrackPod QR (order barcode with leading #).
  */
 
 const QRCode = require('qrcode');
@@ -91,20 +91,26 @@ function isNoiseKey(name) {
 
 /**
  * Track-POD barcode value for QR scan (Load Check / delivery).
- * Plain text — must match Track-POD "Generate barcode by" / Order Barcode field.
+ * Order numbers include a leading `#` to match Track-POD / Shopify (e.g. `#1228`).
  */
+function ensureOrderHash(value) {
+  const s = String(value || '').trim();
+  if (!s) return s;
+  return s.startsWith('#') ? s : `#${s}`;
+}
+
 function resolveTrackPodBarcode(mongo, orderName) {
   const tracking = String(mongo.trackingNumber || '').trim();
-  if (tracking) return tracking;
+  if (tracking) return ensureOrderHash(tracking);
 
   const shopifyNum = String(mongo.shopifyOrderNumber || '').trim();
-  if (shopifyNum) return shopifyNum.replace(/^#/, '');
+  if (shopifyNum) return ensureOrderHash(shopifyNum);
 
   const orderNum = String(mongo.orderNumber || '').trim();
-  if (orderNum) return orderNum.replace(/^#/, '');
+  if (orderNum) return ensureOrderHash(orderNum);
 
   const name = String(mongo.shopifyOrderName || orderName || '').trim();
-  if (name) return name.replace(/^#/, '');
+  if (name) return ensureOrderHash(name);
 
   return String(mongo._id || mongo.id || '').trim();
 }
@@ -470,7 +476,7 @@ function renderCompactSheet(ctx, qrDataUrl) {
 async function renderPackingSlipHtml(payload) {
   const ctx = buildContext(payload);
   const orderName = ctx.orderName;
-  const barcode = ctx.trackPodBarcode || orderName.replace(/^#/, '');
+  const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
 
   let qrDataUrl = '';
   try {
