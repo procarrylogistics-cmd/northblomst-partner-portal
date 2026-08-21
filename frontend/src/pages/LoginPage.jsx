@@ -24,7 +24,7 @@ export default function LoginPage() {
         password,
         remember: rememberMe
       }, { withCredentials: true });
-      login(res.data); // AuthContext stores token from res.data.token and sets user
+      login(res.data);
       if (res.data.user.role === 'admin') {
         navigate('/admin');
       } else {
@@ -39,45 +39,73 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Northblomst Portal</h1>
-        <p className="subtitle">Login for administratorer og partnere</p>
-        <form onSubmit={handleSubmit} className="form">
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Adgangskode
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
-          <div className="remember-row">
-            <input
-              id="remember-me"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
-            <label htmlFor="remember-me">Husk mig på denne enhed</label>
-          </div>
-          {error && <div className="error">{error}</div>}
-          <button type="submit" disabled={loading}>
-            {loading ? 'Logger ind...' : 'Login'}
-          </button>
-        </form>
-      </div>
+    <div className="login-shell">
+      <aside className="login-promo" aria-hidden="true">
+        <div className="login-promo-media" />
+        <div className="login-promo-overlay" />
+        <div className="login-promo-content">
+          <p className="login-promo-eyebrow">Partner operations</p>
+          <h2 className="login-promo-title">Blomsterlevering med kontrol fra atelier til dør</h2>
+          <p className="login-promo-copy">
+            Én platform til ordrer, produktion, partnere og tracking — bygget til Northblomst.
+          </p>
+          <ul className="login-promo-points">
+            <li>Shopify-synkronisering i realtid</li>
+            <li>Partner-udbetalinger med MOMS</li>
+            <li>Produktion &amp; leveringslabels</li>
+          </ul>
+        </div>
+      </aside>
+
+      <section className="login-panel">
+        <div className="login-panel-inner">
+          <img
+            className="login-brand-mark"
+            src="/northblomst-logo.png"
+            alt="Northblomst"
+          />
+          <h1 className="login-heading">Northblomst Portal</h1>
+          <p className="login-sub">Log ind som administrator eller partner</p>
+
+          <form onSubmit={handleSubmit} className="form login-form">
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              Adgangskode
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <div className="remember-row">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label htmlFor="remember-me">Husk mig på denne enhed</label>
+            </div>
+            {error && <div className="error">{error}</div>}
+            <button type="submit" className="login-submit" disabled={loading}>
+              {loading ? 'Logger ind…' : 'Log ind'}
+            </button>
+          </form>
+
+          <p className="login-foot">northblomst.dk · partner infrastructure</p>
+        </div>
+      </section>
     </div>
   );
 }
-

@@ -201,33 +201,14 @@ export default function AdminDashboard() {
   return (
     <div className="dashboard admin">
       {shopifyDisconnected && (
-        <div
-          style={{
-            background: '#c62828',
-            color: 'white',
-            padding: '10px 16px',
-            marginBottom: '1rem',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 10
-          }}
-        >
+        <div className="alert-banner alert-danger">
           <span>Shopify disconnected. Reconnect required.</span>
           {shopifyReconnectUrl ? (
             <button
               type="button"
-              onClick={() => { window.location.href = shopifyReconnectUrl; }}
-              style={{
-                background: 'white',
-                color: '#c62828',
-                border: 'none',
-                padding: '6px 14px',
-                borderRadius: 6,
-                fontWeight: 600,
-                cursor: 'pointer'
+              className="alert-banner-action"
+              onClick={() => {
+                window.location.href = shopifyReconnectUrl;
               }}
             >
               Reconnect Shopify
@@ -235,56 +216,54 @@ export default function AdminDashboard() {
           ) : null}
         </div>
       )}
-      <div className="dashboard-header">
-        <h2>Admin oversigt</h2>
+
+      <div className="page-hero">
+        <div className="page-hero-text">
+          <p className="page-eyebrow">Operations</p>
+          <h2>Admin oversigt</h2>
+          <p className="page-lede">Ordrer, partnere og Shopify — samlet i ét arbejdsrum.</p>
+        </div>
         <div className="header-actions">
-          <button type="button" className="btn-secondary" onClick={handleTestProxy}>
-            Test proxy
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ background: '#28a745' }}
-            onClick={handleSyncFromShopify}
-            disabled={syncLoading}
-          >
-            {syncLoading ? 'Syncer…' : 'Sync ordre fra Shopify'}
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleSetupWebhooks}
-            disabled={webhookLoading}
-          >
-            {webhookLoading ? 'Opretter…' : 'Setup Webhooks'}
-          </button>
           <button type="button" className="btn-primary" onClick={() => setShowCreateOrder(true)}>
             Opret ordre
           </button>
           <button type="button" className="btn-secondary" onClick={() => setShowManualCard(true)}>
             Print kort manuelt
           </button>
-        </div>
-        {proxyTestMsg && (
-          <div style={{ marginTop: 8, fontSize: 13, color: proxyTestMsg.startsWith('✓') ? '#2e7d32' : '#c62828' }}>
-            {proxyTestMsg}
-          </div>
-        )}
-        {syncMsg && (
-          <div
-            style={{
-              marginTop: 8,
-              padding: 10,
-              background: syncMsg.includes('Synced') ? '#e8f5e9' : '#ffebee',
-              color: syncMsg.includes('Synced') ? '#1b5e20' : '#b71c1c',
-              borderRadius: 6,
-              whiteSpace: 'pre-wrap',
-              fontSize: 13
-            }}
+          <button
+            type="button"
+            className="btn-primary btn-sync"
+            onClick={handleSyncFromShopify}
+            disabled={syncLoading}
           >
-            {syncMsg}
-          </div>
-        )}
+            {syncLoading ? 'Syncer…' : 'Sync Shopify'}
+          </button>
+          <button type="button" className="btn-ghost" onClick={handleTestProxy}>
+            Test proxy
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={handleSetupWebhooks}
+            disabled={webhookLoading}
+          >
+            {webhookLoading ? 'Opretter…' : 'Setup webhooks'}
+          </button>
+        </div>
+      </div>
+
+      {proxyTestMsg && (
+        <div className={`inline-toast ${proxyTestMsg.startsWith('✓') ? 'is-ok' : 'is-bad'}`}>
+          {proxyTestMsg}
+        </div>
+      )}
+      {syncMsg && (
+        <div className={`inline-toast ${syncMsg.includes('Synced') ? 'is-ok' : 'is-bad'} is-block`}>
+          {syncMsg}
+        </div>
+      )}
+
+      <div className="toolbar-card">
         <div className="filters">
           <input
             placeholder="Søg ordrenummer"
@@ -332,40 +311,67 @@ export default function AdminDashboard() {
               onChange={(e) => {
                 const v = e.target.value;
                 setDeliveryDate(v);
-                try { localStorage.setItem(LS_DELIVERY_DATE, v); } catch (_) {}
+                try {
+                  localStorage.setItem(LS_DELIVERY_DATE, v);
+                } catch (_) {}
               }}
               title="Leveringsdato"
             />
           )}
         </div>
+        <p className="toolbar-meta">{orders.length} ordrer</p>
       </div>
+
       <div className="dashboard-body">
-        <OrderList orders={sortOrdersNewestFirst(orders)} onSelect={setSelectedOrder} selectedId={selectedOrder?._id} showPartner />
-        {selectedOrder && (
-          <OrderDetail order={selectedOrder} onUpdated={loadOrders} isAdmin />
-        )}
+        <section className="panel-col">
+          <div className="panel-label">Ordrer</div>
+          <OrderList
+            orders={sortOrdersNewestFirst(orders)}
+            onSelect={setSelectedOrder}
+            selectedId={selectedOrder?._id}
+            showPartner
+          />
+        </section>
+        <section className="panel-col">
+          <div className="panel-label">Ordredetaljer</div>
+          {selectedOrder ? (
+            <OrderDetail order={selectedOrder} onUpdated={loadOrders} isAdmin />
+          ) : (
+            <div className="order-detail empty-panel">Vælg en ordre</div>
+          )}
+        </section>
       </div>
-      <div className="admin-partners">
-        <PartnerManager />
-      </div>
-      <div className="admin-webhooks" style={{ marginTop: '1rem', padding: '1rem', background: '#f5f5f5', borderRadius: 8 }}>
-        <h3>Shopify Webhooks</h3>
-        {webhookMsg && <p style={{ color: webhookMsg.includes('Fejl') ? '#c00' : '#060' }}>{webhookMsg}</p>}
-        <button type="button" className="btn-secondary" onClick={loadWebhooks}>
-          Opdater liste
-        </button>
-        <ul style={{ marginTop: '0.5rem', listStyle: 'none', padding: 0 }}>
-          {webhooks.map((w) => (
-            <li key={w.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-              <span>{w.topic}</span>
-              <span style={{ fontSize: 12, color: '#666' }}>{w.address}</span>
-              <button type="button" onClick={() => handleDeleteWebhook(w.id)} style={{ fontSize: 12 }}>
-                Slet
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+
+      <section className="admin-section">
+        <div className="panel-label">Partnere</div>
+        <div className="admin-partners surface-card">
+          <PartnerManager />
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="panel-label">Shopify webhooks</div>
+        <div className="admin-webhooks surface-card">
+          {webhookMsg && (
+            <p className={webhookMsg.includes('Fejl') ? 'msg-bad' : 'msg-ok'}>{webhookMsg}</p>
+          )}
+          <button type="button" className="btn-secondary" onClick={loadWebhooks}>
+            Opdater liste
+          </button>
+          <ul className="webhook-list">
+            {webhooks.map((w) => (
+              <li key={w.id} className="webhook-row">
+                <span className="webhook-topic">{w.topic}</span>
+                <span className="webhook-addr">{w.address}</span>
+                <button type="button" className="btn-ghost btn-tiny" onClick={() => handleDeleteWebhook(w.id)}>
+                  Slet
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       {showCreateOrder && (
         <CreateOrderModal
           isAdmin

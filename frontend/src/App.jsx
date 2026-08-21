@@ -1,6 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
-// Fixed import path for AuthContext by Cursor.
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AdminDashboard from './pages/AdminDashboard';
 import PartnerDashboard from './pages/PartnerDashboard';
@@ -25,31 +24,60 @@ function ProtectedRoute({ children, role }) {
 
 export default function App() {
   const { user, logout, isAuthReady } = useAuth();
+  const location = useLocation();
+  const isLogin = location.pathname === '/login';
 
   return (
-    <div className="app-root">
-      <header className="app-header">
-        <div className="logo">Northblomst Portal</div>
-        <nav className="nav">
-          {isAuthReady && user?.role === 'admin' && <Link to="/admin">Admin</Link>}
-          {isAuthReady && user?.role === 'admin' && <Link to="/reports">Rapporter</Link>}
-          {isAuthReady && user?.role === 'admin' && (
-            <Link to="/admin" state={{ openManualCard: true }}>
-              Print kort
-            </Link>
-          )}
-          {isAuthReady && user?.role === 'partner' && <Link to="/partner">Mine ordrer</Link>}
-          {isAuthReady && user?.role === 'partner' && <Link to="/partner/reports">Reports</Link>}
-          {isAuthReady && user?.role === 'partner' && <NotificationBell />}
-          {isAuthReady && !user && <Link to="/login">Login</Link>}
-          {isAuthReady && user && (
-            <button onClick={logout} className="btn-link">
-              Log ud
-            </button>
-          )}
-        </nav>
-      </header>
-      <main className="app-main">
+    <div className={`app-root${isLogin ? ' is-login' : ''}${user?.role === 'admin' ? ' is-admin' : ''}`}>
+      {!isLogin && (
+        <header className="app-header">
+          <div className="header-brand">
+            <img className="header-logo" src="/northblomst-logo-light.png" alt="" />
+            <div className="logo">
+              <span className="logo-name">Northblomst</span>
+              <span className="logo-tag">Portal</span>
+            </div>
+          </div>
+          <nav className="nav">
+            {isAuthReady && user?.role === 'admin' && (
+              <Link to="/admin" className={location.pathname === '/admin' ? 'nav-active' : undefined}>
+                Admin
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'admin' && (
+              <Link to="/reports" className={location.pathname === '/reports' ? 'nav-active' : undefined}>
+                Rapporter
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'admin' && (
+              <Link to="/admin" state={{ openManualCard: true }}>
+                Print kort
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'partner' && (
+              <Link to="/partner" className={location.pathname === '/partner' ? 'nav-active' : undefined}>
+                Mine ordrer
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'partner' && (
+              <Link
+                to="/partner/reports"
+                className={location.pathname === '/partner/reports' ? 'nav-active' : undefined}
+              >
+                Reports
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'partner' && <NotificationBell />}
+            {isAuthReady && !user && <Link to="/login">Login</Link>}
+            {isAuthReady && user && (
+              <button onClick={logout} className="btn-link btn-logout" type="button">
+                Log ud
+              </button>
+            )}
+          </nav>
+        </header>
+      )}
+      <main className={`app-main${isLogin ? ' app-main-login' : ''}`}>
         <Routes>
           <Route
             path="/"
@@ -101,4 +129,3 @@ export default function App() {
     </div>
   );
 }
-
