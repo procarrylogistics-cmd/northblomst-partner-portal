@@ -100,9 +100,8 @@ function ensureOrderHash(value) {
 }
 
 function resolveTrackPodBarcode(mongo, orderName) {
-  const tracking = String(mongo.trackingNumber || '').trim();
-  if (tracking) return ensureOrderHash(tracking);
-
+  // Track-POD Load Check expects Shopify order number with # (e.g. #1228).
+  // Do not use trackingNumber — that may hold a procarry-track token, not the order id.
   const shopifyNum = String(mongo.shopifyOrderNumber || '').trim();
   if (shopifyNum) return ensureOrderHash(shopifyNum);
 
