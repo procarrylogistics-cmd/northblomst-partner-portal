@@ -124,28 +124,31 @@ module.exports.PACKING_SLIP_CSS = `
   .cards-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 5px;
+    gap: 8px 10px;
     width: 100%;
+    align-items: stretch;
   }
   .cut-card {
     border: 1.4px dashed #222;
     border-radius: 3px;
     background: #fff;
-    height: 46mm;
+    height: 48mm;
+    min-height: 48mm;
+    max-height: 48mm;
     overflow: hidden;
     page-break-inside: avoid;
     position: relative;
   }
   .cut-card-tag {
     position: absolute; top: 2px; left: 3px; z-index: 2;
-    font-size: 6.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
-    color: #666; background: rgba(255,255,255,0.85); padding: 0 3px; border-radius: 2px;
+    font-size: 6px; font-weight: 800; letter-spacing: 0.35px; text-transform: uppercase;
+    color: #888; background: rgba(255,255,255,0.9); padding: 0 3px; border-radius: 2px;
   }
 
   /* 1 — Delivery / QR */
   .card-delivery { display: grid; grid-template-columns: 1.25fr 0.75fr; height: 100%; }
   .cd-left { display: flex; flex-direction: column; border-right: 1px solid #111; min-width: 0; }
-  .cd-body { padding: 10px 6px 3px; flex: 1; }
+  .cd-body { padding: 11px 6px 3px; flex: 1; }
   .cd-name { font-size: 11px; font-weight: 900; line-height: 1.1; margin-bottom: 2px; }
   .cd-line { font-size: 9px; line-height: 1.2; }
   .cd-date { margin-top: 3px; font-size: 9.5px; font-weight: 800; }
@@ -155,7 +158,7 @@ module.exports.PACKING_SLIP_CSS = `
   .cd-brand { font-size: 9px; font-weight: 900; }
   .cd-muted { font-size: 7.5px; color: #444; }
   .cd-right {
-    padding: 10px 4px 3px; display: flex; flex-direction: column;
+    padding: 11px 4px 3px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; min-width: 0;
   }
   .cd-order { font-size: 9.5px; font-weight: 900; margin-bottom: 2px; }
@@ -166,85 +169,100 @@ module.exports.PACKING_SLIP_CSS = `
   .cd-barcode { margin-top: 2px; font-size: 7.5px; font-weight: 800; word-break: break-all; line-height: 1.1; }
   .cd-logo { margin-top: 3px; width: 42px; max-height: 12px; object-fit: contain; opacity: 0.9; }
 
-  /* 2 — Brand / business card */
+  /* 2 — Visitkort / business card */
   .card-brand {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
     height: 100%;
-    background: linear-gradient(180deg, #fff 40%, #f7f4ee 100%);
-    padding: 8px 10px 6px;
-    text-align: center;
+    background: linear-gradient(165deg, #ffffff 0%, #f8f5ef 55%, #f1ebe0 100%);
+    padding: 0;
+  }
+  .cb-inner {
+    height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 10px 8px 6px;
   }
   .cb-floral-wrap {
-    width: 52%;
-    max-width: 58mm;
-    aspect-ratio: 16 / 9;
-    margin: 0 auto 5px;
-    border-radius: 3px;
+    width: 42%;
+    max-width: 36mm;
+    aspect-ratio: 1.6 / 1;
+    margin: 0 auto 4px;
+    border-radius: 2px;
     overflow: hidden;
-    border: 1px solid #e3d9c5;
+    border: 1px solid #ddd4c2;
     flex-shrink: 0;
   }
   .cb-floral {
     width: 100%; height: 100%; object-fit: cover; object-position: center 40%;
     display: block;
   }
-  .cb-body {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 0 4px;
+  .cb-logo {
+    width: 52px; max-height: 16px; object-fit: contain; margin: 1px 0 2px; display: block;
   }
   .cb-script {
     font-family: 'Great Vibes', Georgia, cursive;
-    font-size: 18px; color: #1a3a2e; line-height: 1; margin: 0;
+    font-size: 17px; color: #1a3a2e; line-height: 1; margin: 0;
   }
   .cb-sub {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 6.5px; letter-spacing: 0.2em; text-transform: uppercase;
-    color: #6a5a35; font-weight: 600; margin-top: 3px;
+    font-size: 6px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #6a5a35; font-weight: 600; margin-top: 2px;
+  }
+  .cb-divider {
+    width: 28px; height: 1px; background: #c4b48a; margin: 5px auto 4px;
+  }
+  .cb-contact {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 7.5px; font-weight: 600; color: #333; letter-spacing: 0.04em;
   }
   .cb-web {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 9px; color: #333; margin-top: 4px; font-style: italic;
+    font-size: 9px; color: #1a3a2e; margin-top: 1px; font-style: italic;
+  }
+  .cb-tagline {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 5.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #8a7a55; margin-top: 3px;
   }
 
   /* 3 — Care tips */
-  .card-care { padding: 10px 7px 5px; display: flex; flex-direction: column; height: 100%; }
+  .card-care { padding: 12px 9px 7px; display: flex; flex-direction: column; height: 100%; }
   .cc-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 12px; font-weight: 600; text-align: center; margin: 0 0 4px;
+    font-size: 11.5px; font-weight: 600; text-align: center; margin: 0 0 5px;
     color: #1a3a2e; letter-spacing: 0.04em;
   }
   .cc-list {
-    margin: 0; padding: 0 0 0 12px; font-size: 8px; line-height: 1.35; color: #222;
+    margin: 0; padding: 0 2px 0 14px; font-size: 8px; line-height: 1.4; color: #222;
   }
-  .cc-list li { margin-bottom: 2px; }
+  .cc-list li { margin-bottom: 2.5px; }
   .cc-foot {
     margin-top: auto; text-align: center; font-size: 7px; color: #6a5a35;
-    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 3px;
   }
 
   /* 4 — Message (fixed size, small type up to ~300 chars) */
   .card-message-cut {
-    padding: 10px 7px 5px; display: flex; flex-direction: column; height: 100%;
+    padding: 12px 9px 7px; display: flex; flex-direction: column; height: 100%;
     background: #fffdf8;
   }
   .cm-title {
     font-size: 7px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase;
-    color: #6a5a35; text-align: center; margin-bottom: 4px;
+    color: #6a5a35; text-align: center; margin-bottom: 5px;
   }
   .cm-body {
     flex: 1; overflow: hidden;
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 8.2px; line-height: 1.28; color: #1c1c1c;
+    font-size: 8px; line-height: 1.32; color: #1c1c1c;
     white-space: pre-wrap; word-break: break-word;
     text-align: center; font-style: italic;
+    padding: 0 2px;
   }
   .cm-body.is-empty { color: #999; font-style: normal; font-size: 8px; }
   .cm-from {
-    margin-top: 3px; text-align: center; font-size: 7.5px; font-weight: 700; color: #444;
+    margin-top: 4px; text-align: center; font-size: 7.5px; font-weight: 700; color: #444;
   }
   .cm-brand {
     margin-top: auto; text-align: center; font-size: 6.5px; color: #8a7a55;
-    letter-spacing: 0.1em; text-transform: uppercase; padding-top: 2px;
+    letter-spacing: 0.1em; text-transform: uppercase; padding-top: 3px;
   }
 
   .no-print { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }

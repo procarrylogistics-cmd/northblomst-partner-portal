@@ -9,6 +9,7 @@ const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
 const { isDeliveryAddressAddon } = require('../utils/addressSync');
+const { isCardMessageAddon } = require('../utils/cardTextSync');
 
 function esc(s) {
   return String(s ?? '')
@@ -198,6 +199,44 @@ function resolveDeliveryShip(mongo, shopifyOrder) {
   return { name, address1, address2, zip, city, country, phone, company };
 }
 
+function resolveCardMessage(mongo, lineItems, noteAttributes) {
+  const direct = String(mongo?.cardText || '').trim();
+  if (direct) return direct;
+
+  for (const a of mongo?.addOns || []) {
+    if (isCardMessageAddon(a) && String(a.value || '').trim()) {
+      return String(a.value).trim();
+    }
+  }
+
+  for (const attr of noteAttributes || []) {
+    const name = String(attr.name || '').toLowerCase();
+    if (/card\s*message|korttekst|kort\s*besked|dedication/.test(name) && String(attr.value || '').trim()) {
+      return String(attr.value).trim();
+    }
+  }
+
+  for (const li of lineItems || []) {
+    for (const p of li.properties || []) {
+      const name = String(p.name || '').toLowerCase();
+      if (/card\s*message|korttekst|kort\s*besked|dedication/.test(name) && String(p.value || '').trim()) {
+        return String(p.value).trim();
+      }
+    }
+  }
+
+  return String(mongo?.customer?.message || '').trim();
+}
+
+function resolveSenderName(mongo) {
+  for (const a of mongo?.addOns || []) {
+    if (!a?.value?.trim()) continue;
+    const label = String(a.label || a.key || '').toLowerCase();
+    if (/sender|afsender|^fra$|sendt af/.test(label)) return String(a.value).trim();
+  }
+  return '';
+}
+
 function collectInstructions(ctx) {
   const { lineItems, noteAttributes, mongo, note } = ctx;
   const rows = [];
@@ -207,6 +246,7 @@ function collectInstructions(ctx) {
     const l = String(label || '').trim();
     const v = truncate(value, maxLen);
     if (!l || !v || isNoiseKey(l)) return;
+    if (isCardMessageAddon({ label: l, key: '', value: v })) return;
     const key = `${l.toLowerCase()}::${v.toLowerCase()}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -214,6 +254,7 @@ function collectInstructions(ctx) {
   };
 
   for (const a of mongo.addOns || []) {
+    if (isCardMessageAddon(a)) continue;
     push(a.label || a.key, a.value, 160);
   }
 
@@ -227,7 +268,7 @@ function collectInstructions(ctx) {
     }
   }
 
-  const card = String(mongo.cardText || '').trim();
+  const card = resolveCardMessage(mongo, lineItems, noteAttributes);
   const orderNote = String(note || mongo.notes || '').trim();
   if (orderNote && orderNote !== card) {
     push('Order note', orderNote, 200);
@@ -272,20 +313,19 @@ function buildContext(payload) {
 }
 
 function renderCutOutCards(ctx, qrDataUrl) {
-  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, mongo } = ctx;
+  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, mongo, lineItems, noteAttributes } =
+    ctx;
   const phoneDisplay = formatCompanyPhone(COMPANY.phone || '42833316');
-  const footerPhone = `Telefon: ${phoneDisplay}`;
+  const footerPhone = phoneDisplay;
   const footerWeb = COMPANY.website || 'northblomst.dk';
 
   const flags = [];
   if (doorFlag) flags.push(`Dør: ${doorFlag}`);
   if (neighborFlag) flags.push(`Nabo: ${neighborFlag}`);
 
-  const messageRaw = String(mongo.cardText || '').trim();
+  const messageRaw = resolveCardMessage(mongo, lineItems, noteAttributes);
   const message = truncate(messageRaw, 300);
-  const sender =
-    (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
-    '';
+  const sender = resolveSenderName(mongo);
 
   const card1 = `
   <div class="cut-card card-delivery">
@@ -302,7 +342,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
       </div>
       <div class="cd-foot">
         <div class="cd-brand">${esc(COMPANY.brandName)}</div>
-        <div class="cd-muted">${esc(footerPhone)}</div>
+        <div class="cd-muted">Telefon: ${esc(footerPhone)}</div>
         <div class="cd-muted">${esc(footerWeb)}</div>
       </div>
     </div>
@@ -317,14 +357,18 @@ function renderCutOutCards(ctx, qrDataUrl) {
 
   const card2 = `
   <div class="cut-card card-brand">
-    <span class="cut-card-tag">2 · Brand</span>
-    <div class="cb-floral-wrap">
-      ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
-    </div>
-    <div class="cb-body">
+    <span class="cut-card-tag">2 · Visitkort</span>
+    <div class="cb-inner">
+      <div class="cb-floral-wrap">
+        ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
+      </div>
+      <img class="cb-logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
       <p class="cb-script">Northblomst</p>
       <div class="cb-sub">Flowers with a smile</div>
+      <div class="cb-divider"></div>
+      <div class="cb-contact">${esc(footerPhone)}</div>
       <div class="cb-web">${esc(footerWeb)}</div>
+      <div class="cb-tagline">Deliver worldwide</div>
     </div>
   </div>`;
 
@@ -353,7 +397,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
   </div>`;
 
   return `
-  <div class="cards-cut"><span>✂ Klip her · 4 kort (levering · brand · pleje · besked)</span></div>
+  <div class="cards-cut"><span>✂ Klip her · 4 kort (levering · visitkort · pleje · besked)</span></div>
   <div class="cards-grid">
     ${card1}
     ${card2}

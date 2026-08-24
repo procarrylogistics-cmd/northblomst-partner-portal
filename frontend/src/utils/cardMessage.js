@@ -40,7 +40,7 @@ function isCardMessageAddon(addon) {
 export function extractCardMessage(order) {
   if (!order) return '';
 
-  if (typeof order.cardText === 'string') {
+  if (typeof order.cardText === 'string' && order.cardText.trim()) {
     return order.cardText.trim();
   }
 
