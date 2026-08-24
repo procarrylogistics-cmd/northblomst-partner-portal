@@ -26,15 +26,17 @@ async function sendMail(options) {
   const transport = getTransporter();
   if (!transport) {
     console.warn('Email not configured (EMAIL_USER/EMAIL_PASS missing). Skip send.');
-    return;
+    return { ok: false, error: 'E-mail er ikke konfigureret (EMAIL_USER/EMAIL_PASS)' };
   }
   try {
     await transport.sendMail({
       from: EMAIL_FROM,
       ...options
     });
+    return { ok: true };
   } catch (err) {
     console.error('Email send failed:', err.message);
+    return { ok: false, error: err.message };
   }
 }
 
@@ -107,6 +109,7 @@ function escapeHtml(str) {
 }
 
 module.exports = {
+  sendMail,
   sendOrderAssignedToPartner,
   sendStatusChangeToAdmin
 };

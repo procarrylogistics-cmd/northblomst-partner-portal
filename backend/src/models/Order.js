@@ -69,6 +69,9 @@ const OrderSchema = new mongoose.Schema(
     addOnsSummary: String,
     customer: CustomerSchema,
     shippingAddress: AddressSchema,
+    billingName: String,
+    billingCompany: String,
+    billingAddress: AddressSchema,
 
     recipientName: String,
     address: String,

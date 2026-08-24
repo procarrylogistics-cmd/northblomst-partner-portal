@@ -19,6 +19,7 @@ const { generateProductionSheetPdf } = require('../services/productionSheetPdf')
 const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
 const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
 const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
+const { buildCustomerInvoiceHtml, sendCustomerInvoice, mapBillingFromShopify } = require('../services/customerOrderInvoice');
 const { syncCardTextOnOrder } = require('../utils/cardTextSync');
 const { syncDeliveryAddressOnOrder } = require('../utils/addressSync');
 
@@ -50,6 +51,7 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     city: shipping.city,
     country: shipping.country
   };
+  const billing = mapBillingFromShopify(shopifyOrder);
   const zone = matchZoneForPostalCode(shipping.zip);
   const orderDate = shopifyOrder.created_at ? new Date(shopifyOrder.created_at) : new Date();
   const { deliveryDate: extracted, deliveryOption } = extractDeliveryFromShopifyOrder(shopifyOrder);
@@ -67,6 +69,9 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     products,
     customer,
     shippingAddress,
+    billingName: billing.billingName,
+    billingCompany: billing.billingCompany,
+    billingAddress: billing.billingAddress,
     zone,
     status: 'new',
     createdByRole: 'shopify',
@@ -290,6 +295,34 @@ async function loadOrderForUser(req) {
   }
   return { order };
 }
+
+// Admin: printable customer invoice (faktura) with billing address
+router.get('/:id/customer-invoice', requireRole('admin'), async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+  try {
+    const { html } = await buildCustomerInvoiceHtml(order);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('customer-invoice failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke generere faktura' });
+  }
+});
+
+// Admin: email customer invoice to billing / customer email
+router.post('/:id/send-customer-invoice', requireRole('admin'), async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+  try {
+    const result = await sendCustomerInvoice(order, req.body?.email);
+    if (!result.ok) return res.status(400).json({ message: result.error });
+    res.json({ message: `Faktura sendt til ${result.to}`, invoiceNumber: result.invoiceNumber, to: result.to });
+  } catch (err) {
+    console.error('send-customer-invoice failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke sende faktura' });
+  }
+});
 
 // Shopify-style packing slip HTML (images from Shopify REST – best for print)
 router.get('/:id/print-packing-slip', async (req, res) => {

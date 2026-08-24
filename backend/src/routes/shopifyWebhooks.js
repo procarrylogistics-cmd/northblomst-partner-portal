@@ -40,6 +40,11 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     imageUrl: imageUrlFromShopifyLineItem(li) || undefined
   }));
   const zone = matchZoneForPostalCode(ship.zip);
+  const bill = payload.billing_address || {};
+  const billingName =
+    bill.name ||
+    `${bill.first_name || ''} ${bill.last_name || ''}`.trim() ||
+    customerName;
   return {
     shop: effectiveShop,
     shopifyOrderId: payload.id != null ? String(payload.id) : null,
@@ -61,6 +66,15 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
       postalCode: ship.zip,
       city: ship.city,
       country: ship.country
+    },
+    billingName,
+    billingCompany: bill.company || '',
+    billingAddress: {
+      address1: bill.address1 || ship.address1,
+      address2: bill.address2 || ship.address2,
+      postalCode: bill.zip || ship.zip,
+      city: bill.city || ship.city,
+      country: bill.country || ship.country
     },
     address: ship.address1,
     postcode: ship.zip,

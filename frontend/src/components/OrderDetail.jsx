@@ -27,6 +27,10 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [deliveryDateInput, setDeliveryDateInput] = useState(() => toDateInputValue(orderProp.deliveryDate));
   const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [deliveryDateMessage, setDeliveryDateMessage] = useState('');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceEmail, setInvoiceEmail] = useState('');
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceMessage, setInvoiceMessage] = useState('');
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
@@ -134,6 +138,64 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       setPrintLoading(false);
     }
   };
+
+  const openInvoiceModal = () => {
+    setInvoiceEmail(order.customer?.email || '');
+    setInvoiceMessage('');
+    setShowInvoiceModal(true);
+  };
+
+  const handlePrintInvoice = async () => {
+    setInvoiceLoading(true);
+    setInvoiceMessage('');
+    try {
+      const res = await axios.get(`${API_BASE}/orders/${order._id}/customer-invoice`, {
+        responseType: 'text'
+      });
+      const win = window.open('', '_blank');
+      if (!win) {
+        setInvoiceMessage('Tillad pop-ups for at åbne faktura.');
+        return;
+      }
+      win.document.write(res.data);
+      win.document.close();
+    } catch (err) {
+      setInvoiceMessage(err.response?.data?.message || 'Kunne ikke hente faktura');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    setInvoiceLoading(true);
+    setInvoiceMessage('');
+    try {
+      const res = await axios.post(`${API_BASE}/orders/${order._id}/send-customer-invoice`, {
+        email: invoiceEmail.trim() || undefined
+      });
+      setInvoiceMessage(res.data?.message || 'Faktura sendt');
+    } catch (err) {
+      setInvoiceMessage(err.response?.data?.message || 'Kunne ikke sende faktura');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  const billingPreview = (() => {
+    const ba = order.billingAddress || {};
+    const hasBilling = !!(ba.address1 || order.billingName);
+    const name = order.billingName || order.recipientName || order.customer?.name || '—';
+    const company = order.billingCompany || '';
+    const lines = hasBilling
+      ? [ba.address1, ba.address2, [ba.postalCode, ba.city].filter(Boolean).join(' ')]
+      : [
+          order.address || order.shippingAddress?.address1,
+          [order.postcode || order.shippingAddress?.postalCode, order.city || order.shippingAddress?.city]
+            .filter(Boolean)
+            .join(' ')
+        ];
+    return { name, company, lines: lines.filter(Boolean) };
+  })();
 
   const handleAssign = async () => {
     if (!selectedPartnerId) return;
@@ -263,6 +325,15 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           {order.postcode || order.shippingAddress?.postalCode} {order.city || order.shippingAddress?.city}
         </p>
       )}
+      {isAdmin && (order.billingAddress?.address1 || order.billingName) && (
+        <p>
+          <strong>Faktureringsadresse:</strong><br />
+          {order.billingName && <>{order.billingName}<br /></>}
+          {order.billingCompany && <>{order.billingCompany}<br /></>}
+          {order.billingAddress?.address1}<br />
+          {[order.billingAddress?.postalCode, order.billingAddress?.city].filter(Boolean).join(' ')}
+        </p>
+      )}
       <div>
         <strong>Produkter:</strong>
         {order.productSummary ? (
@@ -368,6 +439,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         >
           Print kort (begravelse)
         </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={openInvoiceModal}
+            title="Vis eller send faktura med billing-adresse til kunden"
+          >
+            Faktura
+          </button>
+        )}
         {isAdmin && order.shopifyOrderId && (
           <button
             type="button"
@@ -397,6 +478,48 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               <button type="button" onClick={() => setShowCancelConfirm(false)}>Fortryd</button>
               <button type="button" className="btn-cancel" onClick={handleCancel} disabled={updating}>
                 {updating ? 'Annullerer…' : 'Ja, annuller'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showInvoiceModal && (
+        <div className="modal-overlay" onClick={() => setShowInvoiceModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Kundefaktura</h3>
+            <p className="subtitle">Billing-adresse og ordrelinjer hentes fra Shopify (hvis tilgængelig).</p>
+            <div style={{ marginBottom: '1rem', fontSize: '0.92rem' }}>
+              <strong>Faktureres til:</strong><br />
+              {billingPreview.name}
+              {billingPreview.company && <><br />{billingPreview.company}</>}
+              {billingPreview.lines.map((line) => (
+                <React.Fragment key={line}>
+                  <br />
+                  {line}
+                </React.Fragment>
+              ))}
+            </div>
+            <label>
+              Send til e-mail
+              <input
+                type="email"
+                value={invoiceEmail}
+                onChange={(e) => setInvoiceEmail(e.target.value)}
+                placeholder="kunde@firma.dk"
+              />
+            </label>
+            {invoiceMessage && (
+              <p className={invoiceMessage.includes('sendt') ? 'delivery-date-msg' : 'error'}>{invoiceMessage}</p>
+            )}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowInvoiceModal(false)} disabled={invoiceLoading}>
+                Luk
+              </button>
+              <button type="button" className="btn-secondary" onClick={handlePrintInvoice} disabled={invoiceLoading}>
+                {invoiceLoading ? 'Henter…' : 'Vis / print'}
+              </button>
+              <button type="button" className="btn-primary" onClick={handleSendInvoice} disabled={invoiceLoading}>
+                {invoiceLoading ? 'Sender…' : 'Send til kunde'}
               </button>
             </div>
           </div>
