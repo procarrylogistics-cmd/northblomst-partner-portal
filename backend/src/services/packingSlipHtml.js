@@ -4,7 +4,7 @@
  */
 
 const QRCode = require('qrcode');
-const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
+const { PACKING_SLIP_CSS, LOGO_URL, FLORAL_CARD_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
@@ -233,7 +233,7 @@ function collectInstructions(ctx) {
     push('Order note', orderNote, 200);
   }
 
-  return rows.slice(0, 10);
+  return rows.slice(0, 6);
 }
 
 function buildContext(payload) {
@@ -271,9 +271,8 @@ function buildContext(payload) {
   };
 }
 
-function renderDeliveryLabel(ctx, qrDataUrl) {
-  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag } = ctx;
-  // Always Northblomst on cut-out label — never partner/terminal name, address, or phone
+function renderCutOutCards(ctx, qrDataUrl) {
+  const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, mongo } = ctx;
   const phoneDisplay = formatCompanyPhone(COMPANY.phone || '42833316');
   const footerPhone = `Telefon: ${phoneDisplay}`;
   const footerWeb = COMPANY.website || 'northblomst.dk';
@@ -282,34 +281,82 @@ function renderDeliveryLabel(ctx, qrDataUrl) {
   if (doorFlag) flags.push(`Dør: ${doorFlag}`);
   if (neighborFlag) flags.push(`Nabo: ${neighborFlag}`);
 
+  const messageRaw = String(mongo.cardText || '').trim();
+  const message = truncate(messageRaw, 300);
+  const sender =
+    (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
+    '';
+
+  const card1 = `
+  <div class="cut-card card-delivery">
+    <span class="cut-card-tag">1 · Levering</span>
+    <div class="cd-left">
+      <div class="cd-body">
+        <div class="cd-name">${esc(ship.name || '—')}</div>
+        ${ship.company ? `<div class="cd-line">${esc(ship.company)}</div>` : ''}
+        <div class="cd-line">${esc(ship.address1 || '')}</div>
+        ${ship.address2 ? `<div class="cd-line">${esc(ship.address2)}</div>` : ''}
+        <div class="cd-line">${esc([ship.zip, ship.city].filter(Boolean).join(' '))}</div>
+        <div class="cd-date">${esc(fmtDeliveryLabelDate(deliveryDate))}</div>
+        ${flags.length ? `<div class="cd-line" style="margin-top:2px;font-weight:700;">${flags.map((f) => esc(f)).join(' · ')}</div>` : ''}
+      </div>
+      <div class="cd-foot">
+        <div class="cd-brand">${esc(COMPANY.brandName)}</div>
+        <div class="cd-muted">${esc(footerPhone)}</div>
+        <div class="cd-muted">${esc(footerWeb)}</div>
+      </div>
+    </div>
+    <div class="cd-right">
+      <div class="cd-order">${esc(orderName)}</div>
+      <div class="cd-qr-title">Til chauffør:</div>
+      ${qrDataUrl ? `<img class="cd-qr" src="${esc(qrDataUrl)}" alt="TrackPod QR ${esc(trackPodBarcode)}" />` : '<div class="cd-qr">QR n/a</div>'}
+      <div class="cd-barcode">${esc(trackPodBarcode)}</div>
+      <img class="cd-logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
+    </div>
+  </div>`;
+
+  const card2 = `
+  <div class="cut-card card-brand">
+    <span class="cut-card-tag">2 · Brand</span>
+    ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
+    <div class="cb-body">
+      <p class="cb-script">Northblomst</p>
+      <div class="cb-sub">Flowers with a smile</div>
+      <div class="cb-web">${esc(footerWeb)}</div>
+    </div>
+  </div>`;
+
+  const card3 = `
+  <div class="cut-card card-care">
+    <span class="cut-card-tag">3 · Pleje</span>
+    <h3 class="cc-title">Sådan holder blomsterne længst</h3>
+    <ol class="cc-list">
+      <li>Skær stilkene skråt (ca. 2 cm) inden de sættes i vand.</li>
+      <li>Brug en ren vase og frisk, lunkent vand.</li>
+      <li>Fjern blade under vandlinjen — de rådner i vandet.</li>
+      <li>Skift vand hver 2.–3. dag og beskær stilkene igen.</li>
+      <li>Hold blomsterne køligt, væk fra direkte sol, varme og frugt.</li>
+      <li>Tilsæt blomsternæring, hvis det følger med.</li>
+    </ol>
+    <div class="cc-foot">Northblomst · ${esc(footerWeb)}</div>
+  </div>`;
+
+  const card4 = `
+  <div class="cut-card card-message-cut">
+    <span class="cut-card-tag">4 · Besked</span>
+    <div class="cm-title">En hilsen til dig</div>
+    <div class="cm-body${message ? '' : ' is-empty'}">${message ? esc(message) : 'Ingen korttekst på denne ordre'}</div>
+    ${sender ? `<div class="cm-from">— ${esc(truncate(sender, 60))}</div>` : ''}
+    <div class="cm-brand">Northblomst</div>
+  </div>`;
+
   return `
-  <div class="label-cut"><span>✂ Klip her · Leveringslabel (sæt på plic / blomst)</span></div>
-  <div class="delivery-label">
-    <div class="dl-left">
-      <div class="dl-recipient">
-        <div class="dl-name">${esc(ship.name || '—')}</div>
-        ${ship.company ? `<div class="dl-line">${esc(ship.company)}</div>` : ''}
-        <div class="dl-line">${esc(ship.address1 || '')}</div>
-        ${ship.address2 ? `<div class="dl-line">${esc(ship.address2)}</div>` : ''}
-        <div class="dl-line">${esc([ship.zip, ship.city].filter(Boolean).join(' '))}</div>
-        <div class="dl-date">${esc(fmtDeliveryLabelDate(deliveryDate))}</div>
-      </div>
-      <div class="dl-footer">
-        <div class="dl-partner">${esc(COMPANY.brandName)}</div>
-        <div class="dl-line muted">${esc(footerPhone)}</div>
-        <div class="dl-line muted">${esc(footerWeb)}</div>
-      </div>
-    </div>
-    <div class="dl-right">
-      <div class="dl-order">${esc(orderName)}</div>
-      ${flags.length ? `<div class="dl-flags">${flags.map((f) => esc(f)).join('<br/>')}</div>` : ''}
-      <div class="dl-qr-wrap">
-        <div class="dl-qr-title">Til chauffør:</div>
-        ${qrDataUrl ? `<img class="dl-qr" src="${esc(qrDataUrl)}" alt="TrackPod QR ${esc(trackPodBarcode)}" />` : '<div class="dl-qr">QR n/a</div>'}
-        <div class="dl-barcode">${esc(trackPodBarcode)}</div>
-      </div>
-      <img class="dl-logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
-    </div>
+  <div class="cards-cut"><span>✂ Klip her · 4 kort (levering · brand · pleje · besked)</span></div>
+  <div class="cards-grid">
+    ${card1}
+    ${card2}
+    ${card3}
+    ${card4}
   </div>`;
 }
 
@@ -327,16 +374,15 @@ function renderCompactSheet(ctx, qrDataUrl) {
   } = ctx;
 
   const instructions = collectInstructions(ctx);
-  const cardText = truncate(mongo.cardText || '', 280);
   const sender =
     (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
     '';
 
   const productRows = (lineItems || [])
-    .slice(0, 6)
+    .slice(0, 4)
     .map((li) => {
-      const title = truncate(li.title, 90);
-      const variant = li.variant_title ? truncate(li.variant_title, 50) : '';
+      const title = truncate(li.title, 80);
+      const variant = li.variant_title ? truncate(li.variant_title, 40) : '';
       return `<tr>
         <td>
           <div class="product-name">${esc(title)}</div>
@@ -347,7 +393,7 @@ function renderCompactSheet(ctx, qrDataUrl) {
     })
     .join('');
 
-  const extraCount = Math.max(0, (lineItems || []).length - 6);
+  const extraCount = Math.max(0, (lineItems || []).length - 4);
   const mainImg =
     mainItem && (mainItem.imageDataUri || mainItem.imageUrl)
       ? imgTag(mainItem, 'main-img')
@@ -431,7 +477,7 @@ function renderCompactSheet(ctx, qrDataUrl) {
   </div>
 
   <div class="box">
-    <div class="box-title">Products / Add-ons ${extraCount ? `(showing 6 of ${(lineItems || []).length})` : ''}</div>
+    <div class="box-title">Products / Add-ons ${extraCount ? `(showing 4 of ${(lineItems || []).length})` : ''}</div>
     <table>
       <thead><tr><th>Product</th><th class="qty">Qty</th></tr></thead>
       <tbody>${productRows || '<tr><td colspan="2">No products</td></tr>'}</tbody>
@@ -441,17 +487,8 @@ function renderCompactSheet(ctx, qrDataUrl) {
   ${
     instructionRows
       ? `<div class="box">
-    <div class="box-title">Florist notes / Tilvalg</div>
+    <div class="box-title">Florist notes / Tilvalg${sender ? ` · ${esc(truncate(sender, 40))}` : ''}</div>
     ${instructionRows}
-  </div>`
-      : ''
-  }
-
-  ${
-    cardText
-      ? `<div class="box">
-    <div class="box-title">Korttekst ${sender ? `· ${esc(truncate(sender, 50))}` : ''}</div>
-    <div class="card-message">${esc(cardText)}</div>
   </div>`
       : ''
   }
@@ -463,10 +500,10 @@ function renderCompactSheet(ctx, qrDataUrl) {
     <div class="check"><span class="square"></span>Photo taken</div>
   </div>
 
-  ${renderDeliveryLabel(ctx, qrDataUrl)}
+  ${renderCutOutCards(ctx, qrDataUrl)}
 
   <div class="footer">
-    <div>Northblomst · 1-page production · klip leveringslabel · TrackPod QR = ordre-nr</div>
+    <div>Northblomst · 1-page · 4 klip-kort · TrackPod QR = ordre-nr</div>
     <div>${esc(orderName)}</div>
   </div>
 </div>`;
@@ -499,7 +536,7 @@ async function renderPackingSlipHtml(payload) {
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">1× A4 · klip leveringslabel med TrackPod QR (ordre ${esc(barcode)})</span>
+    <span class="no-print-hint">1× A4 · 4 klip-kort (levering QR · brand · pleje · besked) · ordre ${esc(barcode)}</span>
   </div>
   ${renderCompactSheet(ctx, qrDataUrl)}
   <script>
