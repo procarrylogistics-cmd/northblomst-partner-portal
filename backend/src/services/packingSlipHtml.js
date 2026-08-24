@@ -4,7 +4,7 @@
  */
 
 const QRCode = require('qrcode');
-const { PACKING_SLIP_CSS, LOGO_URL, FLORAL_CARD_URL } = require('./packingSlipStyles');
+const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');

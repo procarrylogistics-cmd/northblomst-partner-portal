@@ -251,14 +251,14 @@ module.exports.PACKING_SLIP_CSS = `
   .cm-body {
     flex: 1; overflow: hidden;
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 9.5px; line-height: 1.3; color: #1c1c1c;
+    font-size: 11.5px; line-height: 1.28; color: #1c1c1c;
     white-space: pre-wrap; word-break: break-word;
     text-align: center; font-style: italic;
     padding: 0 2px;
   }
-  .cm-body.is-empty { color: #999; font-style: normal; font-size: 8.5px; }
+  .cm-body.is-empty { color: #999; font-style: normal; font-size: 10px; }
   .cm-from {
-    margin-top: 3px; text-align: center; font-size: 8px; font-weight: 700; color: #444;
+    margin-top: 3px; text-align: center; font-size: 9px; font-weight: 700; color: #444;
   }
   .cm-brand {
     margin-top: auto; text-align: center; font-size: 6.5px; color: #8a7a55;
