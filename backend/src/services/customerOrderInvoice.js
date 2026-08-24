@@ -111,23 +111,58 @@ async function fetchShopifyOrder(order) {
   }
 }
 
+function moneyAmount(value) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function lineItemsFromShopify(shopifyOrder) {
   return (shopifyOrder?.line_items || []).map((li) => {
     const qty = li.quantity || 1;
-    const unit = parseFloat(li.price || 0);
+    const unit = moneyAmount(li.price);
     const total =
       li.final_line_price != null
-        ? parseFloat(li.final_line_price)
+        ? moneyAmount(li.final_line_price)
         : li.line_price != null
-          ? parseFloat(li.line_price)
+          ? moneyAmount(li.line_price)
           : unit * qty;
     const title = [li.title, li.variant_title].filter(Boolean).join(' — ');
     return { title, quantity: qty, unitPrice: unit, lineTotal: total };
   });
 }
 
+/**
+ * Shipping lines from Shopify — only include when price > 0
+ * (free / included shipping is omitted).
+ */
+function shippingLinesFromShopify(shopifyOrder) {
+  const lines = shopifyOrder?.shipping_lines || [];
+  return lines
+    .map((sl) => {
+      const amount = moneyAmount(
+        sl.discounted_price != null ? sl.discounted_price : sl.price
+      );
+      const title = String(sl.title || sl.code || 'Levering').trim() || 'Levering';
+      return { title, quantity: 1, unitPrice: amount, lineTotal: amount, isShipping: true };
+    })
+    .filter((sl) => sl.lineTotal > 0);
+}
+
+function discountFromShopify(shopifyOrder) {
+  const amount = moneyAmount(shopifyOrder?.total_discounts);
+  if (amount <= 0) return null;
+  const codes = (shopifyOrder?.discount_codes || [])
+    .map((d) => d.code)
+    .filter(Boolean)
+    .join(', ');
+  return {
+    title: codes ? `Rabat (${codes})` : 'Rabat',
+    amount
+  };
+}
+
 function lineItemsFromMongo(order) {
-  const total = parseFloat(order.totalPaidAmount ?? order.totalPrice ?? 0) || 0;
+  const total = moneyAmount(order.totalPaidAmount ?? order.totalPrice);
   const products = order.products || [];
   if (products.length === 0) {
     return [{ title: order.productSummary || 'Ordre', quantity: 1, unitPrice: total, lineTotal: total }];
@@ -141,6 +176,14 @@ function lineItemsFromMongo(order) {
   }));
 }
 
+function paidStatusLabel(financialStatus) {
+  if (financialStatus === 'paid' || financialStatus === 'partially_paid') return 'Betalt';
+  if (financialStatus === 'pending' || financialStatus === 'authorized') return 'Afventer betaling';
+  if (financialStatus === 'refunded' || financialStatus === 'partially_refunded') return 'Refunderet';
+  if (financialStatus === 'voided') return 'Annulleret';
+  return 'Betaling registreret';
+}
+
 async function buildInvoiceContext(order) {
   const shopifyOrder = await fetchShopifyOrder(order);
   const billing = shopifyOrder ? mapBillingFromShopify(shopifyOrder) : billingFromMongo(order);
@@ -148,11 +191,14 @@ async function buildInvoiceContext(order) {
     order.orderNumber || order.shopifyOrderName || order.shopifyOrderNumber || String(order._id);
   const invoiceNumber = `NB-${String(orderNumber).replace(/^#+/, '')}`;
   const currency = order.currencyCode || shopifyOrder?.currency || 'DKK';
-  const lineItems = shopifyOrder ? lineItemsFromShopify(shopifyOrder) : lineItemsFromMongo(order);
+  const productLines = shopifyOrder ? lineItemsFromShopify(shopifyOrder) : lineItemsFromMongo(order);
+  const shippingLines = shopifyOrder ? shippingLinesFromShopify(shopifyOrder) : [];
+  const discount = shopifyOrder ? discountFromShopify(shopifyOrder) : null;
+  const lineItems = [...productLines, ...shippingLines];
   const subtotalFromLines = lineItems.reduce((s, li) => s + (li.lineTotal || 0), 0);
   const totalIncl =
-    parseFloat(shopifyOrder?.total_price ?? order.totalPaidAmount ?? order.totalPrice ?? subtotalFromLines) ||
-    subtotalFromLines;
+    moneyAmount(shopifyOrder?.total_price ?? order.totalPaidAmount ?? order.totalPrice) ||
+    Math.max(0, subtotalFromLines - (discount?.amount || 0));
   const moms = splitInclusiveMoms(totalIncl);
   const financialStatus = shopifyOrder?.financial_status || 'paid';
   const orderDate = order.orderDate || order.receivedAt || shopifyOrder?.created_at;
@@ -165,6 +211,8 @@ async function buildInvoiceContext(order) {
     invoiceNumber,
     currency,
     lineItems,
+    shippingLines,
+    discount,
     totalIncl,
     moms,
     financialStatus,
@@ -173,8 +221,18 @@ async function buildInvoiceContext(order) {
 }
 
 function renderCustomerOrderInvoice(ctx) {
-  const { billing, orderNumber, invoiceNumber, currency, lineItems, totalIncl, moms, financialStatus, orderDate } =
-    ctx;
+  const {
+    billing,
+    orderNumber,
+    invoiceNumber,
+    currency,
+    lineItems,
+    discount,
+    totalIncl,
+    moms,
+    financialStatus,
+    orderDate
+  } = ctx;
   const ba = billing.billingAddress || {};
   const addrLines = [
     ba.address1,
@@ -185,7 +243,7 @@ function renderCustomerOrderInvoice(ctx) {
 
   const rows = lineItems
     .map(
-      (li) => `<tr>
+      (li) => `<tr${li.isShipping ? ' class="ship-row"' : ''}>
       <td>${esc(li.title)}</td>
       <td class="num">${esc(li.quantity)}</td>
       <td class="num">${esc(money(li.unitPrice, currency))}</td>
@@ -194,10 +252,11 @@ function renderCustomerOrderInvoice(ctx) {
     )
     .join('');
 
-  const paidLabel =
-    financialStatus === 'paid' || financialStatus === 'partially_paid'
-      ? 'Betalt via Shopify'
-      : `Status: ${financialStatus}`;
+  const discountRow = discount
+    ? `<div><span>${esc(discount.title)}</span><span>- ${esc(money(discount.amount, currency))}</span></div>`
+    : '';
+
+  const paidLabel = paidStatusLabel(financialStatus);
 
   return `<!DOCTYPE html>
 <html lang="da">
@@ -236,6 +295,7 @@ function renderCustomerOrderInvoice(ctx) {
     th, td { border-bottom: 1px solid #ddd; padding: 8px 6px; text-align: left; vertical-align: top; }
     th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; }
     .num { text-align: right; white-space: nowrap; }
+    tr.ship-row td { font-style: italic; color: #333; }
     .totals { margin-left: auto; width: min(100%, 320px); }
     .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
     .totals .grand { font-weight: 700; font-size: 15px; border-top: 2px solid #1a4a3c; margin-top: 6px; padding-top: 8px; }
@@ -300,6 +360,7 @@ function renderCustomerOrderInvoice(ctx) {
       <tbody>${rows}</tbody>
     </table>
     <div class="totals">
+      ${discountRow}
       <div><span>Subtotal ekskl. MOMS</span><span>${esc(money(moms.exclusive, currency))}</span></div>
       <div><span>MOMS (${esc(moms.momsPercent)}%)</span><span>${esc(money(moms.moms, currency))}</span></div>
       <div class="grand"><span>Total inkl. MOMS</span><span>${esc(money(totalIncl, currency))}</span></div>
@@ -307,7 +368,7 @@ function renderCustomerOrderInvoice(ctx) {
     </div>
     <div class="foot">
       Momsregistreret selskab · CVR ${esc(COMPANY.cvr)} · ${esc(COMPANY.brandName)}<br />
-      Denne faktura er udstedt for din Shopify-ordre ${esc(orderNumber)}.
+      Denne faktura er udstedt for ordre ${esc(orderNumber)}.
     </div>
   </div>
 </body>
