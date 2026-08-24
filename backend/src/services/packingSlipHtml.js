@@ -318,7 +318,9 @@ function renderCutOutCards(ctx, qrDataUrl) {
   const card2 = `
   <div class="cut-card card-brand">
     <span class="cut-card-tag">2 · Brand</span>
-    ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
+    <div class="cb-floral-wrap">
+      ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
+    </div>
     <div class="cb-body">
       <p class="cb-script">Northblomst</p>
       <div class="cb-sub">Flowers with a smile</div>
@@ -519,7 +521,7 @@ async function renderPackingSlipHtml(payload) {
     qrDataUrl = await QRCode.toDataURL(String(barcode), {
       errorCorrectionLevel: 'M',
       margin: 1,
-      width: 180,
+      width: 120,
       color: { dark: '#000000', light: '#ffffff' }
     });
   } catch (err) {

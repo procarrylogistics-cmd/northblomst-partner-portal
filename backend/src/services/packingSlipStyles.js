@@ -143,7 +143,7 @@ module.exports.PACKING_SLIP_CSS = `
   }
 
   /* 1 — Delivery / QR */
-  .card-delivery { display: grid; grid-template-columns: 1.15fr 0.85fr; height: 100%; }
+  .card-delivery { display: grid; grid-template-columns: 1.25fr 0.75fr; height: 100%; }
   .cd-left { display: flex; flex-direction: column; border-right: 1px solid #111; min-width: 0; }
   .cd-body { padding: 10px 6px 3px; flex: 1; }
   .cd-name { font-size: 11px; font-weight: 900; line-height: 1.1; margin-bottom: 2px; }
@@ -156,39 +156,54 @@ module.exports.PACKING_SLIP_CSS = `
   .cd-muted { font-size: 7.5px; color: #444; }
   .cd-right {
     padding: 10px 4px 3px; display: flex; flex-direction: column;
-    align-items: center; text-align: center; min-width: 0;
+    align-items: center; justify-content: center; text-align: center; min-width: 0;
   }
-  .cd-order { font-size: 10px; font-weight: 900; margin-bottom: 1px; }
-  .cd-qr-title { font-size: 7.5px; font-weight: 800; margin-bottom: 1px; }
-  .cd-qr { width: 48px; height: 48px; display: block; }
-  .cd-barcode { margin-top: 1px; font-size: 8px; font-weight: 800; word-break: break-all; }
-  .cd-logo { margin-top: 2px; width: 48px; max-height: 14px; object-fit: contain; opacity: 0.9; }
+  .cd-order { font-size: 9.5px; font-weight: 900; margin-bottom: 2px; }
+  .cd-qr-title { font-size: 7px; font-weight: 800; margin-bottom: 2px; }
+  .cd-qr {
+    width: 34px; height: 34px; display: block; margin: 0 auto;
+  }
+  .cd-barcode { margin-top: 2px; font-size: 7.5px; font-weight: 800; word-break: break-all; line-height: 1.1; }
+  .cd-logo { margin-top: 3px; width: 42px; max-height: 12px; object-fit: contain; opacity: 0.9; }
 
   /* 2 — Brand / business card */
   .card-brand {
-    display: flex; flex-direction: column; height: 100%;
-    background: linear-gradient(180deg, #fff 55%, #f7f4ee 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%;
+    background: linear-gradient(180deg, #fff 40%, #f7f4ee 100%);
+    padding: 8px 10px 6px;
+    text-align: center;
+  }
+  .cb-floral-wrap {
+    width: 52%;
+    max-width: 58mm;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto 5px;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid #e3d9c5;
+    flex-shrink: 0;
   }
   .cb-floral {
-    height: 38%; width: 100%; object-fit: cover; object-position: center 35%;
-    display: block; border-bottom: 1px solid #e8dfcf;
+    width: 100%; height: 100%; object-fit: cover; object-position: center 40%;
+    display: block;
   }
   .cb-body {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 4px 8px 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 0 4px;
   }
   .cb-script {
     font-family: 'Great Vibes', Georgia, cursive;
-    font-size: 22px; color: #1a3a2e; line-height: 1; margin: 0;
+    font-size: 18px; color: #1a3a2e; line-height: 1; margin: 0;
   }
   .cb-sub {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 7px; letter-spacing: 0.22em; text-transform: uppercase;
+    font-size: 6.5px; letter-spacing: 0.2em; text-transform: uppercase;
     color: #6a5a35; font-weight: 600; margin-top: 3px;
   }
   .cb-web {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 10px; color: #333; margin-top: 5px; font-style: italic;
+    font-size: 9px; color: #333; margin-top: 4px; font-style: italic;
   }
 
   /* 3 — Care tips */
