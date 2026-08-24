@@ -359,16 +359,16 @@ function renderCutOutCards(ctx, qrDataUrl) {
   <div class="cut-card card-brand">
     <span class="cut-card-tag">2 · Visitkort</span>
     <div class="cb-inner">
-      <div class="cb-floral-wrap">
-        ${FLORAL_CARD_URL ? `<img class="cb-floral" src="${esc(FLORAL_CARD_URL)}" alt="" />` : '<div class="cb-floral" style="background:#e8dfcf;"></div>'}
-      </div>
       <img class="cb-logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
       <p class="cb-script">Northblomst</p>
       <div class="cb-sub">Flowers with a smile</div>
-      <div class="cb-divider"></div>
+      <div class="cb-pitch">Send flowers back — or surprise someone next</div>
+      <div class="cb-promo">
+        <div class="cb-promo-label">10% off your next order</div>
+        <div class="cb-promo-code">WELCOME10</div>
+        <div class="cb-promo-hint">Use at checkout · ${esc(footerWeb)}</div>
+      </div>
       <div class="cb-contact">${esc(footerPhone)}</div>
-      <div class="cb-web">${esc(footerWeb)}</div>
-      <div class="cb-tagline">Deliver worldwide</div>
     </div>
   </div>`;
 

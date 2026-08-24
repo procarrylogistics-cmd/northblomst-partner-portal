@@ -169,58 +169,58 @@ module.exports.PACKING_SLIP_CSS = `
   .cd-barcode { margin-top: 2px; font-size: 7.5px; font-weight: 800; word-break: break-all; line-height: 1.1; }
   .cd-logo { margin-top: 3px; width: 42px; max-height: 12px; object-fit: contain; opacity: 0.9; }
 
-  /* 2 — Visitkort / business card */
+  /* 2 — Visitkort / promo business card */
   .card-brand {
     height: 100%;
-    background: linear-gradient(165deg, #ffffff 0%, #f8f5ef 55%, #f1ebe0 100%);
+    background: linear-gradient(165deg, #ffffff 0%, #f8f5ef 50%, #f0ebe2 100%);
     padding: 0;
   }
   .cb-inner {
     height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 8px 8px 5px;
-  }
-  .cb-floral-wrap {
-    width: 48%;
-    max-width: 42mm;
-    aspect-ratio: 16 / 9;
-    margin: 0 auto 3px;
-    border-radius: 2px;
-    overflow: hidden;
-    border: 1px solid #ddd4c2;
-    flex-shrink: 0;
-  }
-  .cb-floral {
-    width: 100%; height: 100%; object-fit: cover; object-position: center 40%;
-    display: block;
+    text-align: center; padding: 9px 7px 5px;
   }
   .cb-logo {
-    width: 48px; max-height: 14px; object-fit: contain; margin: 1px 0 2px; display: block;
+    width: 56px; max-height: 18px; object-fit: contain; margin: 0 0 2px; display: block;
   }
   .cb-script {
     font-family: 'Great Vibes', Georgia, cursive;
-    font-size: 16px; color: #1a3a2e; line-height: 1; margin: 0;
+    font-size: 17px; color: #1a3a2e; line-height: 1; margin: 0;
   }
   .cb-sub {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 6px; letter-spacing: 0.18em; text-transform: uppercase;
+    font-size: 5.5px; letter-spacing: 0.16em; text-transform: uppercase;
     color: #6a5a35; font-weight: 600; margin-top: 2px;
   }
-  .cb-divider {
-    width: 26px; height: 1px; background: #c4b48a; margin: 4px auto 3px;
+  .cb-pitch {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 8px; font-style: italic; color: #333; margin: 4px 0 5px;
+    line-height: 1.2; max-width: 90%;
+  }
+  .cb-promo {
+    border: 1px solid #c4b48a;
+    border-radius: 4px;
+    background: #fff;
+    padding: 4px 8px 3px;
+    margin-bottom: 4px;
+    min-width: 72%;
+  }
+  .cb-promo-label {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 6px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #6a5a35;
+  }
+  .cb-promo-code {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 13px; font-weight: 800; letter-spacing: 0.12em;
+    color: #1a3a2e; margin: 1px 0;
+  }
+  .cb-promo-hint {
+    font-size: 6px; color: #777; letter-spacing: 0.02em;
   }
   .cb-contact {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 7px; font-weight: 600; color: #333; letter-spacing: 0.04em;
-  }
-  .cb-web {
-    font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 8.5px; color: #1a3a2e; margin-top: 1px; font-style: italic;
-  }
-  .cb-tagline {
-    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 5.5px; letter-spacing: 0.14em; text-transform: uppercase;
-    color: #8a7a55; margin-top: 2px;
+    font-size: 7px; font-weight: 600; color: #444; letter-spacing: 0.04em;
   }
 
   /* 3 — Care tips */
