@@ -37,29 +37,29 @@ module.exports.PACKING_SLIP_CSS = `
     font-size: 8px; color: #7b6a43; text-transform: uppercase; font-weight: 900;
     letter-spacing: 0.3px; margin-bottom: 1px;
   }
-  .value { font-size: 11.5px; font-weight: 900; color: #111; }
+  .value { font-size: 12px; font-weight: 900; color: #111; }
   .produce-box {
     border: 1.5px solid #111; border-radius: 6px; background: #fff8ea;
-    padding: 5px 6px; margin-bottom: 5px;
+    padding: 8px 8px; margin-bottom: 6px;
   }
   .produce-title {
-    font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.7px;
-    font-weight: 900; color: #6a5a35; margin-bottom: 4px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.7px;
+    font-weight: 900; color: #6a5a35; margin-bottom: 5px;
   }
-  .produce-flex { display: flex; gap: 8px; align-items: flex-start; }
+  .produce-flex { display: flex; gap: 12px; align-items: flex-start; }
   .main-img {
-    width: 64px; height: 64px; object-fit: cover; border-radius: 5px;
+    width: 118px; height: 118px; object-fit: cover; border-radius: 6px;
     border: 1px solid #d2c7af; flex-shrink: 0; display: block; background: #fff;
   }
   .main-img.no-img {
     display: flex; align-items: center; justify-content: center;
-    background: #f6f2e9; color: #888; font-size: 9px; font-weight: 700;
+    background: #f6f2e9; color: #888; font-size: 10px; font-weight: 700;
   }
-  .main-product-title { font-size: 13px; font-weight: 900; margin-bottom: 2px; line-height: 1.15; }
+  .main-product-title { font-size: 15px; font-weight: 900; margin-bottom: 3px; line-height: 1.15; }
   .tag {
     display: inline-block; border: 1px solid #b89453; color: #5f4a1c; background: #fff;
-    border-radius: 99px; padding: 1px 6px; font-size: 9px; font-weight: 900;
-    margin-right: 3px; margin-top: 2px;
+    border-radius: 99px; padding: 2px 8px; font-size: 10px; font-weight: 900;
+    margin-right: 4px; margin-top: 3px;
   }
   .grid-2 { display: grid; grid-template-columns: 1.15fr 0.95fr; gap: 5px; margin-bottom: 5px; }
   .box {
@@ -124,7 +124,7 @@ module.exports.PACKING_SLIP_CSS = `
   .cards-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px 10px;
+    gap: 6px 8px;
     width: 100%;
     align-items: stretch;
   }
@@ -132,9 +132,9 @@ module.exports.PACKING_SLIP_CSS = `
     border: 1.4px dashed #222;
     border-radius: 3px;
     background: #fff;
-    height: 48mm;
-    min-height: 48mm;
-    max-height: 48mm;
+    height: 46mm;
+    min-height: 46mm;
+    max-height: 46mm;
     overflow: hidden;
     page-break-inside: avoid;
     position: relative;
@@ -148,7 +148,7 @@ module.exports.PACKING_SLIP_CSS = `
   /* 1 — Delivery / QR */
   .card-delivery { display: grid; grid-template-columns: 1.25fr 0.75fr; height: 100%; }
   .cd-left { display: flex; flex-direction: column; border-right: 1px solid #111; min-width: 0; }
-  .cd-body { padding: 11px 6px 3px; flex: 1; }
+  .cd-body { padding: 10px 6px 3px; flex: 1; }
   .cd-name { font-size: 11px; font-weight: 900; line-height: 1.1; margin-bottom: 2px; }
   .cd-line { font-size: 9px; line-height: 1.2; }
   .cd-date { margin-top: 3px; font-size: 9.5px; font-weight: 800; }
@@ -158,7 +158,7 @@ module.exports.PACKING_SLIP_CSS = `
   .cd-brand { font-size: 9px; font-weight: 900; }
   .cd-muted { font-size: 7.5px; color: #444; }
   .cd-right {
-    padding: 11px 4px 3px; display: flex; flex-direction: column;
+    padding: 10px 4px 3px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; min-width: 0;
   }
   .cd-order { font-size: 9.5px; font-weight: 900; margin-bottom: 2px; }
@@ -178,13 +178,13 @@ module.exports.PACKING_SLIP_CSS = `
   .cb-inner {
     height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; padding: 10px 8px 6px;
+    text-align: center; padding: 8px 8px 5px;
   }
   .cb-floral-wrap {
-    width: 42%;
-    max-width: 36mm;
-    aspect-ratio: 1.6 / 1;
-    margin: 0 auto 4px;
+    width: 48%;
+    max-width: 42mm;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto 3px;
     border-radius: 2px;
     overflow: hidden;
     border: 1px solid #ddd4c2;
@@ -195,11 +195,11 @@ module.exports.PACKING_SLIP_CSS = `
     display: block;
   }
   .cb-logo {
-    width: 52px; max-height: 16px; object-fit: contain; margin: 1px 0 2px; display: block;
+    width: 48px; max-height: 14px; object-fit: contain; margin: 1px 0 2px; display: block;
   }
   .cb-script {
     font-family: 'Great Vibes', Georgia, cursive;
-    font-size: 17px; color: #1a3a2e; line-height: 1; margin: 0;
+    font-size: 16px; color: #1a3a2e; line-height: 1; margin: 0;
   }
   .cb-sub {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
@@ -207,62 +207,62 @@ module.exports.PACKING_SLIP_CSS = `
     color: #6a5a35; font-weight: 600; margin-top: 2px;
   }
   .cb-divider {
-    width: 28px; height: 1px; background: #c4b48a; margin: 5px auto 4px;
+    width: 26px; height: 1px; background: #c4b48a; margin: 4px auto 3px;
   }
   .cb-contact {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 7.5px; font-weight: 600; color: #333; letter-spacing: 0.04em;
+    font-size: 7px; font-weight: 600; color: #333; letter-spacing: 0.04em;
   }
   .cb-web {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 9px; color: #1a3a2e; margin-top: 1px; font-style: italic;
+    font-size: 8.5px; color: #1a3a2e; margin-top: 1px; font-style: italic;
   }
   .cb-tagline {
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
     font-size: 5.5px; letter-spacing: 0.14em; text-transform: uppercase;
-    color: #8a7a55; margin-top: 3px;
+    color: #8a7a55; margin-top: 2px;
   }
 
   /* 3 — Care tips */
-  .card-care { padding: 12px 9px 7px; display: flex; flex-direction: column; height: 100%; }
+  .card-care { padding: 10px 7px 5px; display: flex; flex-direction: column; height: 100%; }
   .cc-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 11.5px; font-weight: 600; text-align: center; margin: 0 0 5px;
+    font-size: 11px; font-weight: 600; text-align: center; margin: 0 0 3px;
     color: #1a3a2e; letter-spacing: 0.04em;
   }
   .cc-list {
-    margin: 0; padding: 0 2px 0 14px; font-size: 8px; line-height: 1.4; color: #222;
+    margin: 0; padding: 0 0 0 12px; font-size: 7.5px; line-height: 1.32; color: #222;
   }
-  .cc-list li { margin-bottom: 2.5px; }
+  .cc-list li { margin-bottom: 1.5px; }
   .cc-foot {
-    margin-top: auto; text-align: center; font-size: 7px; color: #6a5a35;
-    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 3px;
+    margin-top: auto; text-align: center; font-size: 6.5px; color: #6a5a35;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px;
   }
 
-  /* 4 — Message (fixed size, small type up to ~300 chars) */
+  /* 4 — Message — slightly larger type for readability */
   .card-message-cut {
-    padding: 12px 9px 7px; display: flex; flex-direction: column; height: 100%;
+    padding: 10px 8px 5px; display: flex; flex-direction: column; height: 100%;
     background: #fffdf8;
   }
   .cm-title {
     font-size: 7px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase;
-    color: #6a5a35; text-align: center; margin-bottom: 5px;
+    color: #6a5a35; text-align: center; margin-bottom: 4px;
   }
   .cm-body {
     flex: 1; overflow: hidden;
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: 8px; line-height: 1.32; color: #1c1c1c;
+    font-size: 9.5px; line-height: 1.3; color: #1c1c1c;
     white-space: pre-wrap; word-break: break-word;
     text-align: center; font-style: italic;
     padding: 0 2px;
   }
-  .cm-body.is-empty { color: #999; font-style: normal; font-size: 8px; }
+  .cm-body.is-empty { color: #999; font-style: normal; font-size: 8.5px; }
   .cm-from {
-    margin-top: 4px; text-align: center; font-size: 7.5px; font-weight: 700; color: #444;
+    margin-top: 3px; text-align: center; font-size: 8px; font-weight: 700; color: #444;
   }
   .cm-brand {
     margin-top: auto; text-align: center; font-size: 6.5px; color: #8a7a55;
-    letter-spacing: 0.1em; text-transform: uppercase; padding-top: 3px;
+    letter-spacing: 0.1em; text-transform: uppercase; padding-top: 2px;
   }
 
   .no-print { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
