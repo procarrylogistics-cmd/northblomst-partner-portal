@@ -23,24 +23,45 @@ function resolveOrderNumber(order) {
   return trimmed.startsWith('#') ? trimmed : `#${trimmed.replace(/^#+/, '')}`;
 }
 
-function buildPayload(order) {
-  const address =
-    order.address ||
-    order.shippingAddress?.address1 ||
-    '';
-  const postcode =
-    order.postcode ||
-    order.shippingAddress?.postalCode ||
-    '';
-  const city = order.city || order.shippingAddress?.city || '';
-  const phone =
-    order.phone ||
-    order.customer?.phone ||
-    '';
-  const recipientName =
+/** Align with packing slip / invoice — include Shopify raw fallbacks. */
+function resolveDeliveryFields(order) {
+  const sa = order.raw?.shipping_address || {};
+  const ms = order.shippingAddress || {};
+
+  const address1 = String(
+    order.address || ms.address1 || sa.address1 || ''
+  ).trim();
+  const address2 = String(ms.address2 || sa.address2 || '').trim();
+  const postalCode = String(
+    order.postcode || ms.postalCode || sa.zip || sa.postal_code || ''
+  ).trim();
+  const city = String(order.city || ms.city || sa.city || '').trim();
+  const country = String(
+    ms.country || sa.country || 'DK'
+  ).trim();
+  const phone = String(
+    order.phone || order.customer?.phone || sa.phone || ''
+  ).trim();
+  const recipientName = String(
     order.recipientName ||
-    order.customer?.name ||
-    'Recipient';
+      sa.name ||
+      order.customer?.name ||
+      'Recipient'
+  ).trim();
+
+  return { address1, address2, postalCode, city, country, phone, recipientName };
+}
+
+function buildPayload(order) {
+  const {
+    address1,
+    address2,
+    postalCode,
+    city,
+    country,
+    phone,
+    recipientName
+  } = resolveDeliveryFields(order);
 
   const deliveryDate = order.deliveryDate
     ? new Date(order.deliveryDate).toISOString().slice(0, 10)
@@ -57,13 +78,26 @@ function buildPayload(order) {
     recipientName,
     recipientPhone: phone || null,
     customerEmail: order.customer?.email || null,
-    addressLine1: address,
-    postalCode: postcode,
+    addressLine1: address1,
+    addressLine2: address2 || null,
+    postalCode,
     city,
-    country: order.shippingAddress?.country || 'DK',
+    country,
     deliveryDate,
     deliveryNote: noteParts.length ? noteParts.join('\n') : null
   };
+}
+
+function formatTrackError(err) {
+  const status = err?.response?.status;
+  const body = err?.response?.data;
+  const detail =
+    (typeof body === 'string' && body) ||
+    body?.error ||
+    body?.message ||
+    err?.message ||
+    'Unknown error';
+  return status ? `${detail} (HTTP ${status})` : detail;
 }
 
 async function pushOrderToProcarryTrack(order) {
@@ -74,47 +108,85 @@ async function pushOrderToProcarryTrack(order) {
     console.warn(
       'PROCARRY_TRACK_API_URL / PROCARRY_TRACK_API_KEY not set, skipping Track push'
     );
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'not_configured',
+      error:
+        'PROCARRY_TRACK_API_URL eller PROCARRY_TRACK_API_KEY mangler på backend (Render)'
+    };
   }
 
   if (order.procarryTrackOrderId) {
-    return { id: order.procarryTrackOrderId, created: false, skipped: true };
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'already_pushed',
+      id: order.procarryTrackOrderId,
+      trackingUrl: order.trackingUrl || null
+    };
   }
 
   const payload = buildPayload(order);
-  if (!payload.addressLine1 || !payload.postalCode || !payload.city) {
+  const missing = [];
+  if (!payload.addressLine1) missing.push('adresse');
+  if (!payload.postalCode) missing.push('postnr');
+  if (!payload.city) missing.push('by');
+  if (missing.length) {
     console.warn(
       '[procarry-track] skip push: missing address fields',
-      payload.portalOrderId
+      payload.portalOrderId,
+      missing
     );
-    return null;
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'missing_address',
+      error: `Mangler leveringsadresse: ${missing.join(', ')}`,
+      missing
+    };
   }
 
   const url = `${base}/api/integrations/northblomst/orders`;
-  const { data } = await axios.post(url, payload, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      'X-Api-Key': apiKey
-    },
-    timeout: 20000
-  });
+  try {
+    const { data } = await axios.post(url, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'X-Api-Key': apiKey
+      },
+      timeout: 20000
+    });
 
-  if (data?.id) {
-    order.procarryTrackOrderId = data.id;
-    if (data.trackingUrl && !order.trackingUrl) {
-      order.trackingUrl = data.trackingUrl;
+    if (data?.id) {
+      order.procarryTrackOrderId = data.id;
+      if (data.trackingUrl && !order.trackingUrl) {
+        order.trackingUrl = data.trackingUrl;
+      }
+      if (data.trackingToken && !order.trackingNumber) {
+        order.trackingNumber = data.trackingToken;
+      }
+      await order.save();
     }
-    if (data.trackingToken && !order.trackingNumber) {
-      order.trackingNumber = data.trackingToken;
-    }
-    await order.save();
+
+    return {
+      ok: true,
+      skipped: false,
+      created: !!data?.created,
+      id: data?.id || null,
+      trackingUrl: data?.trackingUrl || null,
+      trackingToken: data?.trackingToken || null
+    };
+  } catch (err) {
+    const error = formatTrackError(err);
+    console.error('procarry-track push failed', error, err?.response?.data);
+    return { ok: false, skipped: false, error, status: err?.response?.status };
   }
-
-  return data;
 }
 
 module.exports = {
   pushOrderToProcarryTrack,
-  buildPayload
+  buildPayload,
+  resolveDeliveryFields,
+  getTrackApiBase
 };

@@ -24,6 +24,8 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [assignMessage, setAssignMessage] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [trackMessage, setTrackMessage] = useState('');
+  const [trackPushLoading, setTrackPushLoading] = useState(false);
   const [deliveryDateInput, setDeliveryDateInput] = useState(() => toDateInputValue(orderProp.deliveryDate));
   const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [deliveryDateMessage, setDeliveryDateMessage] = useState('');
@@ -83,14 +85,47 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const updateStatus = async (status) => {
     setUpdating(true);
     setStatusError('');
+    setTrackMessage('');
     try {
-      await axios.patch(`${API_BASE}/orders/${order._id}/status`, { status });
+      const res = await axios.patch(`${API_BASE}/orders/${order._id}/status`, { status });
+      const tp = res.data?.trackPush;
+      if (status === 'ready' && tp) {
+        if (tp.ok && !tp.skipped) {
+          setTrackMessage(tp.created ? 'Ordre sendt til Procarry Track' : 'Ordre allerede i Track');
+        } else if (tp.ok && tp.skipped && tp.reason === 'already_pushed') {
+          setTrackMessage('Ordre var allerede sendt til Track');
+        } else if (!tp.ok) {
+          setStatusError(`Track: ${tp.error || 'Kunne ikke sende ordre'}`);
+        }
+      }
       await onUpdated();
     } catch (err) {
       console.error(err);
       setStatusError(err.response?.data?.message || 'Kunne ikke opdatere status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const pushToTrack = async () => {
+    setTrackPushLoading(true);
+    setStatusError('');
+    setTrackMessage('');
+    try {
+      const res = await axios.post(`${API_BASE}/orders/${order._id}/push-procarry-track`);
+      const tp = res.data?.trackPush;
+      if (tp?.ok && !tp.skipped) {
+        setTrackMessage(tp.created ? 'Ordre sendt til Procarry Track' : 'Ordre synkroniseret med Track');
+      } else if (tp?.ok && tp.skipped) {
+        setTrackMessage('Ordre er allerede i Track');
+      } else {
+        setStatusError(`Track: ${tp?.error || 'Kunne ikke sende ordre'}`);
+      }
+      await onUpdated();
+    } catch (err) {
+      setStatusError(err.response?.data?.message || 'Kunne ikke sende til Track');
+    } finally {
+      setTrackPushLoading(false);
     }
   };
 
@@ -418,6 +453,31 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           </>
         )}
         {statusError && <div className="error">{statusError}</div>}
+        {trackMessage && <div className="success">{trackMessage}</div>}
+        {isAdmin && !isCancelled && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={pushToTrack}
+            disabled={trackPushLoading || updating}
+            title="Send ordre manuelt til Procarry Track (levering)"
+          >
+            {trackPushLoading ? 'Sender til Track…' : 'Send til Track'}
+          </button>
+        )}
+        {order.procarryTrackOrderId && (
+          <p className="muted">
+            Track ID: {order.procarryTrackOrderId}
+            {order.trackingUrl ? (
+              <>
+                {' · '}
+                <a href={order.trackingUrl} target="_blank" rel="noreferrer">
+                  Sporingslink
+                </a>
+              </>
+            ) : null}
+          </p>
+        )}
         <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading}>
           {printLoading ? 'Henter pakkeseddel…' : 'Print pakkeseddel'}
         </button>

@@ -617,6 +617,17 @@ button {
   margin-bottom: 0.75rem;
 }
 
+.success {
+  color: #047857;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;

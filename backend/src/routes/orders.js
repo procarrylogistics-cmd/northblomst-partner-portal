@@ -508,14 +508,34 @@ router.patch('/:id/status', async (req, res) => {
   }
 
   // Push to procarry-track when florist marks ready (Klar til levering).
-  // Prefer ready over assign so Track receives finished bouquets.
+  let trackPush = null;
   if (status === 'ready') {
-    pushOrderToProcarryTrack(order).catch((err) =>
-      console.error('procarry-track push failed', err?.response?.data || err.message || err)
-    );
+    trackPush = await pushOrderToProcarryTrack(order);
   }
 
-  res.json(order);
+  const payload = order.toObject ? order.toObject() : order;
+  if (trackPush) payload.trackPush = trackPush;
+  res.json(payload);
+});
+
+// Admin: diagnose Track env + manual (re)push for orders already marked ready
+router.get('/admin/procarry-track/config', requireRole('admin'), (req, res) => {
+  const base = (process.env.PROCARRY_TRACK_API_URL || '').replace(/\/$/, '');
+  res.json({
+    configured: !!(base && (process.env.PROCARRY_TRACK_API_KEY || '').trim()),
+    apiUrl: base || null,
+    webhookSecretSet: !!(process.env.PROCARRY_TRACK_WEBHOOK_SECRET || '').trim()
+  });
+});
+
+router.post('/:id/push-procarry-track', requireRole('admin'), async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const trackPush = await pushOrderToProcarryTrack(order);
+  const payload = order.toObject ? order.toObject() : order;
+  payload.trackPush = trackPush;
+  res.json(payload);
 });
 
 function generateOrderNumber() {
