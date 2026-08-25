@@ -52,6 +52,23 @@ const AddressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** Admin overrides for customer invoice (billing / VAT / company). */
+const InvoiceDetailsSchema = new mongoose.Schema(
+  {
+    name: String,
+    company: String,
+    vatNumber: String,
+    address1: String,
+    address2: String,
+    postalCode: String,
+    city: String,
+    country: String,
+    email: String,
+    phone: String
+  },
+  { _id: false }
+);
+
 const OrderSchema = new mongoose.Schema(
   {
     shop: { type: String, index: true },
@@ -72,6 +89,8 @@ const OrderSchema = new mongoose.Schema(
     billingName: String,
     billingCompany: String,
     billingAddress: AddressSchema,
+    /** Saved invoice billing overrides (admin) — used for print/e-mail faktura */
+    invoiceDetails: InvoiceDetailsSchema,
 
     recipientName: String,
     address: String,

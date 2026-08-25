@@ -51,6 +51,7 @@ function mapBillingFromShopify(shopifyOrder) {
   return {
     billingName: name,
     billingCompany: bill.company || '',
+    vatNumber: '',
     billingAddress: {
       address1: src.address1 || '',
       address2: src.address2 || '',
@@ -71,6 +72,7 @@ function billingFromMongo(order) {
   return {
     billingName: fallbackName,
     billingCompany: order.billingCompany || '',
+    vatNumber: '',
     billingAddress: hasBilling
       ? ba
       : {
@@ -82,6 +84,48 @@ function billingFromMongo(order) {
         },
     email: order.customer?.email || '',
     phone: order.phone || order.customer?.phone || ''
+  };
+}
+
+function pickInvoiceField(override, fallback) {
+  const v = override != null ? String(override).trim() : '';
+  return v || (fallback != null ? String(fallback).trim() : '');
+}
+
+/** Apply admin-saved invoiceDetails over Shopify/Mongo billing. */
+function applyInvoiceDetails(baseBilling, order) {
+  const inv = order?.invoiceDetails || {};
+  const ba = baseBilling.billingAddress || {};
+  const hasAnyOverride = [
+    inv.name,
+    inv.company,
+    inv.vatNumber,
+    inv.address1,
+    inv.address2,
+    inv.postalCode,
+    inv.city,
+    inv.country,
+    inv.email,
+    inv.phone
+  ].some((v) => String(v || '').trim());
+
+  if (!hasAnyOverride) {
+    return { ...baseBilling, vatNumber: baseBilling.vatNumber || '' };
+  }
+
+  return {
+    billingName: pickInvoiceField(inv.name, baseBilling.billingName),
+    billingCompany: pickInvoiceField(inv.company, baseBilling.billingCompany),
+    vatNumber: pickInvoiceField(inv.vatNumber, baseBilling.vatNumber),
+    billingAddress: {
+      address1: pickInvoiceField(inv.address1, ba.address1),
+      address2: pickInvoiceField(inv.address2, ba.address2),
+      postalCode: pickInvoiceField(inv.postalCode, ba.postalCode),
+      city: pickInvoiceField(inv.city, ba.city),
+      country: pickInvoiceField(inv.country, ba.country) || 'DK'
+    },
+    email: pickInvoiceField(inv.email, baseBilling.email),
+    phone: pickInvoiceField(inv.phone, baseBilling.phone)
   };
 }
 
@@ -186,7 +230,8 @@ function paidStatusLabel(financialStatus) {
 
 async function buildInvoiceContext(order) {
   const shopifyOrder = await fetchShopifyOrder(order);
-  const billing = shopifyOrder ? mapBillingFromShopify(shopifyOrder) : billingFromMongo(order);
+  const baseBilling = shopifyOrder ? mapBillingFromShopify(shopifyOrder) : billingFromMongo(order);
+  const billing = applyInvoiceDetails(baseBilling, order);
   const orderNumber =
     order.orderNumber || order.shopifyOrderName || order.shopifyOrderNumber || String(order._id);
   const invoiceNumber = `NB-${String(orderNumber).replace(/^#+/, '')}`;
@@ -336,6 +381,7 @@ function renderCustomerOrderInvoice(ctx) {
           <div class="party-label">Faktureres til (Billing)</div>
           <div class="party-name">${esc(billing.billingName || '—')}</div>
           ${billing.billingCompany ? `<div>${esc(billing.billingCompany)}</div>` : ''}
+          ${billing.vatNumber ? `<div>Momsnr. / VAT: ${esc(billing.vatNumber)}</div>` : ''}
           ${addrLines.map((l) => `<div>${esc(l)}</div>`).join('')}
           ${billing.email ? `<div>${esc(billing.email)}</div>` : ''}
           ${billing.phone ? `<div>Tlf: ${esc(billing.phone)}</div>` : ''}
@@ -401,5 +447,7 @@ async function sendCustomerInvoice(order, toEmail) {
 module.exports = {
   buildCustomerInvoiceHtml,
   sendCustomerInvoice,
-  mapBillingFromShopify
+  mapBillingFromShopify,
+  applyInvoiceDetails,
+  billingFromMongo
 };

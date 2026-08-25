@@ -9,6 +9,44 @@ import { calculateOrderFinance, formatMoney, DEFAULT_PLATFORM_PERCENT } from '..
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
+function buildInvoiceFormFromOrder(o) {
+  const inv = o.invoiceDetails || {};
+  const ba = o.billingAddress || {};
+  const ship = o.shippingAddress || {};
+  const hasBilling = !!(ba.address1 || o.billingName);
+  const defaults = {
+    name: o.billingName || o.recipientName || o.customer?.name || '',
+    company: o.billingCompany || '',
+    vatNumber: '',
+    address1: hasBilling ? ba.address1 || '' : ship.address1 || o.address || '',
+    address2: hasBilling ? ba.address2 || '' : ship.address2 || '',
+    postalCode: hasBilling ? ba.postalCode || '' : ship.postalCode || o.postcode || '',
+    city: hasBilling ? ba.city || '' : ship.city || o.city || '',
+    country: hasBilling ? ba.country || '' : ship.country || 'DK',
+    email: o.customer?.email || '',
+    phone: o.phone || o.customer?.phone || ''
+  };
+  const keys = Object.keys(defaults);
+  const form = {};
+  keys.forEach((k) => {
+    form[k] = inv[k] !== undefined && inv[k] !== null ? inv[k] : defaults[k];
+  });
+  return form;
+}
+
+const emptyInvoiceForm = {
+  name: '',
+  company: '',
+  vatNumber: '',
+  address1: '',
+  address2: '',
+  postalCode: '',
+  city: '',
+  country: '',
+  email: '',
+  phone: ''
+};
+
 export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = false }) {
   const [displayOrder, setDisplayOrder] = useState(orderProp);
   const [printLoading, setPrintLoading] = useState(false);
@@ -30,7 +68,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [deliveryDateMessage, setDeliveryDateMessage] = useState('');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [invoiceEmail, setInvoiceEmail] = useState('');
+  const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState('');
 
@@ -175,15 +213,22 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   };
 
   const openInvoiceModal = () => {
-    setInvoiceEmail(order.customer?.email || '');
+    setInvoiceForm(buildInvoiceFormFromOrder(order));
     setInvoiceMessage('');
     setShowInvoiceModal(true);
+  };
+
+  const saveInvoiceDetails = async () => {
+    const res = await axios.patch(`${API_BASE}/orders/${order._id}/invoice-details`, invoiceForm);
+    setDisplayOrder(res.data);
+    return res.data;
   };
 
   const handlePrintInvoice = async () => {
     setInvoiceLoading(true);
     setInvoiceMessage('');
     try {
+      await saveInvoiceDetails();
       const res = await axios.get(`${API_BASE}/orders/${order._id}/customer-invoice`, {
         responseType: 'text'
       });
@@ -194,6 +239,8 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       }
       win.document.write(res.data);
       win.document.close();
+      setInvoiceMessage('Fakturaoplysninger gemt');
+      await onUpdated();
     } catch (err) {
       setInvoiceMessage(err.response?.data?.message || 'Kunne ikke hente faktura');
     } finally {
@@ -205,10 +252,12 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setInvoiceLoading(true);
     setInvoiceMessage('');
     try {
+      await saveInvoiceDetails();
       const res = await axios.post(`${API_BASE}/orders/${order._id}/send-customer-invoice`, {
-        email: invoiceEmail.trim() || undefined
+        email: invoiceForm.email.trim() || undefined
       });
       setInvoiceMessage(res.data?.message || 'Faktura sendt');
+      await onUpdated();
     } catch (err) {
       setInvoiceMessage(err.response?.data?.message || 'Kunne ikke sende faktura');
     } finally {
@@ -216,21 +265,19 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     }
   };
 
-  const billingPreview = (() => {
-    const ba = order.billingAddress || {};
-    const hasBilling = !!(ba.address1 || order.billingName);
-    const name = order.billingName || order.recipientName || order.customer?.name || '—';
-    const company = order.billingCompany || '';
-    const lines = hasBilling
-      ? [ba.address1, ba.address2, [ba.postalCode, ba.city].filter(Boolean).join(' ')]
-      : [
-          order.address || order.shippingAddress?.address1,
-          [order.postcode || order.shippingAddress?.postalCode, order.city || order.shippingAddress?.city]
-            .filter(Boolean)
-            .join(' ')
-        ];
-    return { name, company, lines: lines.filter(Boolean) };
-  })();
+  const handleSaveInvoiceOnly = async () => {
+    setInvoiceLoading(true);
+    setInvoiceMessage('');
+    try {
+      await saveInvoiceDetails();
+      setInvoiceMessage('Fakturaoplysninger gemt');
+      await onUpdated();
+    } catch (err) {
+      setInvoiceMessage(err.response?.data?.message || 'Kunne ikke gemme');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedPartnerId) return;
@@ -558,35 +605,101 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       )}
       {showInvoiceModal && (
         <div className="modal-overlay" onClick={() => setShowInvoiceModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content invoice-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Kundefaktura</h3>
-            <p className="subtitle">Billing-adresse og ordrelinjer hentes fra Shopify (hvis tilgængelig).</p>
-            <div style={{ marginBottom: '1rem', fontSize: '0.92rem' }}>
-              <strong>Faktureres til:</strong><br />
-              {billingPreview.name}
-              {billingPreview.company && <><br />{billingPreview.company}</>}
-              {billingPreview.lines.map((line) => (
-                <React.Fragment key={line}>
-                  <br />
-                  {line}
-                </React.Fragment>
-              ))}
+            <p className="subtitle">
+              Rediger fakturaoplysninger (firma, CVR/Momsnr., adresse). Gemmes på ordren og bruges ved print og e-mail.
+            </p>
+            <div className="invoice-form-grid">
+              <label>
+                Navn / kontaktperson
+                <input
+                  value={invoiceForm.name}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, name: e.target.value })}
+                />
+              </label>
+              <label>
+                Firma
+                <input
+                  value={invoiceForm.company}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, company: e.target.value })}
+                  placeholder="f.eks. Arimex UAB"
+                />
+              </label>
+              <label>
+                CVR / Momsnr. / VAT
+                <input
+                  value={invoiceForm.vatNumber}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, vatNumber: e.target.value })}
+                  placeholder="f.eks. LT234334610"
+                />
+              </label>
+              <label>
+                Adresse
+                <input
+                  value={invoiceForm.address1}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, address1: e.target.value })}
+                />
+              </label>
+              <label>
+                Adresse 2
+                <input
+                  value={invoiceForm.address2}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, address2: e.target.value })}
+                />
+              </label>
+              <div className="invoice-form-row">
+                <label>
+                  Postnr.
+                  <input
+                    value={invoiceForm.postalCode}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, postalCode: e.target.value })}
+                  />
+                </label>
+                <label>
+                  By
+                  <input
+                    value={invoiceForm.city}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, city: e.target.value })}
+                  />
+                </label>
+              </div>
+              <label>
+                Land
+                <input
+                  value={invoiceForm.country}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, country: e.target.value })}
+                  placeholder="DK"
+                />
+              </label>
+              <label>
+                E-mail (modtager af faktura)
+                <input
+                  type="email"
+                  value={invoiceForm.email}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, email: e.target.value })}
+                  placeholder="kunde@firma.dk"
+                />
+              </label>
+              <label>
+                Telefon
+                <input
+                  value={invoiceForm.phone}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, phone: e.target.value })}
+                />
+              </label>
             </div>
-            <label>
-              Send til e-mail
-              <input
-                type="email"
-                value={invoiceEmail}
-                onChange={(e) => setInvoiceEmail(e.target.value)}
-                placeholder="kunde@firma.dk"
-              />
-            </label>
             {invoiceMessage && (
-              <p className={invoiceMessage.includes('sendt') ? 'delivery-date-msg' : 'error'}>{invoiceMessage}</p>
+              <p className={invoiceMessage.includes('sendt') || invoiceMessage.includes('gemt') ? 'delivery-date-msg' : 'error'}>
+                {invoiceMessage}
+              </p>
             )}
             <div className="modal-actions">
               <button type="button" onClick={() => setShowInvoiceModal(false)} disabled={invoiceLoading}>
                 Luk
+              </button>
+              <button type="button" className="btn-secondary" onClick={handleSaveInvoiceOnly} disabled={invoiceLoading}>
+                Gem
               </button>
               <button type="button" className="btn-secondary" onClick={handlePrintInvoice} disabled={invoiceLoading}>
                 {invoiceLoading ? 'Henter…' : 'Vis / print'}

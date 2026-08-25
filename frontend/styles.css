@@ -1807,6 +1807,50 @@ button {
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
 }
 
+.modal-content.invoice-modal {
+  max-width: 560px;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.modal-content.invoice-modal h3 {
+  margin: 0 0 0.35rem;
+}
+
+.modal-content.invoice-modal .subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.invoice-form-grid label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.55rem;
+  color: #374151;
+}
+
+.invoice-form-grid input {
+  display: block;
+  width: 100%;
+  margin-top: 0.2rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.invoice-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 0.65rem;
+}
+
+.modal-content.invoice-modal .modal-actions {
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

@@ -315,6 +315,39 @@ async function loadOrderForUser(req) {
   return { order };
 }
 
+// Admin: save invoice billing overrides (faktura)
+router.patch('/:id/invoice-details', requireRole('admin'), async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const data = req.body || {};
+  const fields = [
+    'name',
+    'company',
+    'vatNumber',
+    'address1',
+    'address2',
+    'postalCode',
+    'city',
+    'country',
+    'email',
+    'phone'
+  ];
+  const invoiceDetails = {};
+  fields.forEach((f) => {
+    if (data[f] !== undefined) {
+      invoiceDetails[f] = String(data[f] ?? '').trim();
+    }
+  });
+  order.invoiceDetails = invoiceDetails;
+  order.updatedAt = new Date();
+  order.updatedByRole = req.user.role;
+  order.updatedByEmail = req.user.email || '';
+  order.updateCount = (order.updateCount || 0) + 1;
+  await order.save();
+  res.json(order);
+});
+
 // Admin: printable customer invoice (faktura) with billing address
 router.get('/:id/customer-invoice', requireRole('admin'), async (req, res) => {
   const order = await Order.findById(req.params.id);
