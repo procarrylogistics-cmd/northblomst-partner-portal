@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import PartnerDashboard from './pages/PartnerDashboard';
 import LoginPage from './pages/LoginPage';
 import ReportsPage from './pages/ReportsPage';
+import PartnerAddonPage from './pages/PartnerAddonPage';
 import PartnerReportsPage from './pages/PartnerReportsPage';
 import NotificationBell from './components/NotificationBell';
 
@@ -47,6 +48,14 @@ export default function App() {
             {isAuthReady && user?.role === 'admin' && (
               <Link to="/reports" className={location.pathname === '/reports' ? 'nav-active' : undefined}>
                 Rapporter
+              </Link>
+            )}
+            {isAuthReady && user?.role === 'admin' && (
+              <Link
+                to="/partner-addon"
+                className={location.pathname === '/partner-addon' ? 'nav-active' : undefined}
+              >
+                Partner addon
               </Link>
             )}
             {isAuthReady && user?.role === 'admin' && (
@@ -121,6 +130,14 @@ export default function App() {
             element={
               <ProtectedRoute role="admin">
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/partner-addon"
+            element={
+              <ProtectedRoute role="admin">
+                <PartnerAddonPage />
               </ProtectedRoute>
             }
           />

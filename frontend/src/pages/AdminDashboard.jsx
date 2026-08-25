@@ -4,7 +4,6 @@ import axios from 'axios';
 import OrderList from '../components/OrderList';
 import { sortOrdersNewestFirst } from '../utils/orderSort';
 import OrderDetail from '../components/OrderDetail';
-import PartnerManager from '../components/PartnerManager';
 import CreateOrderModal from '../components/CreateOrderModal';
 import ManualCardPrintModal from '../components/ManualCardPrintModal';
 
@@ -221,7 +220,7 @@ export default function AdminDashboard() {
         <div className="page-hero-text">
           <p className="page-eyebrow">Operations</p>
           <h2>Admin oversigt</h2>
-          <p className="page-lede">Ordrer, partnere og Shopify — samlet i ét arbejdsrum.</p>
+          <p className="page-lede">Ordrer og Shopify — samlet i ét arbejdsrum.</p>
         </div>
         <div className="header-actions">
           <button type="button" className="btn-primary" onClick={() => setShowCreateOrder(true)}>
@@ -341,13 +340,6 @@ export default function AdminDashboard() {
           )}
         </section>
       </div>
-
-      <section className="admin-section">
-        <div className="panel-label">Partnere</div>
-        <div className="admin-partners surface-card">
-          <PartnerManager />
-        </div>
-      </section>
 
       <section className="admin-section">
         <div className="panel-label">Shopify webhooks</div>

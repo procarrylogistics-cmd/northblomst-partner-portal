@@ -107,8 +107,13 @@ export default function PartnerManager() {
 
   return (
     <div className="partner-manager">
-      <h3>Partnere</h3>
       <div className="partner-list">
+        <div className="partner-list-header">
+          <h3 className="partner-list-title">Partnere</h3>
+          <button type="button" className="btn-secondary btn-tiny" onClick={startNew}>
+            + Ny partner
+          </button>
+        </div>
         {partners.map((p) => (
           <div key={p._id} className="partner-list-item">
             <button type="button" onClick={() => startEdit(p)} className="partner-name-btn">

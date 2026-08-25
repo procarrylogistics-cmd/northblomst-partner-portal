@@ -1599,6 +1599,28 @@ button {
 
 /* Reports page */
 .reports-page h2 { margin-top: 0; }
+
+.partner-addon-page .page-hero {
+  margin-bottom: 1.25rem;
+}
+
+.partner-addon-card {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.partner-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.partner-list-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
 .reports-filters {
   display: flex;
   flex-wrap: wrap;
