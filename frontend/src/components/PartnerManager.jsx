@@ -107,26 +107,67 @@ export default function PartnerManager() {
 
   return (
     <div className="partner-manager">
-      <div className="partner-list">
+      <div className="partner-list-panel">
         <div className="partner-list-header">
           <h3 className="partner-list-title">Partnere</h3>
           <button type="button" className="btn-secondary btn-tiny" onClick={startNew}>
             + Ny partner
           </button>
         </div>
-        {partners.map((p) => (
-          <div key={p._id} className="partner-list-item">
-            <button type="button" onClick={() => startEdit(p)} className="partner-name-btn">
-              {p.name} ({p.zoneRanges?.join(', ') || 'no zones'})
-              {p.cvr ? ` · CVR ${p.cvr}` : ''}
-              {p.handlesDelivery === false ? ' · uden transport' : ' · +69 transport'}
-            </button>
-            <button type="button" onClick={() => handleDelete(p)} className="btn-delete" title="Slet">
-              Slet
-            </button>
-          </div>
-        ))}
-        {partners.length === 0 && <div className="empty">Ingen partnere endnu</div>}
+        <div className="partner-table-wrap">
+          <table className="partner-table">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Zoner</th>
+                <th>CVR</th>
+                <th>Transport</th>
+                <th aria-label="Handlinger" />
+              </tr>
+            </thead>
+            <tbody>
+              {partners.map((p) => {
+                const zones = p.zoneRanges?.length ? p.zoneRanges.join(', ') : '—';
+                const transport = p.handlesDelivery === false ? 'Uden transport' : '+69 DKK';
+                const isActive = editing?._id === p._id;
+                return (
+                  <tr
+                    key={p._id}
+                    className={isActive ? 'is-active' : ''}
+                    onClick={() => startEdit(p)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        startEdit(p);
+                      }
+                    }}
+                  >
+                    <td className="partner-col-name">{p.name}</td>
+                    <td className="partner-col-zones">{zones}</td>
+                    <td className="partner-col-cvr">{p.cvr || '—'}</td>
+                    <td className="partner-col-transport">{transport}</td>
+                    <td className="partner-col-actions">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(p);
+                        }}
+                        className="btn-delete"
+                        title="Slet"
+                      >
+                        Slet
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {partners.length === 0 && <div className="empty">Ingen partnere endnu</div>}
+        </div>
       </div>
       <div className="partner-form">
         <h4>{editing ? 'Rediger partner' : 'Ny partner'}</h4>
