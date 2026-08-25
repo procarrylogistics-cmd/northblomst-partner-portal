@@ -9,6 +9,7 @@ const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
 const { isDeliveryAddressAddon } = require('../utils/addressSync');
+const { resolveDeliveryAddress } = require('../utils/deliveryAddressResolver');
 const { isCardMessageAddon } = require('../utils/cardTextSync');
 
 function esc(s) {
@@ -146,57 +147,18 @@ function formatCompanyPhone(raw) {
  * Never use billing or partner/terminal address for the cut-out label.
  */
 function resolveDeliveryShip(mongo, shopifyOrder) {
-  const so = shopifyOrder || {};
-  const sa = so.shipping_address || {};
-  const ms = mongo.shippingAddress || {};
-
-  const address1 = String(mongo.address || ms.address1 || sa.address1 || '').trim();
-  const address2 = String(ms.address2 || sa.address2 || '').trim();
-  const zip = String(mongo.postcode || ms.postalCode || sa.zip || sa.postal_code || '').trim();
-  const city = String(mongo.city || ms.city || sa.city || '').trim();
-  const name = String(
-    mongo.recipientName || sa.name || mongo.customer?.name || ''
-  ).trim();
-  const phone = String(
-    mongo.phone || ms.phone || sa.phone || mongo.customer?.phone || ''
-  ).trim();
-  const company = String(sa.company || ms.company || '').trim();
-  const country = String(ms.country || sa.country || '').trim();
-
-  // Fallback: parse Tilvalg "Delivery address" if street fields still empty
-  if (!address1 && !zip && !city) {
-    const addon = (mongo.addOns || []).find((a) => isDeliveryAddressAddon(a));
-    const raw = String(addon?.value || '').trim();
-    if (raw) {
-      const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-      if (parts.length >= 2) {
-        const zipCity = parts[parts.length - 1];
-        const m = zipCity.match(/^(\d{4})\s+(.+)$/);
-        return {
-          name,
-          address1: parts.slice(0, -1).join(', '),
-          address2: '',
-          zip: m ? m[1] : '',
-          city: m ? m[2] : zipCity,
-          country,
-          phone,
-          company: ''
-        };
-      }
-      return {
-        name,
-        address1: raw,
-        address2: '',
-        zip: '',
-        city: '',
-        country,
-        phone,
-        company: ''
-      };
-    }
-  }
-
-  return { name, address1, address2, zip, city, country, phone, company };
+  const r = resolveDeliveryAddress(mongo, shopifyOrder || {});
+  const sa = (shopifyOrder || {}).shipping_address || {};
+  return {
+    name: r.recipientName,
+    address1: r.address1,
+    address2: r.address2,
+    zip: r.postalCode,
+    city: r.city,
+    country: r.country,
+    phone: r.phone,
+    company: String(sa.company || mongo.shippingAddress?.company || '').trim()
+  };
 }
 
 function resolveCardMessage(mongo, lineItems, noteAttributes) {

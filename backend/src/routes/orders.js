@@ -22,6 +22,8 @@ const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
 const { buildCustomerInvoiceHtml, sendCustomerInvoice, mapBillingFromShopify } = require('../services/customerOrderInvoice');
 const { syncCardTextOnOrder } = require('../utils/cardTextSync');
 const { syncDeliveryAddressOnOrder } = require('../utils/addressSync');
+const { extractAddOnsFromShopifyOrder } = require('../utils/addonExtractor');
+const { applyDeliveryAddressToOrder, resolveDeliveryAddress } = require('../utils/deliveryAddressResolver');
 
 const router = express.Router();
 
@@ -59,7 +61,8 @@ function mapShopifyOrderToDoc(shopifyOrder) {
 
   const totalPaid = shopifyOrder.total_price != null ? parseFloat(shopifyOrder.total_price) : null;
   const currencyCode = shopifyOrder.currency || null;
-  return {
+  const { addOns, addOnsSummary } = extractAddOnsFromShopifyOrder(shopifyOrder);
+  const doc = {
     shopifyOrderId: String(shopifyOrder.id),
     shopifyOrderNumber: String(shopifyOrder.order_number || shopifyOrder.number || ''),
     shopifyOrderName: shopifyOrder.name,
@@ -77,8 +80,24 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     createdByRole: 'shopify',
     totalPrice: shopifyOrder.total_price,
     totalPaidAmount: totalPaid,
-    currencyCode
+    currencyCode,
+    recipientName: customer.name,
+    phone: customer.phone,
+    address: shipping.address1,
+    postcode: shipping.zip,
+    city: shipping.city,
+    addOns,
+    addOnsSummary,
+    raw: {
+      shipping_address: shopifyOrder.shipping_address,
+      billing_address: shopifyOrder.billing_address,
+      note_attributes: shopifyOrder.note_attributes,
+      line_items: (shopifyOrder.line_items || []).map((li) => ({ properties: li.properties }))
+    }
   };
+  applyDeliveryAddressToOrder(doc, shopifyOrder);
+  doc.zone = matchZoneForPostalCode(doc.postcode) || doc.zone;
+  return doc;
 }
 
 /** GET /api/orders/partner – partner sees only assigned orders (partner-only) */
@@ -375,6 +394,27 @@ router.get('/:id/shopify-admin-url', requireRole('admin'), async (req, res) => {
   res.json({ url });
 });
 
+function enrichOrderDeliveryForResponse(order) {
+  const obj = order.toObject ? order.toObject() : { ...order };
+  const resolved = resolveDeliveryAddress(obj);
+  obj.address = resolved.address1;
+  obj.postcode = resolved.postalCode;
+  obj.city = resolved.city;
+  obj.recipientName = resolved.recipientName || obj.recipientName;
+  obj.phone = resolved.phone || obj.phone;
+  if (obj.shippingAddress) {
+    obj.shippingAddress = {
+      ...(obj.shippingAddress.toObject ? obj.shippingAddress.toObject() : obj.shippingAddress),
+      address1: resolved.address1,
+      address2: resolved.address2 || obj.shippingAddress.address2,
+      postalCode: resolved.postalCode,
+      city: resolved.city,
+      country: resolved.country || obj.shippingAddress.country
+    };
+  }
+  return obj;
+}
+
 // Get single order (admin or assigned partner) – enrich images on read if missing
 router.get('/:id', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
@@ -391,10 +431,10 @@ router.get('/:id', async (req, res) => {
   }
   if (needsReload) {
     const fresh = await Order.findById(order._id);
-    if (fresh) return res.json(fresh);
+    if (fresh) return res.json(enrichOrderDeliveryForResponse(fresh));
   }
 
-  res.json(order);
+  res.json(enrichOrderDeliveryForResponse(order));
 });
 
 function canEditOrder(order, user) {
@@ -531,6 +571,11 @@ router.get('/admin/procarry-track/config', requireRole('admin'), (req, res) => {
 router.post('/:id/push-procarry-track', requireRole('admin'), async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const force = req.body?.force === true || req.query?.force === 'true';
+  if (force) {
+    order.procarryTrackOrderId = undefined;
+  }
 
   const trackPush = await pushOrderToProcarryTrack(order);
   const payload = order.toObject ? order.toObject() : order;

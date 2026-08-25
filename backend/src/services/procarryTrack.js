@@ -1,4 +1,8 @@
 const axios = require('axios');
+const {
+  resolveDeliveryAddress,
+  applyDeliveryAddressToOrder
+} = require('../utils/deliveryAddressResolver');
 
 /**
  * Push a portal order to procarry-track when it becomes ready for delivery.
@@ -23,33 +27,18 @@ function resolveOrderNumber(order) {
   return trimmed.startsWith('#') ? trimmed : `#${trimmed.replace(/^#+/, '')}`;
 }
 
-/** Align with packing slip / invoice — include Shopify raw fallbacks. */
+/** Leveringsadresse — Tilvalg / portal fields, not foreign Shopify shipping. */
 function resolveDeliveryFields(order) {
-  const sa = order.raw?.shipping_address || {};
-  const ms = order.shippingAddress || {};
-
-  const address1 = String(
-    order.address || ms.address1 || sa.address1 || ''
-  ).trim();
-  const address2 = String(ms.address2 || sa.address2 || '').trim();
-  const postalCode = String(
-    order.postcode || ms.postalCode || sa.zip || sa.postal_code || ''
-  ).trim();
-  const city = String(order.city || ms.city || sa.city || '').trim();
-  const country = String(
-    ms.country || sa.country || 'DK'
-  ).trim();
-  const phone = String(
-    order.phone || order.customer?.phone || sa.phone || ''
-  ).trim();
-  const recipientName = String(
-    order.recipientName ||
-      sa.name ||
-      order.customer?.name ||
-      'Recipient'
-  ).trim();
-
-  return { address1, address2, postalCode, city, country, phone, recipientName };
+  const resolved = resolveDeliveryAddress(order);
+  return {
+    address1: resolved.address1,
+    address2: resolved.address2,
+    postalCode: resolved.postalCode,
+    city: resolved.city,
+    country: resolved.country || 'DK',
+    phone: resolved.phone,
+    recipientName: resolved.recipientName
+  };
 }
 
 function buildPayload(order) {
@@ -126,6 +115,9 @@ async function pushOrderToProcarryTrack(order) {
       trackingUrl: order.trackingUrl || null
     };
   }
+
+  applyDeliveryAddressToOrder(order);
+  await order.save();
 
   const payload = buildPayload(order);
   const missing = [];

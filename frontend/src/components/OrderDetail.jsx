@@ -107,12 +107,12 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     }
   };
 
-  const pushToTrack = async () => {
+  const pushToTrack = async (force = false) => {
     setTrackPushLoading(true);
     setStatusError('');
     setTrackMessage('');
     try {
-      const res = await axios.post(`${API_BASE}/orders/${order._id}/push-procarry-track`);
+      const res = await axios.post(`${API_BASE}/orders/${order._id}/push-procarry-track`, { force });
       const tp = res.data?.trackPush;
       if (tp?.ok && !tp.skipped) {
         setTrackMessage(tp.created ? 'Ordre sendt til Procarry Track' : 'Ordre synkroniseret med Track');
@@ -455,15 +455,28 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         {statusError && <div className="error">{statusError}</div>}
         {trackMessage && <div className="success">{trackMessage}</div>}
         {isAdmin && !isCancelled && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={pushToTrack}
-            disabled={trackPushLoading || updating}
-            title="Send ordre manuelt til Procarry Track (levering)"
-          >
-            {trackPushLoading ? 'Sender til Track…' : 'Send til Track'}
-          </button>
+          <>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => pushToTrack(false)}
+              disabled={trackPushLoading || updating}
+              title="Send ordre manuelt til Procarry Track (levering)"
+            >
+              {trackPushLoading ? 'Sender til Track…' : 'Send til Track'}
+            </button>
+            {order.procarryTrackOrderId && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => pushToTrack(true)}
+                disabled={trackPushLoading || updating}
+                title="Send igen med korrekt leveringsadresse (sletter gammel Track-kobling)"
+              >
+                Send til Track igen
+              </button>
+            )}
+          </>
         )}
         {order.procarryTrackOrderId && (
           <p className="muted">

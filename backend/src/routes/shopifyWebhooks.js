@@ -12,6 +12,7 @@ const { extractDeliveryFromShopifyOrder } = require('../utils/deliveryDateExtrac
 const { enrichOrderImages, imageUrlFromShopifyLineItem } = require('../services/orderImageEnricher');
 const { matchZoneForPostalCode } = require('../utils/postalZone');
 const { autoAssignPartnerForOrder } = require('../services/partnerAutoAssign');
+const { applyDeliveryAddressToOrder } = require('../utils/deliveryAddressResolver');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -45,7 +46,7 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     bill.name ||
     `${bill.first_name || ''} ${bill.last_name || ''}`.trim() ||
     customerName;
-  return {
+  const doc = {
     shop: effectiveShop,
     shopifyOrderId: payload.id != null ? String(payload.id) : null,
     shopifyOrderName: payload.name,
@@ -95,10 +96,16 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
       email: payload.email,
       order_number: payload.order_number,
       note_attributes: payload.note_attributes,
+      shipping_address: payload.shipping_address,
+      billing_address: payload.billing_address,
       line_items: (payload.line_items || []).map((li) => ({ properties: li.properties })),
       estimated_delivery_at: payload.estimated_delivery_at
     }
   };
+  applyDeliveryAddressToOrder(doc, payload);
+  const zoneResolved = matchZoneForPostalCode(doc.postcode);
+  if (zoneResolved) doc.zone = zoneResolved;
+  return doc;
 }
 
 /**
