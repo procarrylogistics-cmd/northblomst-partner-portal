@@ -105,6 +105,23 @@ export default function PartnerManager() {
     }
   };
 
+  const handleToggleSuspend = async (p) => {
+    const next = !p.suspended;
+    const msg = next
+      ? `Suspender "${p.name}"?\n\nPartneren beholder login, men får kun adgang til Reports (egen kontrol). Ordrer og øvrige funktioner lukkes.`
+      : `Genåbn adgang for "${p.name}"? Partneren får igen fuld portaladgang.`;
+    if (!window.confirm(msg)) return;
+    try {
+      await axios.patch(`${API_BASE}/partners/${p._id}/suspend`, { suspended: next });
+      await load();
+      if (editing?._id === p._id) {
+        setEditing((prev) => (prev ? { ...prev, suspended: next } : prev));
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Kunne ikke ændre suspend-status');
+    }
+  };
+
   return (
     <div className="partner-manager">
       <div className="partner-list-panel">
@@ -122,6 +139,7 @@ export default function PartnerManager() {
                 <th>Zoner</th>
                 <th>CVR</th>
                 <th>Transport</th>
+                <th>Status</th>
                 <th aria-label="Handlinger" />
               </tr>
             </thead>
@@ -130,10 +148,11 @@ export default function PartnerManager() {
                 const zones = p.zoneRanges?.length ? p.zoneRanges.join(', ') : '—';
                 const transport = p.handlesDelivery === false ? 'Uden transport' : '+69 DKK';
                 const isActive = editing?._id === p._id;
+                const isSuspended = !!p.suspended;
                 return (
                   <tr
                     key={p._id}
-                    className={isActive ? 'is-active' : ''}
+                    className={`${isActive ? 'is-active' : ''}${isSuspended ? ' is-suspended' : ''}`.trim()}
                     onClick={() => startEdit(p)}
                     role="button"
                     tabIndex={0}
@@ -148,7 +167,25 @@ export default function PartnerManager() {
                     <td className="partner-col-zones">{zones}</td>
                     <td className="partner-col-cvr">{p.cvr || '—'}</td>
                     <td className="partner-col-transport">{transport}</td>
+                    <td className="partner-col-status">
+                      {isSuspended ? (
+                        <span className="partner-status-badge is-suspended">Suspended</span>
+                      ) : (
+                        <span className="partner-status-badge is-active">Aktiv</span>
+                      )}
+                    </td>
                     <td className="partner-col-actions">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleSuspend(p);
+                        }}
+                        className={isSuspended ? 'btn-unsuspend' : 'btn-suspend'}
+                        title={isSuspended ? 'Genåbn adgang' : 'Suspender partner'}
+                      >
+                        {isSuspended ? 'Genåbn' : 'Suspended'}
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {

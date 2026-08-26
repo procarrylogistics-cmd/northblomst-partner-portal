@@ -9,7 +9,7 @@ import PartnerAddonPage from './pages/PartnerAddonPage';
 import PartnerReportsPage from './pages/PartnerReportsPage';
 import NotificationBell from './components/NotificationBell';
 
-function ProtectedRoute({ children, role }) {
+function ProtectedRoute({ children, role, allowSuspended = false }) {
   const { user, isAuthReady } = useAuth();
   if (!isAuthReady) {
     return <div className="auth-loading">Indlæser…</div>;
@@ -20,6 +20,9 @@ function ProtectedRoute({ children, role }) {
   if (role && user.role !== role) {
     return <Navigate to="/" replace />;
   }
+  if (user.role === 'partner' && user.suspended && !allowSuspended) {
+    return <Navigate to="/partner/reports" replace />;
+  }
   return children;
 }
 
@@ -27,9 +30,14 @@ export default function App() {
   const { user, logout, isAuthReady } = useAuth();
   const location = useLocation();
   const isLogin = location.pathname === '/login';
+  const isSuspendedPartner = user?.role === 'partner' && !!user.suspended;
 
   return (
-    <div className={`app-root${isLogin ? ' is-login' : ''}${user?.role === 'admin' ? ' is-admin' : ''}`}>
+    <div
+      className={`app-root${isLogin ? ' is-login' : ''}${user?.role === 'admin' ? ' is-admin' : ''}${
+        isSuspendedPartner ? ' is-suspended-partner' : ''
+      }`}
+    >
       {!isLogin && (
         <header className="app-header">
           <div className="header-brand">
@@ -63,7 +71,7 @@ export default function App() {
                 Print kort
               </Link>
             )}
-            {isAuthReady && user?.role === 'partner' && (
+            {isAuthReady && user?.role === 'partner' && !isSuspendedPartner && (
               <Link to="/partner" className={location.pathname === '/partner' ? 'nav-active' : undefined}>
                 Mine ordrer
               </Link>
@@ -76,7 +84,7 @@ export default function App() {
                 Reports
               </Link>
             )}
-            {isAuthReady && user?.role === 'partner' && <NotificationBell />}
+            {isAuthReady && user?.role === 'partner' && !isSuspendedPartner && <NotificationBell />}
             {isAuthReady && !user && <Link to="/login">Login</Link>}
             {isAuthReady && user && (
               <button onClick={logout} className="btn-link btn-logout" type="button">
@@ -94,7 +102,16 @@ export default function App() {
               !isAuthReady ? (
                 <div className="auth-loading">Indlæser…</div>
               ) : user ? (
-                <Navigate to={user.role === 'admin' ? '/admin' : '/partner'} replace />
+                <Navigate
+                  to={
+                    user.role === 'admin'
+                      ? '/admin'
+                      : user.suspended
+                        ? '/partner/reports'
+                        : '/partner'
+                  }
+                  replace
+                />
               ) : (
                 <Navigate to="/login" replace />
               )
@@ -120,7 +137,7 @@ export default function App() {
           <Route
             path="/partner/reports"
             element={
-              <ProtectedRoute role="partner">
+              <ProtectedRoute role="partner" allowSuspended>
                 <PartnerReportsPage />
               </ProtectedRoute>
             }

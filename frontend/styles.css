@@ -1466,6 +1466,147 @@ button {
 .partner-col-actions {
   width: 1%;
   text-align: right;
+  white-space: nowrap;
+}
+
+.partner-col-actions .btn-delete,
+.partner-col-actions .btn-suspend,
+.partner-col-actions .btn-unsuspend {
+  margin-left: 0.35rem;
+}
+
+.partner-table tbody tr.is-suspended td {
+  opacity: 0.92;
+}
+
+.partner-status-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+
+.partner-status-badge.is-active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.partner-status-badge.is-suspended {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.btn-suspend {
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.375rem;
+  border: 1px solid #b45309;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-suspend:hover {
+  background: #fde68a;
+}
+
+.btn-unsuspend {
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.375rem;
+  border: 1px solid #047857;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-unsuspend:hover {
+  background: #d1fae5;
+}
+
+.suspended-banner {
+  position: relative;
+  display: flex;
+  gap: 0;
+  margin: 0 0 1.5rem;
+  background: linear-gradient(135deg, #fafaf9 0%, #f5f5f4 100%);
+  border: 1px solid #e7e5e4;
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(28, 25, 23, 0.06);
+}
+
+.suspended-banner-accent {
+  width: 5px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+}
+
+.suspended-banner-body {
+  padding: 1.35rem 1.5rem 1.4rem;
+}
+
+.suspended-banner-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a8a29e;
+}
+
+.suspended-banner-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: #1c1917;
+  letter-spacing: -0.01em;
+}
+
+.suspended-banner-text {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #44403c;
+  max-width: 52rem;
+}
+
+.suspended-banner-text:last-of-type {
+  margin-bottom: 0.9rem;
+}
+
+.suspended-banner-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.suspended-banner-contact a {
+  color: #1a4a3c;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(26, 74, 60, 0.35);
+}
+
+.suspended-banner-contact a:hover {
+  border-bottom-color: #1a4a3c;
+}
+
+.suspended-banner-sep {
+  color: #a8a29e;
+}
+
+.app-root.is-suspended-partner .app-main {
+  padding-top: 0.5rem;
 }
 
 .partner-table .btn-delete {

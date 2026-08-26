@@ -19,6 +19,7 @@ function partnerPublicJson(partner, extra = {}) {
     bankName: partner.bankName || '',
     zoneRanges: partner.zoneRanges,
     handlesDelivery: partner.handlesDelivery !== false,
+    suspended: !!partner.suspended,
     ...extra
   };
 }
@@ -95,6 +96,24 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   const rebalance = await rebalanceOpenOrdersByPostal();
 
   res.json(partnerPublicJson(partner, { autoAssigned: rebalance }));
+});
+
+// Admin: suspend / unsuspend partner (reports-only access when suspended)
+router.patch('/:id/suspend', requireRole('admin'), async (req, res) => {
+  const partner = await User.findById(req.params.id);
+  if (!partner || partner.role !== 'partner') {
+    return res.status(404).json({ message: 'Partner not found' });
+  }
+  const suspended =
+    req.body?.suspended !== undefined
+      ? req.body.suspended === true || req.body.suspended === 'true'
+      : !partner.suspended;
+  partner.suspended = suspended;
+  await partner.save();
+  if (suspended) {
+    await rebalanceOpenOrdersByPostal();
+  }
+  res.json(partnerPublicJson(partner));
 });
 
 // Admin: delete partner (unassign orders first)

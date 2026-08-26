@@ -27,6 +27,8 @@ export default function LoginPage() {
       login(res.data);
       if (res.data.user.role === 'admin') {
         navigate('/admin');
+      } else if (res.data.user.suspended) {
+        navigate('/partner/reports');
       } else {
         navigate('/partner');
       }

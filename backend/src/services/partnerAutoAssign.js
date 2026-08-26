@@ -84,7 +84,9 @@ async function autoAssignPartnerForOrder(order, options = {}) {
   if (!order) return { changed: false, partner: null };
   const keepAssignedNonFallback = options.keepAssignedNonFallback !== false;
   const postalCode = order.shippingAddress?.postalCode || order.postcode || '';
-  const partners = await User.find({ role: 'partner' }).select('_id name email zoneRanges');
+  const partners = await User.find({ role: 'partner', suspended: { $ne: true } }).select(
+    '_id name email zoneRanges'
+  );
   const picked = selectPartnerForPostal(partners, postalCode);
   if (!picked) return { changed: false, partner: null };
 

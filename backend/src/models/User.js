@@ -18,7 +18,9 @@ const UserSchema = new mongoose.Schema(
     bankName: String,
     zoneRanges: [String],
     /** When true, partner gets fixed 69 DKK delivery in payout. When false (e.g. terminal), Northblomst keeps delivery. */
-    handlesDelivery: { type: Boolean, default: true }
+    handlesDelivery: { type: Boolean, default: true },
+    /** Suspended partners may only view their own reports — no order system access. */
+    suspended: { type: Boolean, default: false }
   },
   {
     timestamps: true

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import SuspendedAccessBanner from '../components/SuspendedAccessBanner';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -35,6 +37,7 @@ function weekdayLabel(weekday) {
 }
 
 export default function PartnerReportsPage() {
+  const { user } = useAuth();
   const [weekStart, setWeekStart] = useState(getMonday(new Date()));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -79,6 +82,7 @@ export default function PartnerReportsPage() {
 
   return (
     <div className="reports-page partner-reports-page">
+      {user?.suspended && <SuspendedAccessBanner />}
       <h2>Partner Weekly Report</h2>
       {error && <div className="error" style={{ marginBottom: '0.5rem' }}>{error}</div>}
 

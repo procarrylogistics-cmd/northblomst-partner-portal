@@ -51,7 +51,8 @@ router.post('/login', async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      zoneRanges: user.zoneRanges
+      zoneRanges: user.zoneRanges,
+      suspended: !!user.suspended
     }
   });
 });
@@ -65,7 +66,8 @@ router.get('/me', authMiddleware, async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      zoneRanges: user.zoneRanges
+      zoneRanges: user.zoneRanges,
+      suspended: !!user.suspended
     }
   });
 });

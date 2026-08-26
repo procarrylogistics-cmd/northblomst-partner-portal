@@ -26,12 +26,31 @@ async function authMiddleware(req, res, next) {
     if (!user) {
       return res.status(401).json({ code: 'AUTH_INVALID', message: 'User not found' });
     }
+    const suspended = !!user.suspended;
     req.user = {
       id: user._id,
       role: user.role,
       email: user.email,
-      name: user.name
+      name: user.name,
+      suspended
     };
+
+    // Suspended partners: reports + auth only
+    if (user.role === 'partner' && suspended) {
+      const url = String(req.originalUrl || req.path || '').split('?')[0];
+      const allowed =
+        url.startsWith('/api/auth') ||
+        url === '/api/reports/partner-weekly' ||
+        url === '/api/reports/partner-weekly.csv';
+      if (!allowed) {
+        return res.status(403).json({
+          code: 'ACCOUNT_SUSPENDED',
+          message:
+            'Your partner account is suspended. You only have access to Reports for your own verification. Please contact Office Northblomst.'
+        });
+      }
+    }
+
     next();
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
