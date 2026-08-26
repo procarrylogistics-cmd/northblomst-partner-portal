@@ -353,7 +353,8 @@ router.get('/:id/customer-invoice', requireRole('admin'), async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
   try {
-    const { html } = await buildCustomerInvoiceHtml(order);
+    const lang = req.query?.lang || 'da';
+    const { html } = await buildCustomerInvoiceHtml(order, lang);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err) {
@@ -367,7 +368,7 @@ router.post('/:id/send-customer-invoice', requireRole('admin'), async (req, res)
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
   try {
-    const result = await sendCustomerInvoice(order, req.body?.email);
+    const result = await sendCustomerInvoice(order, req.body?.email, req.body?.lang || req.query?.lang);
     if (!result.ok) return res.status(400).json({ message: result.error });
     res.json({ message: `Faktura sendt til ${result.to}`, invoiceNumber: result.invoiceNumber, to: result.to });
   } catch (err) {

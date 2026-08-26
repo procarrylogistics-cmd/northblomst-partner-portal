@@ -67,7 +67,9 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [deliveryDateInput, setDeliveryDateInput] = useState(() => toDateInputValue(orderProp.deliveryDate));
   const [deliveryDateSaving, setDeliveryDateSaving] = useState(false);
   const [deliveryDateMessage, setDeliveryDateMessage] = useState('');
+  const [showInvoiceDrawer, setShowInvoiceDrawer] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceLang, setInvoiceLang] = useState('da');
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState('');
@@ -212,10 +214,21 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     }
   };
 
-  const openInvoiceModal = () => {
+  const openInvoiceDrawer = () => {
+    setInvoiceMessage('');
+    setShowInvoiceDrawer(true);
+  };
+
+  const selectInvoiceLanguage = (lang) => {
+    setInvoiceLang(lang);
     setInvoiceForm(buildInvoiceFormFromOrder(order));
     setInvoiceMessage('');
+    setShowInvoiceDrawer(false);
     setShowInvoiceModal(true);
+  };
+
+  const openInvoiceModal = () => {
+    openInvoiceDrawer();
   };
 
   const saveInvoiceDetails = async () => {
@@ -230,6 +243,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     try {
       await saveInvoiceDetails();
       const res = await axios.get(`${API_BASE}/orders/${order._id}/customer-invoice`, {
+        params: { lang: invoiceLang },
         responseType: 'text'
       });
       const win = window.open('', '_blank');
@@ -254,7 +268,8 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     try {
       await saveInvoiceDetails();
       const res = await axios.post(`${API_BASE}/orders/${order._id}/send-customer-invoice`, {
-        email: invoiceForm.email.trim() || undefined
+        email: invoiceForm.email.trim() || undefined,
+        lang: invoiceLang
       });
       setInvoiceMessage(res.data?.message || 'Faktura sendt');
       await onUpdated();
@@ -603,23 +618,65 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           </div>
         </div>
       )}
+      {showInvoiceDrawer && (
+        <div className="drawer-overlay" onClick={() => setShowInvoiceDrawer(false)}>
+          <aside className="invoice-lang-drawer" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="drawer-close" onClick={() => setShowInvoiceDrawer(false)} aria-label="Luk">
+              ×
+            </button>
+            <h3>Faktura / Invoice</h3>
+            <p className="drawer-lede">Vælg sprog til print og e-mail.</p>
+            <button type="button" className="invoice-lang-option" onClick={() => selectInvoiceLanguage('da')}>
+              <span className="invoice-lang-flag">🇩🇰</span>
+              <span className="invoice-lang-text">
+                <strong>Dansk</strong>
+                <small>Til lokale kunder i Danmark</small>
+              </span>
+            </button>
+            <button type="button" className="invoice-lang-option" onClick={() => selectInvoiceLanguage('en')}>
+              <span className="invoice-lang-flag">🇬🇧</span>
+              <span className="invoice-lang-text">
+                <strong>English</strong>
+                <small>For international customers</small>
+              </span>
+            </button>
+          </aside>
+        </div>
+      )}
       {showInvoiceModal && (
         <div className="modal-overlay" onClick={() => setShowInvoiceModal(false)}>
           <div className="modal-content invoice-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Kundefaktura</h3>
+            <div className="invoice-modal-head">
+              <h3>{invoiceLang === 'en' ? 'Customer invoice' : 'Kundefaktura'}</h3>
+              <span className={`invoice-lang-badge ${invoiceLang}`}>
+                {invoiceLang === 'en' ? 'English' : 'Dansk'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn-link invoice-change-lang"
+              onClick={() => {
+                setShowInvoiceModal(false);
+                setShowInvoiceDrawer(true);
+              }}
+            >
+              ← {invoiceLang === 'en' ? 'Change language' : 'Skift sprog'}
+            </button>
             <p className="subtitle">
-              Rediger fakturaoplysninger (firma, CVR/Momsnr., adresse). Gemmes på ordren og bruges ved print og e-mail.
+              {invoiceLang === 'en'
+                ? 'Edit billing details (company, VAT, address). Saved on the order and used for print and e-mail.'
+                : 'Rediger fakturaoplysninger (firma, CVR/Momsnr., adresse). Gemmes på ordren og bruges ved print og e-mail.'}
             </p>
             <div className="invoice-form-grid">
               <label>
-                Navn / kontaktperson
+                {invoiceLang === 'en' ? 'Name / contact' : 'Navn / kontaktperson'}
                 <input
                   value={invoiceForm.name}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, name: e.target.value })}
                 />
               </label>
               <label>
-                Firma
+                {invoiceLang === 'en' ? 'Company' : 'Firma'}
                 <input
                   value={invoiceForm.company}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, company: e.target.value })}
@@ -627,7 +684,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 />
               </label>
               <label>
-                CVR / Momsnr. / VAT
+                {invoiceLang === 'en' ? 'VAT no.' : 'CVR / Momsnr. / VAT'}
                 <input
                   value={invoiceForm.vatNumber}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, vatNumber: e.target.value })}
@@ -635,14 +692,14 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 />
               </label>
               <label>
-                Adresse
+                {invoiceLang === 'en' ? 'Address' : 'Adresse'}
                 <input
                   value={invoiceForm.address1}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, address1: e.target.value })}
                 />
               </label>
               <label>
-                Adresse 2
+                {invoiceLang === 'en' ? 'Address 2' : 'Adresse 2'}
                 <input
                   value={invoiceForm.address2}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, address2: e.target.value })}
@@ -650,14 +707,14 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               </label>
               <div className="invoice-form-row">
                 <label>
-                  Postnr.
+                  {invoiceLang === 'en' ? 'Postal code' : 'Postnr.'}
                   <input
                     value={invoiceForm.postalCode}
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, postalCode: e.target.value })}
                   />
                 </label>
                 <label>
-                  By
+                  {invoiceLang === 'en' ? 'City' : 'By'}
                   <input
                     value={invoiceForm.city}
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, city: e.target.value })}
@@ -665,7 +722,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 </label>
               </div>
               <label>
-                Land
+                {invoiceLang === 'en' ? 'Country' : 'Land'}
                 <input
                   value={invoiceForm.country}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, country: e.target.value })}
@@ -673,7 +730,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 />
               </label>
               <label>
-                E-mail (modtager af faktura)
+                {invoiceLang === 'en' ? 'E-mail (invoice recipient)' : 'E-mail (modtager af faktura)'}
                 <input
                   type="email"
                   value={invoiceForm.email}
@@ -682,7 +739,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 />
               </label>
               <label>
-                Telefon
+                {invoiceLang === 'en' ? 'Phone' : 'Telefon'}
                 <input
                   value={invoiceForm.phone}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, phone: e.target.value })}
@@ -696,16 +753,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
             )}
             <div className="modal-actions">
               <button type="button" onClick={() => setShowInvoiceModal(false)} disabled={invoiceLoading}>
-                Luk
+                {invoiceLang === 'en' ? 'Close' : 'Luk'}
               </button>
               <button type="button" className="btn-secondary" onClick={handleSaveInvoiceOnly} disabled={invoiceLoading}>
-                Gem
+                {invoiceLang === 'en' ? 'Save' : 'Gem'}
               </button>
               <button type="button" className="btn-secondary" onClick={handlePrintInvoice} disabled={invoiceLoading}>
-                {invoiceLoading ? 'Henter…' : 'Vis / print'}
+                {invoiceLoading ? '…' : invoiceLang === 'en' ? 'View / print' : 'Vis / print'}
               </button>
               <button type="button" className="btn-primary" onClick={handleSendInvoice} disabled={invoiceLoading}>
-                {invoiceLoading ? 'Sender…' : 'Send til kunde'}
+                {invoiceLoading ? '…' : invoiceLang === 'en' ? 'Send to customer' : 'Send til kunde'}
               </button>
             </div>
           </div>
