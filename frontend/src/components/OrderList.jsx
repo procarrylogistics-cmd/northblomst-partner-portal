@@ -22,6 +22,14 @@ export default function OrderList({
               <span className={`status status-${o.status}`}>
                 {o.status === 'cancelled' ? 'Annulleret' : o.status === 'assigned' ? 'Tildelt' : o.status}
               </span>
+              {showPartner && o.customerPaidOverride != null && (
+                <span
+                  className="badge-inline badge-paid-adjusted"
+                  title={`Customer paid justeret til ${o.customerPaidOverride} DKK (Shopify: ${o.totalPaidAmount ?? o.totalPrice ?? '—'})`}
+                >
+                  Beløb justeret
+                </span>
+              )}
               {(o.updateCount || 0) > 0 && (
                 <span className="badge-inline" title={o.updatedAt ? new Date(o.updatedAt).toLocaleString('da-DK') : ''}>Opdateret</span>
               )}

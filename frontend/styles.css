@@ -1086,6 +1086,20 @@ button {
   color: #374151;
 }
 
+.badge-paid-adjusted,
+.badge-inline.badge-paid-adjusted {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge.badge-paid-adjusted {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 0.25rem;
+}
+
 .badge-cancelled {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
@@ -1980,6 +1994,25 @@ button {
   border-radius: 12px;
   background: linear-gradient(180deg, #f7faf8, #f3f6f4);
   border: 1px solid var(--nb-line);
+}
+.order-finance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.order-finance-header .badge-paid-adjusted {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+}
+.order-finance-list .order-finance-adjusted {
+  color: #92400e;
+  font-size: 0.85rem;
 }
 .order-finance-partner {
   background: linear-gradient(180deg, #eef8f1, #e8f3ec);

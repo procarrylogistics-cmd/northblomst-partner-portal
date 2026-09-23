@@ -388,6 +388,14 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
             Opdateret{order.updatedAt ? ` ${new Date(order.updatedAt).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })} ${new Date(order.updatedAt).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}` : ''}
           </span>
         )}
+        {isAdmin && order.customerPaidOverride != null && (
+          <span
+            className="badge badge-paid-adjusted"
+            title={`Justeret til ${order.customerPaidOverride} DKK · Shopify ${order.totalPaidAmount ?? order.totalPrice ?? '—'}${order.customerPaidNote ? ` · ${order.customerPaidNote}` : ''}`}
+          >
+            Beløb justeret
+          </span>
+        )}
         {isCancelled && <span className="badge badge-cancelled">Annulleret</span>}
       </div>
       {(deliveryStr || isAdmin || (isAdmin && receivedStr)) && (
@@ -420,14 +428,30 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       )}
       {finance && (
         <div className={`order-finance ${isAdmin ? 'order-finance-admin' : 'order-finance-partner'}`}>
-          <strong>{isAdmin ? 'Finance breakdown' : 'Your payout'}</strong>
+          <div className="order-finance-header">
+            <strong>{isAdmin ? 'Finance breakdown' : 'Your payout'}</strong>
+            {isAdmin && finance.customerPaidAdjusted && (
+              <span
+                className="badge-paid-adjusted"
+                title={finance.customerPaidNote || 'Customer paid er justeret før tildeling'}
+              >
+                Beløb justeret
+              </span>
+            )}
+          </div>
           {isAdmin ? (
             <ul className="order-finance-list">
-              <li><span>Customer paid</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
+              <li><span>Customer paid (bruges)</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
               {finance.customerPaidAdjusted && (
-                <li>
-                  <span>Original (Shopify)</span>
+                <li className="order-finance-adjusted">
+                  <span>Original Shopify</span>
                   <span>{formatMoney(finance.originalGross, finance.currency)}</span>
+                </li>
+              )}
+              {finance.customerPaidAdjusted && finance.customerPaidNote && (
+                <li className="order-finance-adjusted">
+                  <span>Note</span>
+                  <span>{finance.customerPaidNote}</span>
                 </li>
               )}
               <li><span>Payment processing fee</span><span>- {formatMoney(finance.feeAmount, finance.currency)}</span></li>

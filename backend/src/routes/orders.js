@@ -114,7 +114,7 @@ router.get('/partner', async (req, res) => {
     .populate('partner', 'name email phone address handlesDelivery')
     .sort({ deliveryDate: 1, createdAt: -1 })
     .limit(200);
-  res.json(orders);
+  res.json(orders.map((o) => sanitizeOrderForPartner(o)));
 });
 
 function escapeRegex(str) {
@@ -303,7 +303,7 @@ router.get('/my', async (req, res) => {
   const orders = await Order.find(query)
     .sort({ deliveryDate: 1, createdAt: 1 })
     .limit(200);
-  res.json(orders);
+  res.json(orders.map((o) => sanitizeOrderForPartner(o)));
 });
 
 async function loadOrderForUser(req) {
@@ -449,6 +449,33 @@ function enrichOrderDeliveryForResponse(order) {
   return obj;
 }
 
+/**
+ * Partner must only see finance based on adjusted customer paid.
+ * Hide override metadata and present effective gross as totalPaidAmount.
+ */
+function sanitizeOrderForPartner(order) {
+  const obj = enrichOrderDeliveryForResponse(order);
+  const override =
+    obj.customerPaidOverride != null && Number.isFinite(Number(obj.customerPaidOverride))
+      ? Number(obj.customerPaidOverride)
+      : null;
+  if (override != null) {
+    obj.totalPaidAmount = override;
+    if (obj.totalPrice != null) obj.totalPrice = override;
+  }
+  delete obj.customerPaidOverride;
+  delete obj.customerPaidNote;
+  delete obj.partnerPayoutOverride;
+  delete obj.partnerPayoutCalculated;
+  delete obj.partnerPayoutNote;
+  return obj;
+}
+
+function serializeOrderForUser(order, user) {
+  if (user?.role === 'partner') return sanitizeOrderForPartner(order);
+  return enrichOrderDeliveryForResponse(order);
+}
+
 // Get single order (admin or assigned partner) – enrich images on read if missing
 router.get('/:id', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
@@ -465,10 +492,10 @@ router.get('/:id', async (req, res) => {
   }
   if (needsReload) {
     const fresh = await Order.findById(order._id);
-    if (fresh) return res.json(enrichOrderDeliveryForResponse(fresh));
+    if (fresh) return res.json(serializeOrderForUser(fresh, req.user));
   }
 
-  res.json(enrichOrderDeliveryForResponse(order));
+  res.json(serializeOrderForUser(order, req.user));
 });
 
 function canEditOrder(order, user) {
