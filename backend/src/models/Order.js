@@ -114,12 +114,11 @@ const OrderSchema = new mongoose.Schema(
     totalPaidAmount: { type: Number },
     currencyCode: { type: String },
     /**
-     * Admin-adjusted partner payout (inkl. MOMS, DKK) set at assign time.
-     * When set, reports/packing slip use this instead of the auto-calculated 80% + delivery.
+     * Admin-adjusted "customer paid" (gross DKK) used as finance base instead of Shopify total.
+     * Original Shopify/customer amount stays in totalPaidAmount / totalPrice.
      */
-    partnerPayoutOverride: { type: Number },
-    partnerPayoutCalculated: { type: Number },
-    partnerPayoutNote: { type: String },
+    customerPaidOverride: { type: Number },
+    customerPaidNote: { type: String },
     raw: { type: mongoose.Schema.Types.Mixed },
 
     status: {

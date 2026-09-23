@@ -62,9 +62,9 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [assignMessage, setAssignMessage] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignPayoutMode, setAssignPayoutMode] = useState('calculated'); // calculated | adjusted
-  const [assignPayoutInput, setAssignPayoutInput] = useState('');
-  const [assignPayoutNote, setAssignPayoutNote] = useState('');
+  const [assignPaidMode, setAssignPaidMode] = useState('original'); // original | adjusted
+  const [assignPaidInput, setAssignPaidInput] = useState('');
+  const [assignPaidNote, setAssignPaidNote] = useState('');
   const [statusError, setStatusError] = useState('');
   const [trackMessage, setTrackMessage] = useState('');
   const [trackPushLoading, setTrackPushLoading] = useState(false);
@@ -193,7 +193,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
       ? selectedPartner.handlesDelivery !== false
       : undefined
   });
-  const previewCalculatedPayout = finance?.partnerPayoutDefault ?? finance?.partnerPayout ?? 0;
+  const originalCustomerPaid = Number(order.totalPaidAmount ?? order.totalPrice ?? 0) || 0;
 
   const handlePrintCardText = (variant = CARD_VARIANTS.normal) => {
     if (!cardMessage) {
@@ -306,19 +306,17 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
 
   const openAssignModal = () => {
     if (!selectedPartnerId) return;
-    const preview = calculateOrderFinance(order, {
-      handlesDelivery: selectedPartner ? selectedPartner.handlesDelivery !== false : undefined
-    });
-    const defaultPayout = preview?.partnerPayoutDefault ?? preview?.partnerPayout ?? 0;
     const existing =
-      order.partnerPayoutOverride != null && Number.isFinite(Number(order.partnerPayoutOverride))
-        ? Number(order.partnerPayoutOverride)
+      order.customerPaidOverride != null && Number.isFinite(Number(order.customerPaidOverride))
+        ? Number(order.customerPaidOverride)
         : null;
-    setAssignPayoutMode(existing != null ? 'adjusted' : 'calculated');
-    setAssignPayoutInput(
-      existing != null ? String(existing) : String(defaultPayout.toFixed(2)).replace('.', ',')
+    setAssignPaidMode(existing != null ? 'adjusted' : 'original');
+    setAssignPaidInput(
+      existing != null
+        ? String(existing.toFixed(2)).replace('.', ',')
+        : String(originalCustomerPaid.toFixed(2)).replace('.', ',')
     );
-    setAssignPayoutNote(order.partnerPayoutNote || '');
+    setAssignPaidNote(order.customerPaidNote || '');
     setAssignMessage('');
     setShowAssignModal(true);
   };
@@ -329,18 +327,18 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setAssignMessage('');
     try {
       const payload = { partnerId: selectedPartnerId };
-      if (assignPayoutMode === 'calculated') {
-        payload.useCalculatedPayout = true;
+      if (assignPaidMode === 'original') {
+        payload.useOriginalCustomerPaid = true;
       } else {
-        const raw = String(assignPayoutInput || '').trim().replace(/\s/g, '').replace(',', '.');
+        const raw = String(assignPaidInput || '').trim().replace(/\s/g, '').replace(',', '.');
         const amount = Number(raw);
         if (!Number.isFinite(amount) || amount < 0) {
           setAssignMessage('Angiv et gyldigt beløb');
           setAssigning(false);
           return;
         }
-        payload.partnerPayoutOverride = amount;
-        payload.partnerPayoutNote = assignPayoutNote.trim();
+        payload.customerPaidOverride = amount;
+        payload.customerPaidNote = assignPaidNote.trim();
       }
       await axios.patch(`${API_BASE}/orders/${order._id}/assign`, payload);
       setShowAssignModal(false);
@@ -426,6 +424,12 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           {isAdmin ? (
             <ul className="order-finance-list">
               <li><span>Customer paid</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
+              {finance.customerPaidAdjusted && (
+                <li>
+                  <span>Original (Shopify)</span>
+                  <span>{formatMoney(finance.originalGross, finance.currency)}</span>
+                </li>
+              )}
               <li><span>Payment processing fee</span><span>- {formatMoney(finance.feeAmount, finance.currency)}</span></li>
               <li><span>Net after fee</span><span>{formatMoney(finance.netAfterFee, finance.currency)}</span></li>
               <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
@@ -437,9 +441,6 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
                 <span>{formatMoney(finance.shipping, finance.currency)}</span>
               </li>
               <li className="order-finance-total"><span>Partner payout (inkl. MOMS)</span><span>{formatMoney(finance.partnerPayoutInclMoms ?? finance.partnerPayout, finance.currency)}</span></li>
-              {finance.payoutAdjusted && (
-                <li><span>Justeret (fra {formatMoney(finance.partnerPayoutDefault, finance.currency)})</span><span>Platform beholder {formatMoney(finance.platformKeptExtra, finance.currency)}</span></li>
-              )}
             </ul>
           ) : (
             <ul className="order-finance-list">
@@ -878,12 +879,10 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               Tildel valgt partner
             </button>
           </div>
-          {order.partnerPayoutOverride != null && (
+          {order.customerPaidOverride != null && (
             <p className="assign-payout-hint">
-              Partner-pris justeret: <strong>{formatMoney(order.partnerPayoutOverride, order.currencyCode || 'DKK')}</strong>
-              {order.partnerPayoutCalculated != null && (
-                <> (beregnet {formatMoney(order.partnerPayoutCalculated, order.currencyCode || 'DKK')})</>
-              )}
+              Customer paid justeret: <strong>{formatMoney(order.customerPaidOverride, order.currencyCode || 'DKK')}</strong>
+              {' '}(original {formatMoney(originalCustomerPaid, order.currencyCode || 'DKK')})
             </p>
           )}
           {assignMessage && (
@@ -894,89 +893,122 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         </div>
       )}
 
-      {showAssignModal && finance && (
+      {showAssignModal && (
         <div className="modal-overlay" onClick={() => !assigning && setShowAssignModal(false)}>
           <div className="modal-content assign-payout-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Bekræft partner-pris</h3>
+            <h3>Bekræft beløb før tildeling</h3>
             <p className="subtitle">
-              Tildel til <strong>{selectedPartner?.name || 'partner'}</strong>. Tjek om den beregnede
-              udbetaling er OK, eller juster beløbet før tildeling.
+              Tildel til <strong>{selectedPartner?.name || 'partner'}</strong>. Brug original customer paid
+              eller juster start-summen — resten beregnes automatisk (fee → flowers → platform → partner).
             </p>
-            <ul className="assign-finance-summary">
-              <li><span>Kunde betalte</span><span>{formatMoney(finance.gross, finance.currency)}</span></li>
-              <li><span>Flower price</span><span>{formatMoney(finance.flowerValue, finance.currency)}</span></li>
-              <li><span>Platform ({finance.platformPercent}%)</span><span>{formatMoney(finance.platformCommission, finance.currency)}</span></li>
-              <li>
-                <span>{finance.handlesDelivery === false ? 'Delivery (Northblomst)' : 'Delivery til partner'}</span>
-                <span>{formatMoney(finance.shipping, finance.currency)}</span>
-              </li>
-              <li className="is-total">
-                <span>Beregnet partner payout</span>
-                <span>{formatMoney(previewCalculatedPayout, finance.currency)}</span>
-              </li>
-            </ul>
 
             <fieldset className="assign-payout-fieldset">
-              <legend>Partner-pris</legend>
+              <legend>Customer paid (start-sum)</legend>
               <label className="checkbox-label">
                 <input
                   type="radio"
-                  name="payoutMode"
-                  checked={assignPayoutMode === 'calculated'}
+                  name="paidMode"
+                  checked={assignPaidMode === 'original'}
                   onChange={() => {
-                    setAssignPayoutMode('calculated');
-                    setAssignPayoutInput(
-                      String(previewCalculatedPayout.toFixed(2)).replace('.', ',')
+                    setAssignPaidMode('original');
+                    setAssignPaidInput(
+                      String(originalCustomerPaid.toFixed(2)).replace('.', ',')
                     );
                   }}
                 />
-                Brug beregnet pris ({formatMoney(previewCalculatedPayout, finance.currency)})
+                Original / Shopify ({formatMoney(originalCustomerPaid, order.currencyCode || 'DKK')})
               </label>
               <label className="checkbox-label">
                 <input
                   type="radio"
-                  name="payoutMode"
-                  checked={assignPayoutMode === 'adjusted'}
-                  onChange={() => setAssignPayoutMode('adjusted')}
+                  name="paidMode"
+                  checked={assignPaidMode === 'adjusted'}
+                  onChange={() => setAssignPaidMode('adjusted')}
                 />
-                Juster pris (fx ved høj ordreværdi)
+                Juster summen (fx ved høj ordreværdi)
               </label>
-              {assignPayoutMode === 'adjusted' && (
+              {assignPaidMode === 'adjusted' && (
                 <>
                   <label>
-                    Partner payout (inkl. MOMS, DKK)
+                    Ajusteret customer paid (DKK)
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={assignPayoutInput}
-                      onChange={(e) => setAssignPayoutInput(e.target.value)}
-                      placeholder="f.eks. 450,00"
+                      value={assignPaidInput}
+                      onChange={(e) => setAssignPaidInput(e.target.value)}
+                      placeholder="f.eks. 800,00"
                     />
                   </label>
                   <label>
                     Note (valgfri)
                     <input
                       type="text"
-                      value={assignPayoutNote}
-                      onChange={(e) => setAssignPayoutNote(e.target.value)}
+                      value={assignPaidNote}
+                      onChange={(e) => setAssignPaidNote(e.target.value)}
                       placeholder="Årsag til justering"
                       maxLength={300}
                     />
                   </label>
-                  {(() => {
-                    const raw = String(assignPayoutInput || '').trim().replace(/\s/g, '').replace(',', '.');
-                    const amt = Number(raw);
-                    if (!Number.isFinite(amt)) return null;
-                    const kept = Math.max(0, previewCalculatedPayout - amt);
-                    return (
-                      <p className="form-hint">
-                        Platform beholder ekstra: <strong>{formatMoney(kept, finance.currency)}</strong>
-                      </p>
-                    );
-                  })()}
                 </>
               )}
             </fieldset>
+
+            {(() => {
+              const previewGross =
+                assignPaidMode === 'original'
+                  ? originalCustomerPaid
+                  : Number(
+                      String(assignPaidInput || '')
+                        .trim()
+                        .replace(/\s/g, '')
+                        .replace(',', '.')
+                    );
+              const preview = calculateOrderFinance(order, {
+                handlesDelivery: selectedPartner
+                  ? selectedPartner.handlesDelivery !== false
+                  : undefined,
+                grossOverride: Number.isFinite(previewGross) ? previewGross : originalCustomerPaid
+              });
+              if (!preview) return null;
+              return (
+                <ul className="assign-finance-summary">
+                  <li>
+                    <span>Customer paid (bruges)</span>
+                    <span>{formatMoney(preview.gross, preview.currency)}</span>
+                  </li>
+                  {preview.customerPaidAdjusted && (
+                    <li>
+                      <span>Original Shopify</span>
+                      <span>{formatMoney(preview.originalGross, preview.currency)}</span>
+                    </li>
+                  )}
+                  <li>
+                    <span>Fee</span>
+                    <span>- {formatMoney(preview.feeAmount, preview.currency)}</span>
+                  </li>
+                  <li>
+                    <span>Flower price</span>
+                    <span>{formatMoney(preview.flowerValue, preview.currency)}</span>
+                  </li>
+                  <li>
+                    <span>Platform ({preview.platformPercent}%)</span>
+                    <span>{formatMoney(preview.platformCommission, preview.currency)}</span>
+                  </li>
+                  <li>
+                    <span>
+                      {preview.handlesDelivery === false
+                        ? 'Delivery (Northblomst)'
+                        : 'Delivery til partner'}
+                    </span>
+                    <span>{formatMoney(preview.shipping, preview.currency)}</span>
+                  </li>
+                  <li className="is-total">
+                    <span>Partner payout (inkl. MOMS)</span>
+                    <span>{formatMoney(preview.partnerPayout, preview.currency)}</span>
+                  </li>
+                </ul>
+              );
+            })()}
 
             {assignMessage && assignMessage !== 'Tildelt!' && (
               <p className="error">{assignMessage}</p>

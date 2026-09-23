@@ -649,7 +649,7 @@ async function ensureUniqueOrderNumber() {
 }
 
 async function handleAssignOrder(req, res) {
-  const { partnerId, partnerPayoutOverride, partnerPayoutNote, useCalculatedPayout } = req.body;
+  const { partnerId, customerPaidOverride, customerPaidNote, useOriginalCustomerPaid } = req.body;
   if (!partnerId) {
     res.status(400).json({ message: 'partnerId required' });
     return null;
@@ -669,32 +669,31 @@ async function handleAssignOrder(req, res) {
     return null;
   }
 
-  // Snapshot calculated payout for this partner (delivery flag matters)
-  const { buildOrderFinanceRow } = require('../utils/orderFinance');
-  const calc = buildOrderFinanceRow(order, {
-    ...require('../utils/orderFinance').getFinanceOptions({}),
-    handlesDelivery: partner.handlesDelivery !== false
-  });
-  order.partnerPayoutCalculated = calc.partnerPayoutDefault ?? calc.partnerPayout;
+  const originalGross = Number(order.totalPaidAmount ?? order.totalPrice ?? 0);
 
-  if (useCalculatedPayout === true || partnerPayoutOverride === null || partnerPayoutOverride === '') {
-    order.partnerPayoutOverride = null;
-    order.partnerPayoutNote = '';
-  } else if (partnerPayoutOverride !== undefined) {
-    const amount = Number(partnerPayoutOverride);
+  if (useOriginalCustomerPaid === true || customerPaidOverride === null || customerPaidOverride === '') {
+    order.customerPaidOverride = null;
+    order.customerPaidNote = '';
+  } else if (customerPaidOverride !== undefined) {
+    const amount = Number(customerPaidOverride);
     if (!Number.isFinite(amount) || amount < 0) {
-      res.status(400).json({ message: 'Ugyldig partner-pris' });
+      res.status(400).json({ message: 'Ugyldigt customer paid-beløb' });
       return null;
     }
-    // Only store override when different from calculated (within 1 øre)
-    if (Math.abs(amount - order.partnerPayoutCalculated) > 0.01) {
-      order.partnerPayoutOverride = Math.round(amount * 100) / 100;
-      order.partnerPayoutNote = String(partnerPayoutNote || '').trim().slice(0, 300);
+    // Only store override when different from original Shopify/customer total
+    if (Math.abs(amount - originalGross) > 0.01) {
+      order.customerPaidOverride = Math.round(amount * 100) / 100;
+      order.customerPaidNote = String(customerPaidNote || '').trim().slice(0, 300);
     } else {
-      order.partnerPayoutOverride = null;
-      order.partnerPayoutNote = '';
+      order.customerPaidOverride = null;
+      order.customerPaidNote = '';
     }
   }
+
+  // Clear legacy partner-payout override fields if present on old docs
+  if (order.partnerPayoutOverride != null) order.partnerPayoutOverride = undefined;
+  if (order.partnerPayoutCalculated != null) order.partnerPayoutCalculated = undefined;
+  if (order.partnerPayoutNote) order.partnerPayoutNote = undefined;
 
   order.partner = partner._id;
   order.assignedAt = new Date();

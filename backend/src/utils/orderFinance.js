@@ -60,9 +60,17 @@ function orderDisplayNumber(order) {
  * Full finance row (admin).
  * Stripe fee first, then fixed 69 DKK delivery is split from net for flower price.
  * If partner.handlesDelivery is false (e.g. terminal), 69 DKK stays with platform — not in partner payout.
+ * Optional customerPaidOverride replaces Shopify gross for all downstream calc.
  */
 function buildOrderFinanceRow(order, options = getFinanceOptions()) {
-  const gross = toNumber(order.totalPaidAmount ?? order.totalPrice, 0);
+  const originalGross = toNumber(order.totalPaidAmount ?? order.totalPrice, 0);
+  const hasGrossOverride =
+    order.customerPaidOverride != null &&
+    order.customerPaidOverride !== '' &&
+    Number.isFinite(Number(order.customerPaidOverride));
+  const gross = hasGrossOverride
+    ? round2(Math.max(0, Number(order.customerPaidOverride)))
+    : originalGross;
   const deliveryComponent = options.fixedShipping;
   const partnerHandlesDelivery = resolvePartnerHandlesDelivery(order, options);
   const shippingToPartner = partnerHandlesDelivery ? deliveryComponent : 0;
@@ -70,22 +78,8 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
   const netAfterFee = round2(Math.max(0, gross - feeAmount));
   const flowerValue = round2(Math.max(0, netAfterFee - deliveryComponent));
   const platformCommission = round2(Math.max(0, flowerValue * options.platformCutRate));
-  const partnerFlowerShareDefault = round2(Math.max(0, flowerValue - platformCommission));
-  const partnerPayoutDefault = round2(partnerFlowerShareDefault + shippingToPartner);
-
-  const hasOverride =
-    order.partnerPayoutOverride != null &&
-    order.partnerPayoutOverride !== '' &&
-    Number.isFinite(Number(order.partnerPayoutOverride));
-  const partnerPayout = hasOverride
-    ? round2(Math.max(0, Number(order.partnerPayoutOverride)))
-    : partnerPayoutDefault;
-  const partnerFlowerShare = hasOverride
-    ? round2(Math.max(0, partnerPayout - shippingToPartner))
-    : partnerFlowerShareDefault;
-  const platformKeptExtra = hasOverride
-    ? round2(Math.max(0, partnerPayoutDefault - partnerPayout))
-    : 0;
+  const partnerFlowerShare = round2(Math.max(0, flowerValue - platformCommission));
+  const partnerPayout = round2(partnerFlowerShare + shippingToPartner);
   const partnerMoms = splitInclusiveMoms(partnerPayout);
   const deliveryDate = order.deliveryDate || order.createdAt;
 
@@ -100,7 +94,11 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
     postcode: order.postcode || order.shippingAddress?.postalCode || '',
     city: order.city || order.shippingAddress?.city || '',
     partnerName: order.partner?.name || '',
+    originalGross,
     gross,
+    customerPaidOverride: hasGrossOverride ? gross : null,
+    customerPaidAdjusted: hasGrossOverride,
+    customerPaidNote: order.customerPaidNote || '',
     feeAmount,
     netAfterFee,
     shipping: shippingToPartner,
@@ -109,16 +107,7 @@ function buildOrderFinanceRow(order, options = getFinanceOptions()) {
     flowerValue,
     platformCommission,
     partnerFlowerShare,
-    partnerPayoutDefault,
     partnerPayout,
-    partnerPayoutOverride: hasOverride ? partnerPayout : null,
-    partnerPayoutCalculated:
-      order.partnerPayoutCalculated != null
-        ? round2(Number(order.partnerPayoutCalculated))
-        : partnerPayoutDefault,
-    platformKeptExtra,
-    payoutAdjusted: hasOverride,
-    partnerPayoutNote: order.partnerPayoutNote || '',
     partnerPayoutExMoms: partnerMoms.exclusive,
     partnerPayoutMoms: partnerMoms.moms,
     partnerPayoutInclMoms: partnerMoms.inclusive,
@@ -147,7 +136,6 @@ function toPartnerFinanceView(row) {
     partnerPayoutExMoms: row.partnerPayoutExMoms,
     partnerPayoutMoms: row.partnerPayoutMoms,
     partnerPayoutInclMoms: row.partnerPayoutInclMoms,
-    payoutAdjusted: !!row.payoutAdjusted,
     momsPercent: row.momsPercent,
     currency: row.currency
   };

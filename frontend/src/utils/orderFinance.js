@@ -38,6 +38,11 @@ function partnerHandlesDelivery(order, options = {}) {
   return true;
 }
 
+/**
+ * @param {object} order
+ * @param {object} [options]
+ * @param {number} [options.grossOverride] — preview gross without saving on order
+ */
 export function calculateOrderFinance(order, options = {}) {
   const feeRate = toNumber(options.feePercent, DEFAULT_FEE_PERCENT) / 100;
   const feeFixed = toNumber(options.feeFixed, DEFAULT_FEE_FIXED);
@@ -46,33 +51,36 @@ export function calculateOrderFinance(order, options = {}) {
   const handlesDelivery = partnerHandlesDelivery(order, options);
   const shippingToPartner = handlesDelivery ? deliveryComponent : 0;
 
-  const gross = toNumber(order?.totalPaidAmount ?? order?.totalPrice, 0);
-  if (gross <= 0) return null;
+  const originalGross = toNumber(order?.totalPaidAmount ?? order?.totalPrice, 0);
+  const hasStoredOverride =
+    order?.customerPaidOverride != null &&
+    order.customerPaidOverride !== '' &&
+    Number.isFinite(Number(order.customerPaidOverride));
+  const hasPreviewOverride =
+    options.grossOverride != null && Number.isFinite(Number(options.grossOverride));
+  const gross = hasPreviewOverride
+    ? round2(Math.max(0, Number(options.grossOverride)))
+    : hasStoredOverride
+      ? round2(Math.max(0, Number(order.customerPaidOverride)))
+      : originalGross;
+
+  if (gross <= 0 && originalGross <= 0) return null;
 
   const feeAmount = round2(Math.max(0, gross * feeRate + feeFixed));
   const netAfterFee = round2(Math.max(0, gross - feeAmount));
   const flowerValue = round2(Math.max(0, netAfterFee - deliveryComponent));
   const platformCommission = round2(Math.max(0, flowerValue * platformCutRate));
-  const partnerFlowerShareDefault = round2(Math.max(0, flowerValue - platformCommission));
-  const partnerPayoutDefault = round2(partnerFlowerShareDefault + shippingToPartner);
-
-  const hasOverride =
-    order?.partnerPayoutOverride != null &&
-    order.partnerPayoutOverride !== '' &&
-    Number.isFinite(Number(order.partnerPayoutOverride));
-  const partnerPayout = hasOverride
-    ? round2(Math.max(0, Number(order.partnerPayoutOverride)))
-    : partnerPayoutDefault;
-  const partnerFlowerShare = hasOverride
-    ? round2(Math.max(0, partnerPayout - shippingToPartner))
-    : partnerFlowerShareDefault;
-  const platformKeptExtra = hasOverride
-    ? round2(Math.max(0, partnerPayoutDefault - partnerPayout))
-    : 0;
+  const partnerFlowerShare = round2(Math.max(0, flowerValue - platformCommission));
+  const partnerPayout = round2(partnerFlowerShare + shippingToPartner);
   const partnerMoms = splitInclusiveMoms(partnerPayout);
+  const customerPaidAdjusted = hasPreviewOverride || hasStoredOverride;
 
   return {
+    originalGross,
     gross,
+    customerPaidOverride: customerPaidAdjusted ? gross : null,
+    customerPaidAdjusted,
+    customerPaidNote: order?.customerPaidNote || '',
     feeAmount,
     netAfterFee,
     shipping: shippingToPartner,
@@ -81,12 +89,7 @@ export function calculateOrderFinance(order, options = {}) {
     flowerValue,
     platformCommission,
     partnerFlowerShare,
-    partnerPayoutDefault,
     partnerPayout,
-    partnerPayoutOverride: hasOverride ? partnerPayout : null,
-    platformKeptExtra,
-    payoutAdjusted: hasOverride,
-    partnerPayoutNote: order?.partnerPayoutNote || '',
     partnerPayoutExMoms: partnerMoms.exclusive,
     partnerPayoutMoms: partnerMoms.moms,
     partnerPayoutInclMoms: partnerMoms.inclusive,
