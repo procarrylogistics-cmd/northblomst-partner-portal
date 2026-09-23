@@ -1373,6 +1373,94 @@ button {
   color: #b91c1c;
 }
 
+.assign-payout-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.modal-content.assign-payout-modal {
+  max-width: 480px;
+  padding: 1.15rem 1.25rem 1.25rem;
+}
+
+.assign-payout-modal h3 {
+  margin: 0 0 0.35rem;
+}
+
+.assign-payout-modal .subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.assign-finance-summary {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  background: #f9fafb;
+  border-radius: 0.625rem;
+  border: 1px solid #e5e7eb;
+}
+
+.assign-finance-summary li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  font-size: 0.88rem;
+  color: #374151;
+}
+
+.assign-finance-summary li.is-total {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #e5e7eb;
+  font-weight: 700;
+  color: #111827;
+}
+
+.assign-payout-fieldset {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+}
+
+.assign-payout-fieldset legend {
+  padding: 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.assign-payout-fieldset .checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.assign-payout-fieldset label:not(.checkbox-label) {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.65rem;
+  color: #374151;
+}
+
+.assign-payout-fieldset input[type="text"] {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  font-size: 0.95rem;
+}
+
 .partner-manager {
   margin-top: 0;
   display: grid;

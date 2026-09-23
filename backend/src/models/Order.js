@@ -113,6 +113,13 @@ const OrderSchema = new mongoose.Schema(
     totalPrice: { type: mongoose.Schema.Types.Mixed },
     totalPaidAmount: { type: Number },
     currencyCode: { type: String },
+    /**
+     * Admin-adjusted partner payout (inkl. MOMS, DKK) set at assign time.
+     * When set, reports/packing slip use this instead of the auto-calculated 80% + delivery.
+     */
+    partnerPayoutOverride: { type: Number },
+    partnerPayoutCalculated: { type: Number },
+    partnerPayoutNote: { type: String },
     raw: { type: mongoose.Schema.Types.Mixed },
 
     status: {

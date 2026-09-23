@@ -649,7 +649,7 @@ async function ensureUniqueOrderNumber() {
 }
 
 async function handleAssignOrder(req, res) {
-  const { partnerId } = req.body;
+  const { partnerId, partnerPayoutOverride, partnerPayoutNote, useCalculatedPayout } = req.body;
   if (!partnerId) {
     res.status(400).json({ message: 'partnerId required' });
     return null;
@@ -664,6 +664,38 @@ async function handleAssignOrder(req, res) {
     res.status(404).json({ message: 'Partner not found' });
     return null;
   }
+  if (partner.suspended) {
+    res.status(400).json({ message: 'Partner er suspended — kan ikke tildeles ordrer' });
+    return null;
+  }
+
+  // Snapshot calculated payout for this partner (delivery flag matters)
+  const { buildOrderFinanceRow } = require('../utils/orderFinance');
+  const calc = buildOrderFinanceRow(order, {
+    ...require('../utils/orderFinance').getFinanceOptions({}),
+    handlesDelivery: partner.handlesDelivery !== false
+  });
+  order.partnerPayoutCalculated = calc.partnerPayoutDefault ?? calc.partnerPayout;
+
+  if (useCalculatedPayout === true || partnerPayoutOverride === null || partnerPayoutOverride === '') {
+    order.partnerPayoutOverride = null;
+    order.partnerPayoutNote = '';
+  } else if (partnerPayoutOverride !== undefined) {
+    const amount = Number(partnerPayoutOverride);
+    if (!Number.isFinite(amount) || amount < 0) {
+      res.status(400).json({ message: 'Ugyldig partner-pris' });
+      return null;
+    }
+    // Only store override when different from calculated (within 1 øre)
+    if (Math.abs(amount - order.partnerPayoutCalculated) > 0.01) {
+      order.partnerPayoutOverride = Math.round(amount * 100) / 100;
+      order.partnerPayoutNote = String(partnerPayoutNote || '').trim().slice(0, 300);
+    } else {
+      order.partnerPayoutOverride = null;
+      order.partnerPayoutNote = '';
+    }
+  }
+
   order.partner = partner._id;
   order.assignedAt = new Date();
   order.status = 'assigned';
