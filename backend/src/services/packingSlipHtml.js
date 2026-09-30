@@ -200,7 +200,7 @@ function resolveSenderName(mongo) {
 }
 
 function collectInstructions(ctx) {
-  const { lineItems, noteAttributes, mongo, note } = ctx;
+  const { lineItems, noteAttributes, mongo } = ctx;
   const rows = [];
   const seen = new Set();
 
@@ -230,12 +230,7 @@ function collectInstructions(ctx) {
     }
   }
 
-  const card = resolveCardMessage(mongo, lineItems, noteAttributes);
-  const orderNote = String(note || mongo.notes || '').trim();
-  if (orderNote && orderNote !== card) {
-    push('Order note', orderNote, 200);
-  }
-
+  // Florist note is rendered in its own highlight box — do not duplicate here.
   return rows.slice(0, 6);
 }
 
@@ -382,6 +377,10 @@ function renderCompactSheet(ctx, qrDataUrl) {
   } = ctx;
 
   const instructions = collectInstructions(ctx);
+  const cardMsg = resolveCardMessage(mongo, lineItems, ctx.noteAttributes);
+  const floristNoteRaw = String(ctx.note || mongo.notes || '').trim();
+  const floristNote =
+    floristNoteRaw && floristNoteRaw !== cardMsg ? truncate(floristNoteRaw, 180) : '';
   const sender =
     (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
     '';
@@ -460,6 +459,15 @@ function renderCompactSheet(ctx, qrDataUrl) {
       </div>
     </div>
   </div>
+
+  ${
+    floristNote
+      ? `<div class="florist-note-box">
+    <div class="florist-note-tag">Note til florist</div>
+    <div class="florist-note-text">${esc(floristNote)}</div>
+  </div>`
+      : ''
+  }
 
   <div class="grid-2">
     <div class="box">

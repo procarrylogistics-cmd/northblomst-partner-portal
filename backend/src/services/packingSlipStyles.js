@@ -42,6 +42,20 @@ module.exports.PACKING_SLIP_CSS = `
     border: 1.5px solid #111; border-radius: 6px; background: #fff8ea;
     padding: 8px 8px; margin-bottom: 6px;
   }
+  .florist-note-box {
+    border: 1.6px solid #9a3412; border-left-width: 5px; border-radius: 5px;
+    background: #fff7ed; padding: 3px 7px; margin-bottom: 5px;
+    max-height: 34px; overflow: hidden;
+  }
+  .florist-note-tag {
+    font-size: 7.5px; font-weight: 900; letter-spacing: 0.45px;
+    text-transform: uppercase; color: #9a3412; line-height: 1.1; margin-bottom: 1px;
+  }
+  .florist-note-text {
+    font-size: 10px; font-weight: 800; color: #111; line-height: 1.2;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; word-break: break-word;
+  }
   .produce-title {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.7px;
     font-weight: 900; color: #6a5a35; margin-bottom: 5px;

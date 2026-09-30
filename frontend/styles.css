@@ -1151,6 +1151,34 @@ button {
   letter-spacing: -0.01em;
 }
 
+/* Hard-to-miss florist instruction under Korttekst (partner + admin) */
+.florist-note {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid #b45309;
+  border-left-width: 6px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #1c1917;
+}
+
+.florist-note-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a3412;
+  margin-bottom: 0.35rem;
+}
+
+.florist-note-body {
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .order-products-list {
   list-style: none;
   padding: 0;

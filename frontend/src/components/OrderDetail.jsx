@@ -562,11 +562,11 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         <strong>Korttekst:</strong><br />
         {cardMessage || 'Ingen korttekst'}
       </p>
-      {order.notes ? (
-        <p>
-          <strong>Bemærkninger:</strong><br />
-          {order.notes}
-        </p>
+      {String(order.notes || '').trim() ? (
+        <div className="florist-note" role="status">
+          <div className="florist-note-label">Note til florist</div>
+          <div className="florist-note-body">{String(order.notes).trim()}</div>
+        </div>
       ) : null}
 
       <div className="order-actions">
