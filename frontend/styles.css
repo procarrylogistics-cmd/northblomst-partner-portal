@@ -2134,6 +2134,63 @@ button {
   z-index: 1000;
 }
 
+.system-announce-overlay {
+  z-index: 1200;
+  background: rgba(20, 36, 31, 0.55);
+  padding: 1rem;
+}
+
+.system-announce {
+  max-width: 420px;
+  padding: 1.35rem 1.4rem 1.25rem;
+  border: 1px solid #fdba74;
+  border-left: 6px solid #c2410c;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 42%);
+}
+
+.system-announce-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a3412;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.system-announce h3 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: #1c1917;
+  letter-spacing: -0.01em;
+}
+
+.system-announce p {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #292524;
+}
+
+.system-announce p:last-of-type {
+  margin-bottom: 1.1rem;
+}
+
+.system-announce-actions {
+  margin-top: 0.25rem;
+  justify-content: flex-end;
+}
+
+.system-announce-actions .primary {
+  min-width: 7.5rem;
+}
+
 .modal-content {
   background: white;
   border-radius: 0.75rem;

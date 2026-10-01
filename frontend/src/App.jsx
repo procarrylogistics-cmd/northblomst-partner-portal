@@ -8,6 +8,7 @@ import ReportsPage from './pages/ReportsPage';
 import PartnerAddonPage from './pages/PartnerAddonPage';
 import PartnerReportsPage from './pages/PartnerReportsPage';
 import NotificationBell from './components/NotificationBell';
+import SystemUpdateAnnounce from './components/SystemUpdateAnnounce';
 
 function ProtectedRoute({ children, role, allowSuspended = false }) {
   const { user, isAuthReady } = useAuth();
@@ -160,6 +161,9 @@ export default function App() {
           />
         </Routes>
       </main>
+      {!isLogin && user && (user.role === 'partner' || user.role === 'admin') && (
+        <SystemUpdateAnnounce role={user.role} />
+      )}
     </div>
   );
 }
