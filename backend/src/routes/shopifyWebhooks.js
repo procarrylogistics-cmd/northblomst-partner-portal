@@ -13,6 +13,7 @@ const { enrichOrderImages, imageUrlFromShopifyLineItem } = require('../services/
 const { matchZoneForPostalCode } = require('../utils/postalZone');
 const { autoAssignPartnerForOrder } = require('../services/partnerAutoAssign');
 const { applyDeliveryAddressToOrder } = require('../utils/deliveryAddressResolver');
+const { extractFloristNote } = require('../utils/floristNote');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -25,6 +26,9 @@ router.get('/ping', (req, res) => {
 function mapWebhookPayloadToOrder(payload, effectiveShop) {
   const { addOns, addOnsSummary } = extractAddOnsFromShopifyOrder(payload);
   const { deliveryDate: extractedDate, deliveryOption } = extractDeliveryFromShopifyOrder(payload);
+  const floristFromAddons = extractFloristNote({ notes: '', addOns });
+  const shopifyNote = payload.note && String(payload.note).trim() ? String(payload.note).trim() : '';
+  const floristNotes = floristFromAddons || shopifyNote || '';
   const ship = payload.shipping_address || {};
   const cust = payload.customer || {};
   const customerName =
@@ -81,7 +85,7 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     postcode: ship.zip,
     city: ship.city,
     zone,
-    notes: payload.note,
+    notes: floristNotes,
     tags: payload.tags,
     products,
     addOns,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { toDateInputValue } from '../utils/dateInput';
 import { extractCardMessage } from '../utils/cardMessage';
+import { extractFloristNote } from '../utils/floristNote';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || '/api';
 
@@ -19,7 +20,7 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
     deliveryDate: deliveryDateVal,
     cardFlag: !!order.cardFlag || !!initialCardText,
     cardText: initialCardText,
-    notes: order.notes || '',
+    notes: extractFloristNote(order),
     productSummary: order.productSummary || ''
   });
   const [submitting, setSubmitting] = useState(false);

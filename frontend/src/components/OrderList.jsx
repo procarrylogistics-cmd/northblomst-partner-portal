@@ -1,4 +1,5 @@
 import React from 'react';
+import { extractFloristNote } from '../utils/floristNote';
 
 export default function OrderList({
   orders,
@@ -30,8 +31,8 @@ export default function OrderList({
                   Beløb justeret
                 </span>
               )}
-              {String(o.notes || '').trim() ? (
-                <span className="badge-inline badge-florist-note" title={String(o.notes).trim()}>
+              {extractFloristNote(o) ? (
+                <span className="badge-inline badge-florist-note" title={extractFloristNote(o)}>
                   Note florist
                 </span>
               ) : null}

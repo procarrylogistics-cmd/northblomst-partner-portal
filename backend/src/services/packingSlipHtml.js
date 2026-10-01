@@ -6,6 +6,7 @@
 const QRCode = require('qrcode');
 const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
+const { extractFloristNote, isFloristNoteAddon } = require('../utils/floristNote');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
 const { isDeliveryAddressAddon } = require('../utils/addressSync');
@@ -217,15 +218,18 @@ function collectInstructions(ctx) {
 
   for (const a of mongo.addOns || []) {
     if (isCardMessageAddon(a)) continue;
+    if (isFloristNoteAddon(a)) continue;
     push(a.label || a.key, a.value, 160);
   }
 
   for (const attr of noteAttributes || []) {
+    if (isFloristNoteAddon({ label: attr.name, value: attr.value })) continue;
     push(attr.name, attr.value, 160);
   }
 
   for (const li of lineItems || []) {
     for (const p of li.properties || []) {
+      if (isFloristNoteAddon({ label: p.name, value: p.value })) continue;
       push(p.name, p.value, 160);
     }
   }
@@ -377,10 +381,8 @@ function renderCompactSheet(ctx, qrDataUrl) {
   } = ctx;
 
   const instructions = collectInstructions(ctx);
-  const cardMsg = resolveCardMessage(mongo, lineItems, ctx.noteAttributes);
-  const floristNoteRaw = String(ctx.note || mongo.notes || '').trim();
-  const floristNote =
-    floristNoteRaw && floristNoteRaw !== cardMsg ? truncate(floristNoteRaw, 180) : '';
+  const floristNoteRaw = extractFloristNote(mongo);
+  const floristNote = floristNoteRaw ? truncate(floristNoteRaw, 180) : '';
   const sender =
     (mongo.addOns || []).find((a) => /sender|afsender|fra/i.test(String(a.label || '')))?.value ||
     '';

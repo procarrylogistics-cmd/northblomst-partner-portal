@@ -4,6 +4,7 @@ import EditOrderModal from './EditOrderModal';
 import { resolveProductLink } from '../utils/productLink';
 import { toDateInputValue } from '../utils/dateInput';
 import { extractCardMessage } from '../utils/cardMessage';
+import { extractFloristNote } from '../utils/floristNote';
 import { printCardText, CARD_VARIANTS } from '../utils/printCardText';
 import { calculateOrderFinance, formatMoney, DEFAULT_PLATFORM_PERCENT } from '../utils/orderFinance';
 
@@ -77,16 +78,17 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState('');
-  const [floristNoteDraft, setFloristNoteDraft] = useState(() => String(orderProp.notes || ''));
+  const [floristNoteDraft, setFloristNoteDraft] = useState(() => extractFloristNote(orderProp));
   const [floristNoteSaving, setFloristNoteSaving] = useState(false);
   const [floristNoteMessage, setFloristNoteMessage] = useState('');
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
+  const floristNote = extractFloristNote(order);
 
   useEffect(() => {
     setDisplayOrder(orderProp);
-  }, [orderProp._id, orderProp.notes, orderProp.updatedAt]);
+  }, [orderProp._id, orderProp.notes, orderProp.updatedAt, orderProp.addOns]);
 
   useEffect(() => {
     if (!orderProp._id) return;
@@ -103,9 +105,9 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setSelectedPartnerId(currentPartnerIdStr);
     setDeliveryDateInput(toDateInputValue(order.deliveryDate));
     setDeliveryDateMessage('');
-    setFloristNoteDraft(String(order.notes || ''));
+    setFloristNoteDraft(extractFloristNote(order));
     setFloristNoteMessage('');
-  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate, order.notes]);
+  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate, order.notes, order.addOns]);
 
   const saveFloristNote = async () => {
     setFloristNoteSaving(true);
@@ -585,7 +587,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         {cardMessage || 'Ingen korttekst'}
       </p>
 
-      <div className={`florist-note ${String(order.notes || '').trim() ? '' : 'is-empty'}`} role="status">
+      <div className={`florist-note ${floristNote ? '' : 'is-empty'}`} role="status">
         <div className="florist-note-label">Note til florist</div>
         {isAdmin && !isCancelled ? (
           <>
@@ -594,14 +596,14 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
               value={floristNoteDraft}
               onChange={(e) => setFloristNoteDraft(e.target.value)}
               rows={3}
-              placeholder="Skriv note til floristen her — partneren ser den tydeligt under Korttekst"
+              placeholder="Shopify «Notes to florist» eller skriv her — partneren ser den tydeligt"
             />
             <div className="florist-note-actions">
               <button
                 type="button"
                 className="primary"
                 onClick={saveFloristNote}
-                disabled={floristNoteSaving || floristNoteDraft.trim() === String(order.notes || '').trim()}
+                disabled={floristNoteSaving || floristNoteDraft.trim() === floristNote}
               >
                 {floristNoteSaving ? 'Gemmer…' : 'Gem note til florist'}
               </button>
@@ -610,7 +612,7 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
           </>
         ) : (
           <div className="florist-note-body">
-            {String(order.notes || '').trim() || 'Ingen note til florist'}
+            {floristNote || 'Ingen note til florist'}
           </div>
         )}
       </div>
