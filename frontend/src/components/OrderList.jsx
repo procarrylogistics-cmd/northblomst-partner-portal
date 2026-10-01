@@ -30,6 +30,11 @@ export default function OrderList({
                   Beløb justeret
                 </span>
               )}
+              {String(o.notes || '').trim() ? (
+                <span className="badge-inline badge-florist-note" title={String(o.notes).trim()}>
+                  Note florist
+                </span>
+              ) : null}
               {(o.updateCount || 0) > 0 && (
                 <span className="badge-inline" title={o.updatedAt ? new Date(o.updatedAt).toLocaleString('da-DK') : ''}>Opdateret</span>
               )}

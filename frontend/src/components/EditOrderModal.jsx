@@ -103,14 +103,15 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
             />
           </label>
           <p className="form-hint">Hvis du sletter korttekst her, fjernes den også fra tilvalg / print.</p>
-          <label>Bemærkninger (florist / intern)
+          <label>Note til florist
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={3}
-              placeholder="Ikke vist som korttekst"
+              placeholder="Vises tydeligt for partner under Korttekst (ikke korttekst)"
             />
           </label>
+          <p className="form-hint">Partneren ser denne note i den orange boks — ikke som korttekst.</p>
           <label>Produktoversigt
             <textarea value={form.productSummary} onChange={(e) => setForm({ ...form, productSummary: e.target.value })} rows={2} />
           </label>

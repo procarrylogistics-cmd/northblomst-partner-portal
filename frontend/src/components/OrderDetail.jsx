@@ -77,13 +77,16 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState('');
+  const [floristNoteDraft, setFloristNoteDraft] = useState(() => String(orderProp.notes || ''));
+  const [floristNoteSaving, setFloristNoteSaving] = useState(false);
+  const [floristNoteMessage, setFloristNoteMessage] = useState('');
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
 
   useEffect(() => {
     setDisplayOrder(orderProp);
-  }, [orderProp._id]);
+  }, [orderProp._id, orderProp.notes, orderProp.updatedAt]);
 
   useEffect(() => {
     if (!orderProp._id) return;
@@ -100,7 +103,26 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setSelectedPartnerId(currentPartnerIdStr);
     setDeliveryDateInput(toDateInputValue(order.deliveryDate));
     setDeliveryDateMessage('');
-  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate]);
+    setFloristNoteDraft(String(order.notes || ''));
+    setFloristNoteMessage('');
+  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate, order.notes]);
+
+  const saveFloristNote = async () => {
+    setFloristNoteSaving(true);
+    setFloristNoteMessage('');
+    try {
+      const res = await axios.patch(`${API_BASE}/orders/${order._id}`, {
+        notes: floristNoteDraft
+      });
+      if (res.data) setDisplayOrder(res.data);
+      setFloristNoteMessage('Note til florist gemt');
+      await onUpdated();
+    } catch (err) {
+      setFloristNoteMessage(err.response?.data?.message || 'Kunne ikke gemme note');
+    } finally {
+      setFloristNoteSaving(false);
+    }
+  };
 
   const saveDeliveryDate = async () => {
     if (!deliveryDateInput) return;
@@ -562,12 +584,36 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         <strong>Korttekst:</strong><br />
         {cardMessage || 'Ingen korttekst'}
       </p>
-      {String(order.notes || '').trim() ? (
-        <div className="florist-note" role="status">
-          <div className="florist-note-label">Note til florist</div>
-          <div className="florist-note-body">{String(order.notes).trim()}</div>
-        </div>
-      ) : null}
+
+      <div className={`florist-note ${String(order.notes || '').trim() ? '' : 'is-empty'}`} role="status">
+        <div className="florist-note-label">Note til florist</div>
+        {isAdmin && !isCancelled ? (
+          <>
+            <textarea
+              className="florist-note-input"
+              value={floristNoteDraft}
+              onChange={(e) => setFloristNoteDraft(e.target.value)}
+              rows={3}
+              placeholder="Skriv note til floristen her — partneren ser den tydeligt under Korttekst"
+            />
+            <div className="florist-note-actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={saveFloristNote}
+                disabled={floristNoteSaving || floristNoteDraft.trim() === String(order.notes || '').trim()}
+              >
+                {floristNoteSaving ? 'Gemmer…' : 'Gem note til florist'}
+              </button>
+              {floristNoteMessage ? <span className="florist-note-msg">{floristNoteMessage}</span> : null}
+            </div>
+          </>
+        ) : (
+          <div className="florist-note-body">
+            {String(order.notes || '').trim() || 'Ingen note til florist'}
+          </div>
+        )}
+      </div>
 
       <div className="order-actions">
         {!isCancelled && (

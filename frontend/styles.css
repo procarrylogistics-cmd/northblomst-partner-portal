@@ -1094,6 +1094,14 @@ button {
   letter-spacing: 0.02em;
 }
 
+.badge-florist-note,
+.badge-inline.badge-florist-note {
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .badge.badge-paid-adjusted {
   font-size: 0.7rem;
   padding: 0.15rem 0.55rem;
@@ -1162,6 +1170,11 @@ button {
   color: #1c1917;
 }
 
+.florist-note.is-empty {
+  border-color: #d97706;
+  background: #fffbeb;
+}
+
 .florist-note-label {
   font-size: 0.72rem;
   font-weight: 800;
@@ -1177,6 +1190,40 @@ button {
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.florist-note.is-empty .florist-note-body {
+  font-weight: 500;
+  color: #92400e;
+  font-style: italic;
+}
+
+.florist-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #fdba74;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.florist-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.florist-note-msg {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #166534;
 }
 
 .order-products-list {
