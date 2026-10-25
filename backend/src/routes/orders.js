@@ -18,11 +18,8 @@ const {
 const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
 const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
 const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
-const {
-  renderPackingSlipHtml,
-  renderCardFrontsHtml,
-  renderCardBacksHtml
-} = require('../services/packingSlipHtml');
+const { renderPackingSlipHtml, renderCardBacksHtml } = require('../services/packingSlipHtml');
+const { listCardDesigns, normalizeDesignId } = require('../utils/cardDesigns');
 const { buildCustomerInvoiceHtml, sendCustomerInvoice, mapBillingFromShopify } = require('../services/customerOrderInvoice');
 const { syncCardTextOnOrder } = require('../utils/cardTextSync');
 const { syncDeliveryAddressOnOrder } = require('../utils/addressSync');
@@ -397,23 +394,12 @@ router.get('/:id/print-packing-slip', async (req, res) => {
   }
 });
 
-// Duplex card fronts (2×2) — print, then flip long-edge for backs
-router.get('/:id/print-card-fronts', async (req, res) => {
-  const { order, error } = await loadOrderForUser(req);
-  if (error) return res.status(error.status).json({ message: error.message });
-
-  try {
-    const payload = await loadOrderPrintPayload(order);
-    const html = await renderCardFrontsHtml(payload);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
-  } catch (err) {
-    console.error('print-card-fronts failed', err.message);
-    res.status(500).json({ message: 'Kunne ikke hente kort forside' });
-  }
+// Letter-card design catalog (Interflora-style options for verso besked)
+router.get('/card-designs', (req, res) => {
+  res.json({ designs: listCardDesigns() });
 });
 
-// Duplex card backs — L/R mirrored for long-edge flip alignment
+// Verso of pakkeseddel — mirrored fine card backs (letter design from order)
 router.get('/:id/print-card-backs', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
   if (error) return res.status(error.status).json({ message: error.message });
@@ -425,7 +411,7 @@ router.get('/:id/print-card-backs', async (req, res) => {
     res.send(html);
   } catch (err) {
     console.error('print-card-backs failed', err.message);
-    res.status(500).json({ message: 'Kunne ikke hente kort bagside' });
+    res.status(500).json({ message: 'Kunne ikke hente verso' });
   }
 });
 
@@ -561,13 +547,18 @@ router.patch('/:id', async (req, res) => {
     'notes',
     'productSummary'
   ];
-  if (req.user?.role === 'admin') editable.push('cardBackImageUrl');
+  editable.push('messageCardDesign', 'cardBackImageUrl');
   const changes = [];
   editable.forEach((f) => {
     if (data[f] === undefined) return;
     if (f === 'cardText') {
       syncCardTextOnOrder(order, data.cardText);
       changes.push('cardText', 'addOns', 'cardFlag');
+      return;
+    }
+    if (f === 'messageCardDesign') {
+      order.messageCardDesign = normalizeDesignId(data.messageCardDesign);
+      changes.push(f);
       return;
     }
     const val = f === 'deliveryDate' && data[f] ? new Date(data[f]) : data[f];

@@ -15,6 +15,9 @@ module.exports.PACKING_SLIP_CSS = `
     max-width: 210mm;
     padding: 6px 8px;
     page-break-after: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 285mm;
   }
   .header {
     display: grid; grid-template-columns: 95px 1fr 78px; align-items: center;
@@ -126,56 +129,42 @@ module.exports.PACKING_SLIP_CSS = `
     display: flex; justify-content: space-between; color: #777; font-size: 8px;
   }
 
-  /* ——— 4 cut-out cards (shared front/back sheet) ——— */
-  .card-sheet {
-    width: 100%;
-    max-width: 210mm;
-    min-height: 285mm;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
+  /* ——— Fine cut-out cards (bottom band, same on face + verso) ——— */
+  .page-body { flex: 1 1 auto; }
+  .cards-band {
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding-top: 2px;
   }
-  .card-sheet .cards-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 6mm 6mm;
-    width: 100%;
-    min-height: 270mm;
-    align-items: stretch;
+  .page.verso-page .verso-spacer {
+    flex: 1 1 auto;
+    min-height: 0;
   }
   .cards-cut {
-    margin: 6px 0 3px; border-top: 1.5px dashed #111; text-align: center; height: 9px;
+    margin: 4px 0 2px; border-top: 1.2px dashed #111; text-align: center; height: 8px;
   }
   .cards-cut span {
-    position: relative; top: -7px; background: #fff; padding: 0 6px;
-    font-size: 7.5px; font-weight: 900; color: #333; letter-spacing: 0.3px;
+    position: relative; top: -6px; background: #fff; padding: 0 5px;
+    font-size: 7px; font-weight: 900; color: #333; letter-spacing: 0.3px;
     text-transform: uppercase;
   }
   .cards-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px 8px;
+    gap: 3.5px 5px;
     width: 100%;
     align-items: stretch;
   }
   .cut-card {
-    border: 1.4px dashed #222;
-    border-radius: 3px;
+    border: 1.2px dashed #222;
+    border-radius: 2px;
     background: #fff;
-    height: 46mm;
-    min-height: 46mm;
-    max-height: 46mm;
+    height: 38mm;
+    min-height: 38mm;
+    max-height: 38mm;
     overflow: hidden;
     page-break-inside: avoid;
     position: relative;
-  }
-  .card-sheet .cut-card {
-    height: auto;
-    min-height: 0;
-    max-height: none;
-    border-radius: 4px;
   }
   .cut-card-tag {
     position: absolute; top: 2px; left: 3px; z-index: 2;
@@ -303,72 +292,78 @@ module.exports.PACKING_SLIP_CSS = `
     letter-spacing: 0.1em; text-transform: uppercase; padding-top: 2px;
   }
 
-  /* Card sheet — slightly larger type when cards own the page */
-  .card-sheet .cd-name { font-size: 16px; }
-  .card-sheet .cd-line { font-size: 12px; }
-  .card-sheet .cd-date { font-size: 13px; }
-  .card-sheet .cd-brand { font-size: 11px; }
-  .card-sheet .cd-muted { font-size: 9px; }
-  .card-sheet .cd-order { font-size: 12px; }
-  .card-sheet .cd-qr { width: 56px; height: 56px; }
-  .card-sheet .cd-barcode { font-size: 10px; }
-  .card-sheet .cd-logo { width: 64px; max-height: 18px; }
-  .card-sheet .cb-logo { width: 90px; max-height: 28px; }
-  .card-sheet .cb-script { font-size: 28px; }
-  .card-sheet .cb-sub { font-size: 8px; }
-  .card-sheet .cb-pitch { font-size: 13px; margin: 8px 0 10px; }
-  .card-sheet .cb-promo { padding: 8px 12px; }
-  .card-sheet .cb-promo-label { font-size: 8px; }
-  .card-sheet .cb-promo-code { font-size: 20px; }
-  .card-sheet .cb-promo-hint { font-size: 8px; }
-  .card-sheet .cb-contact { font-size: 10px; }
-  .card-sheet .cc-title { font-size: 16px; margin-bottom: 8px; }
-  .card-sheet .cc-list { font-size: 11px; line-height: 1.45; padding-left: 16px; }
-  .card-sheet .cc-list li { margin-bottom: 4px; }
-  .card-sheet .cc-foot { font-size: 9px; }
-  .card-sheet .cm-title { font-size: 10px; margin-bottom: 8px; }
-  .card-sheet .cm-body { font-size: 15px; line-height: 1.35; }
-  .card-sheet .cm-from { font-size: 12px; }
-  .card-sheet .cm-brand { font-size: 9px; }
-  .card-sheet .cd-body { padding: 16px 10px 6px; }
-  .card-sheet .cd-right { padding: 16px 8px 6px; }
-  .card-sheet .cb-inner { padding: 16px 12px 10px; }
-  .card-sheet .card-care { padding: 16px 12px 10px; }
-  .card-sheet .card-message-cut { padding: 16px 14px 10px; }
-
-  /* Card backs — logo / custom image, mirrored L/R for long-edge flip */
+  /* Card backs — logo / design variants, mirrored L/R for long-edge flip */
   .card-back {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: linear-gradient(165deg, #ffffff 0%, #f8f5ef 55%, #f0ebe2 100%);
-    padding: 10px;
+    padding: 5px;
     text-align: center;
   }
   .card-back-img {
-    width: 78%;
-    max-width: 72mm;
-    max-height: 72mm;
+    width: 62%;
+    max-height: 22mm;
     object-fit: contain;
     display: block;
     margin: 0 auto;
   }
   .card-back-img.is-photo {
-    width: 92%;
-    max-width: none;
-    max-height: 85%;
-    height: 85%;
+    width: 94%;
+    max-height: 30mm;
+    height: 30mm;
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: 2px;
   }
   .card-back-mark {
-    margin-top: 8px;
+    margin-top: 3px;
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+    font-size: 6.5px; font-weight: 700; letter-spacing: 0.1em;
     text-transform: uppercase; color: #6a5a35;
   }
   .card-back-tag {
-    position: absolute; top: 4px; left: 5px;
-    font-size: 7px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+    position: absolute; top: 2px; left: 3px;
+    font-size: 5.5px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
     color: #aaa;
+  }
+  .card-back-floral { padding: 2px; background: #1a2332; }
+  .card-back-floral .card-back-mark { color: #d4af37; }
+  .card-back-floral .card-back-tag { color: rgba(255,255,255,0.45); }
+  .card-back-blue-boy {
+    background: linear-gradient(160deg, #e8f2fb 0%, #c5daf0 45%, #9ec0e0 100%);
+    padding: 0;
+  }
+  .blue-boy-inner {
+    height: 100%; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px 5px 4px;
+  }
+  .blue-boy-badge {
+    font-size: 6px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #2c5a84; margin-bottom: 3px;
+  }
+  .blue-boy-title {
+    font-family: 'Great Vibes', Georgia, cursive;
+    font-size: 15px; color: #1e3a5f; line-height: 1; margin: 0;
+  }
+  .blue-boy-sub {
+    font-size: 5.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #3d6a94; margin: 2px 0 4px; font-weight: 600;
+  }
+  .blue-boy-logo { width: 36px; max-height: 11px; object-fit: contain; opacity: 0.9; }
+  .card-back-classic {
+    background: #f7f7f5; padding: 4px;
+  }
+  .classic-frame {
+    border: 1.2px solid #222;
+    outline: 1px solid #222;
+    outline-offset: 2px;
+    width: 88%; height: 88%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #fff;
+  }
+  .classic-logo { width: 48px; max-height: 14px; object-fit: contain; }
+  .classic-script {
+    font-family: 'Great Vibes', Georgia, cursive;
+    font-size: 12px; color: #1a3a2e; margin-top: 2px;
   }
 
   .no-print {
@@ -380,7 +375,6 @@ module.exports.PACKING_SLIP_CSS = `
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page { padding: 0; }
-    .card-sheet { min-height: 0; }
     .no-print { display: none !important; }
     .cut-card { page-break-inside: avoid; }
   }

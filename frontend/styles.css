@@ -1226,32 +1226,118 @@ button {
   color: #166534;
 }
 
-.card-back-image-field {
+.card-design-picker {
   flex: 1 1 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.5rem 0.75rem;
-  margin-top: 0.35rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px dashed #d2c7af;
-  border-radius: 8px;
+  margin-top: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e3d9c5;
+  border-radius: 10px;
   background: #fffdf8;
 }
 
-.card-back-image-field label {
-  flex: 1 1 220px;
+.card-design-picker-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.card-design-picker-head strong {
+  font-size: 0.9rem;
+  color: #1c1917;
+}
+
+.card-design-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 0.55rem;
+}
+
+.card-design-option {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  padding: 0.45rem;
+  border: 1.5px solid #e5e0d4;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.card-design-option.is-selected {
+  border-color: #1a3a2e;
+  box-shadow: 0 0 0 1px #1a3a2e;
+}
+
+.card-design-swatch {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  background: #f3f0ea;
+}
+
+.card-design-swatch.design-standard {
+  background: linear-gradient(165deg, #fff 0%, #f5f0e6 100%);
+}
+
+.card-design-swatch.design-floral {
+  background: linear-gradient(160deg, #1a2332 0%, #3d2a35 55%, #6b3a4a 100%);
+}
+
+.card-design-swatch.design-blue_boy {
+  background: linear-gradient(160deg, #e8f2fb 0%, #9ec0e0 100%);
+}
+
+.card-design-swatch.design-classic {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #222, inset 0 0 0 4px #fff, inset 0 0 0 5px #222;
+}
+
+.card-design-swatch.design-custom {
+  background:
+    linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  background-color: #eee;
+}
+
+.card-design-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1c1917;
+  line-height: 1.2;
+}
+
+.card-design-price {
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #6a5a35;
+}
+
+.card-design-custom-url {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  margin-top: 0.65rem;
   font-size: 0.8rem;
   font-weight: 650;
   color: #5f4a1c;
 }
 
-.card-back-image-field input {
-  font-weight: 500;
-  color: #1c1917;
+.card-design-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
 }
 
 .order-products-list {

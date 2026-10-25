@@ -7,6 +7,10 @@ const QRCode = require('qrcode');
 const { PACKING_SLIP_CSS, LOGO_URL } = require('./packingSlipStyles');
 const { pickMainLineItem } = require('./shopifyPackingSlipData');
 const { extractFloristNote, isFloristNoteAddon } = require('../utils/floristNote');
+const {
+  resolveMessageCardBackHtml,
+  resolveLogoBackHtml
+} = require('../utils/cardDesigns');
 const { buildOrderFinanceRow } = require('../utils/orderFinance');
 const { COMPANY } = require('../config/company');
 const { isDeliveryAddressAddon } = require('../utils/addressSync');
@@ -273,10 +277,14 @@ function buildContext(payload) {
   };
 }
 
-function resolveCardBackImageUrl(mongo) {
-  const custom = String(mongo?.cardBackImageUrl || '').trim();
-  if (/^https?:\/\//i.test(custom) || custom.startsWith('data:')) return custom;
-  return LOGO_URL;
+function renderCardsBand(piecesHtml) {
+  return `
+  <div class="cards-band">
+    <div class="cards-cut"><span>✂ Klip her · 4 fine kort</span></div>
+    <div class="cards-grid">
+      ${piecesHtml}
+    </div>
+  </div>`;
 }
 
 /** Build the 4 card front HTML fragments in canonical order. */
@@ -366,15 +374,6 @@ function buildCardFrontPieces(ctx, qrDataUrl) {
   return { delivery, promo, care, message: messageCard };
 }
 
-function renderCardBackCell(label, imageUrl, isCustomPhoto) {
-  return `
-  <div class="cut-card card-back">
-    <span class="card-back-tag">${esc(label)}</span>
-    <img class="card-back-img${isCustomPhoto ? ' is-photo' : ''}" src="${esc(imageUrl)}" alt="Northblomst" />
-    <div class="card-back-mark">Northblomst</div>
-  </div>`;
-}
-
 function autoPrintScript() {
   return `<script>
     window.addEventListener('load', function () {
@@ -411,7 +410,7 @@ async function buildQrDataUrl(ctx) {
   }
 }
 
-function renderCompactSheet(ctx) {
+function renderCompactSheet(ctx, qrDataUrl) {
   const {
     lineItems,
     mainItem,
@@ -423,6 +422,7 @@ function renderCompactSheet(ctx) {
     currency,
     finance
   } = ctx;
+  const pieces = buildCardFrontPieces(ctx, qrDataUrl);
 
   const instructions = collectInstructions(ctx);
   const floristNoteRaw = extractFloristNote(mongo);
@@ -468,6 +468,7 @@ function renderCompactSheet(ctx) {
     .join('');
 
   return `<div class="page">
+  <div class="page-body">
   <div class="header">
     <div class="logo-wrap">
       <img class="logo" src="${esc(LOGO_URL)}" alt="Northblomst" />
@@ -563,9 +564,12 @@ function renderCompactSheet(ctx) {
   </div>
 
   <div class="footer">
-    <div>Northblomst · produktion · print kort forside/bagside separat</div>
+    <div>Northblomst · pakkeseddel · print verso efter vend (lang kant)</div>
     <div>${esc(orderName)}</div>
   </div>
+  </div>
+
+  ${renderCardsBand(`${pieces.delivery}${pieces.promo}${pieces.care}${pieces.message}`)}
 </div>`;
 }
 
@@ -573,6 +577,7 @@ async function renderPackingSlipHtml(payload) {
   const ctx = buildContext(payload);
   const orderName = ctx.orderName;
   const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
+  const qrDataUrl = await buildQrDataUrl(ctx);
 
   return `<!DOCTYPE html>
 <html lang="da">
@@ -584,78 +589,41 @@ async function renderPackingSlipHtml(payload) {
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">Pakkeseddel (forside) · ordre ${esc(barcode)} · kort printes separat</span>
+    <span class="no-print-hint">Pakkeseddel + fine kort · print → vend papiret (lang kant) → Print verso · ordre ${esc(barcode)}</span>
   </div>
-  ${renderCompactSheet(ctx)}
+  ${renderCompactSheet(ctx, qrDataUrl)}
   ${autoPrintScript()}
 </body>
 </html>`;
 }
 
-async function renderCardFrontsHtml(payload) {
-  const ctx = buildContext(payload);
-  const orderName = ctx.orderName;
-  const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
-  const qrDataUrl = await buildQrDataUrl(ctx);
-  const pieces = buildCardFrontPieces(ctx, qrDataUrl);
-
-  return `<!DOCTYPE html>
-<html lang="da">
-<head>
-  <meta charset="utf-8" />
-  <title>Kort forside ${esc(orderName)}</title>
-  <style>${PACKING_SLIP_CSS}</style>
-</head>
-<body>
-  <div class="no-print">
-    <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">Kort forside · print → vend papiret (lang kant) → print bagside · ordre ${esc(barcode)}</span>
-  </div>
-  <div class="card-sheet">
-    <div class="cards-grid">
-      ${pieces.delivery}
-      ${pieces.promo}
-      ${pieces.care}
-      ${pieces.message}
-    </div>
-  </div>
-  ${autoPrintScript()}
-</body>
-</html>`;
-}
-
+/** Verso of same sheet: spacer + mirrored fine card backs (letter design selectable). */
 async function renderCardBacksHtml(payload) {
   const ctx = buildContext(payload);
   const orderName = ctx.orderName;
   const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
-  const imageUrl = resolveCardBackImageUrl(ctx.mongo);
-  const isCustomPhoto = imageUrl !== LOGO_URL;
 
   // Long-edge flip mirror: front [A B / C D] → back [B A / D C]
-  const promoBack = renderCardBackCell('2 · Visitkort bagside', imageUrl, isCustomPhoto);
-  const deliveryBack = renderCardBackCell('1 · Levering bagside', imageUrl, isCustomPhoto);
-  const messageBack = renderCardBackCell('4 · Besked bagside', imageUrl, isCustomPhoto);
-  const careBack = renderCardBackCell('3 · Pleje bagside', imageUrl, isCustomPhoto);
+  const promoBack = resolveLogoBackHtml('2 · Visitkort', esc);
+  const deliveryBack = resolveLogoBackHtml('1 · Levering', esc);
+  const messageBack = resolveMessageCardBackHtml(ctx.mongo, esc);
+  const careBack = resolveLogoBackHtml('3 · Pleje', esc);
 
   return `<!DOCTYPE html>
 <html lang="da">
 <head>
   <meta charset="utf-8" />
-  <title>Kort bagside ${esc(orderName)}</title>
+  <title>Verso ${esc(orderName)}</title>
   <style>${PACKING_SLIP_CSS}</style>
 </head>
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">Kort bagside (spejlet til lang kant) · efter forside: vend papiret → print · ordre ${esc(barcode)}</span>
+    <span class="no-print-hint">Verso (spejlet) · efter pakkeseddel: vend papiret (lang kant) → print · besked-design valgt på ordren · ${esc(barcode)}</span>
   </div>
-  <div class="card-sheet is-backs">
-    <div class="cards-grid">
-      ${promoBack}
-      ${deliveryBack}
-      ${messageBack}
-      ${careBack}
-    </div>
+  <div class="page verso-page">
+    <div class="verso-spacer" aria-hidden="true"></div>
+    ${renderCardsBand(`${promoBack}${deliveryBack}${messageBack}${careBack}`)}
   </div>
   ${autoPrintScript()}
 </body>
@@ -664,7 +632,6 @@ async function renderCardBacksHtml(payload) {
 
 module.exports = {
   renderPackingSlipHtml,
-  renderCardFrontsHtml,
   renderCardBacksHtml,
   resolveTrackPodBarcode
 };

@@ -81,10 +81,12 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const [floristNoteDraft, setFloristNoteDraft] = useState(() => extractFloristNote(orderProp));
   const [floristNoteSaving, setFloristNoteSaving] = useState(false);
   const [floristNoteMessage, setFloristNoteMessage] = useState('');
-  const [cardPrintLoading, setCardPrintLoading] = useState('');
+  const [cardPrintLoading, setCardPrintLoading] = useState(false);
+  const [cardDesigns, setCardDesigns] = useState([]);
+  const [messageCardDesign, setMessageCardDesign] = useState(() => orderProp.messageCardDesign || 'standard');
   const [cardBackImageDraft, setCardBackImageDraft] = useState(() => String(orderProp.cardBackImageUrl || ''));
-  const [cardBackImageSaving, setCardBackImageSaving] = useState(false);
-  const [cardBackImageMessage, setCardBackImageMessage] = useState('');
+  const [cardDesignSaving, setCardDesignSaving] = useState(false);
+  const [cardDesignMessage, setCardDesignMessage] = useState('');
 
   const currentPartnerId = order.partner?._id ?? order.partner ?? null;
   const currentPartnerIdStr = currentPartnerId ? String(currentPartnerId) : '';
@@ -111,9 +113,43 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     setDeliveryDateMessage('');
     setFloristNoteDraft(extractFloristNote(order));
     setFloristNoteMessage('');
+    setMessageCardDesign(order.messageCardDesign || 'standard');
     setCardBackImageDraft(String(order.cardBackImageUrl || ''));
-    setCardBackImageMessage('');
-  }, [order._id, order.trackingNumber, order.trackingUrl, currentPartnerIdStr, order.deliveryDate, order.notes, order.addOns, order.cardBackImageUrl]);
+    setCardDesignMessage('');
+  }, [
+    order._id,
+    order.trackingNumber,
+    order.trackingUrl,
+    currentPartnerIdStr,
+    order.deliveryDate,
+    order.notes,
+    order.addOns,
+    order.cardBackImageUrl,
+    order.messageCardDesign
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get(`${API_BASE}/orders/card-designs`)
+      .then((res) => {
+        if (!cancelled) setCardDesigns(res.data?.designs || []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCardDesigns([
+            { id: 'standard', label: 'Standard kort', priceKr: 20 },
+            { id: 'floral', label: 'Blomster', priceKr: 30 },
+            { id: 'blue_boy', label: 'Blå — dreng', priceKr: 30 },
+            { id: 'classic', label: 'Klassisk hvid', priceKr: 25 },
+            { id: 'custom', label: 'Eget billede', priceKr: 35 }
+          ]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const saveFloristNote = async () => {
     setFloristNoteSaving(true);
@@ -259,35 +295,34 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
     }
   };
 
-  const handlePrintCardSheet = async (side) => {
-    const path = side === 'backs' ? 'print-card-backs' : 'print-card-fronts';
-    const label = side === 'backs' ? 'kort bagside' : 'kort forside';
-    setCardPrintLoading(side);
+  const handlePrintVerso = async () => {
+    setCardPrintLoading(true);
     setStatusError('');
     try {
-      await openPrintHtml(path, label);
+      await openPrintHtml('print-card-backs', 'verso');
     } catch (err) {
-      console.error('Card print failed', err);
-      setStatusError(err.response?.data?.message || `Kunne ikke hente ${label}`);
+      console.error('Verso print failed', err);
+      setStatusError(err.response?.data?.message || 'Kunne ikke hente verso');
     } finally {
-      setCardPrintLoading('');
+      setCardPrintLoading(false);
     }
   };
 
-  const saveCardBackImage = async () => {
-    setCardBackImageSaving(true);
-    setCardBackImageMessage('');
+  const saveCardDesign = async () => {
+    setCardDesignSaving(true);
+    setCardDesignMessage('');
     try {
       const res = await axios.patch(`${API_BASE}/orders/${order._id}`, {
-        cardBackImageUrl: cardBackImageDraft.trim()
+        messageCardDesign,
+        cardBackImageUrl: messageCardDesign === 'custom' ? cardBackImageDraft.trim() : ''
       });
       if (res.data) setDisplayOrder(res.data);
-      setCardBackImageMessage('Bagside-billede gemt');
+      setCardDesignMessage('Kort-design gemt');
       await onUpdated();
     } catch (err) {
-      setCardBackImageMessage(err.response?.data?.message || 'Kunne ikke gemme billede');
+      setCardDesignMessage(err.response?.data?.message || 'Kunne ikke gemme design');
     } finally {
-      setCardBackImageSaving(false);
+      setCardDesignSaving(false);
     }
   };
 
@@ -714,26 +749,17 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
             ) : null}
           </p>
         )}
-        <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading || !!cardPrintLoading}>
+        <button className="primary" onClick={handlePrint} disabled={isCancelled || printLoading || cardPrintLoading}>
           {printLoading ? 'Henter pakkeseddel…' : 'Print pakkeseddel'}
         </button>
         <button
           type="button"
           className="secondary"
-          onClick={() => handlePrintCardSheet('fronts')}
-          disabled={isCancelled || printLoading || !!cardPrintLoading}
-          title="Print 4 kort forsider (2×2). Vend papiret (lang kant) og print bagside."
+          onClick={handlePrintVerso}
+          disabled={isCancelled || printLoading || cardPrintLoading}
+          title="Vend pakkeseddel-papiret (lang kant) og print verso — bagsider spejlet til klip"
         >
-          {cardPrintLoading === 'fronts' ? 'Henter kort…' : 'Print kort forside'}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => handlePrintCardSheet('backs')}
-          disabled={isCancelled || printLoading || !!cardPrintLoading}
-          title="Print 4 kort bagsider (logo/billede), spejlet til lang-kant flip"
-        >
-          {cardPrintLoading === 'backs' ? 'Henter bagside…' : 'Print kort bagside'}
+          {cardPrintLoading ? 'Henter verso…' : 'Print verso'}
         </button>
         <button
           type="button"
@@ -753,29 +779,53 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
         >
           Print kort (begravelse)
         </button>
-        {isAdmin && !isCancelled && (
-          <div className="card-back-image-field">
-            <label>
-              Kort bagside billede (URL)
-              <input
-                type="url"
-                value={cardBackImageDraft}
-                onChange={(e) => setCardBackImageDraft(e.target.value)}
-                placeholder="Tom = Northblomst logo · eller https://…"
-              />
-            </label>
-            <button
-              type="button"
-              className="secondary"
-              onClick={saveCardBackImage}
-              disabled={
-                cardBackImageSaving ||
-                cardBackImageDraft.trim() === String(order.cardBackImageUrl || '').trim()
-              }
-            >
-              {cardBackImageSaving ? 'Gemmer…' : 'Gem bagside-billede'}
-            </button>
-            {cardBackImageMessage ? <span className="florist-note-msg">{cardBackImageMessage}</span> : null}
+        {!isCancelled && (
+          <div className="card-design-picker">
+            <div className="card-design-picker-head">
+              <strong>Beskedkort bagside</strong>
+              <span className="muted">Vælg design før Print verso (som Interflora)</span>
+            </div>
+            <div className="card-design-grid">
+              {cardDesigns.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`card-design-option${messageCardDesign === d.id ? ' is-selected' : ''}`}
+                  onClick={() => setMessageCardDesign(d.id)}
+                >
+                  <span className={`card-design-swatch design-${d.id}`} aria-hidden="true" />
+                  <span className="card-design-name">{d.label}</span>
+                  <span className="card-design-price">{d.priceKr} kr</span>
+                </button>
+              ))}
+            </div>
+            {messageCardDesign === 'custom' && (
+              <label className="card-design-custom-url">
+                Billede-URL (kunde-foto)
+                <input
+                  type="url"
+                  value={cardBackImageDraft}
+                  onChange={(e) => setCardBackImageDraft(e.target.value)}
+                  placeholder="https://…"
+                />
+              </label>
+            )}
+            <div className="card-design-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={saveCardDesign}
+                disabled={
+                  cardDesignSaving ||
+                  (messageCardDesign === (order.messageCardDesign || 'standard') &&
+                    (messageCardDesign !== 'custom' ||
+                      cardBackImageDraft.trim() === String(order.cardBackImageUrl || '').trim()))
+                }
+              >
+                {cardDesignSaving ? 'Gemmer…' : 'Gem kort-design'}
+              </button>
+              {cardDesignMessage ? <span className="florist-note-msg">{cardDesignMessage}</span> : null}
+            </div>
           </div>
         )}
         {isAdmin && (
