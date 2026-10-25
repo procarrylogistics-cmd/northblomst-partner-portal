@@ -99,6 +99,8 @@ const OrderSchema = new mongoose.Schema(
     phone: String,
     cardFlag: { type: Boolean, default: false },
     cardText: String,
+    /** Custom image URL for duplex card backs (fallback: Northblomst logo). */
+    cardBackImageUrl: String,
     notes: String,
     productSummary: String,
 

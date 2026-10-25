@@ -1226,6 +1226,34 @@ button {
   color: #166534;
 }
 
+.card-back-image-field {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed #d2c7af;
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.card-back-image-field label {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #5f4a1c;
+}
+
+.card-back-image-field input {
+  font-weight: 500;
+  color: #1c1917;
+}
+
 .order-products-list {
   list-style: none;
   padding: 0;

@@ -273,11 +273,17 @@ function buildContext(payload) {
   };
 }
 
-function renderCutOutCards(ctx, qrDataUrl) {
+function resolveCardBackImageUrl(mongo) {
+  const custom = String(mongo?.cardBackImageUrl || '').trim();
+  if (/^https?:\/\//i.test(custom) || custom.startsWith('data:')) return custom;
+  return LOGO_URL;
+}
+
+/** Build the 4 card front HTML fragments in canonical order. */
+function buildCardFrontPieces(ctx, qrDataUrl) {
   const { ship, orderName, deliveryDate, trackPodBarcode, doorFlag, neighborFlag, mongo, lineItems, noteAttributes } =
     ctx;
-  const phoneDisplay = formatCompanyPhone(COMPANY.phone || '42833316');
-  const footerPhone = phoneDisplay;
+  const footerPhone = formatCompanyPhone(COMPANY.phone || '42833316');
   const footerWeb = COMPANY.website || 'northblomst.dk';
 
   const flags = [];
@@ -288,7 +294,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
   const message = truncate(messageRaw, 300);
   const sender = resolveSenderName(mongo);
 
-  const card1 = `
+  const delivery = `
   <div class="cut-card card-delivery">
     <span class="cut-card-tag">1 · Levering</span>
     <div class="cd-left">
@@ -316,7 +322,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
     </div>
   </div>`;
 
-  const card2 = `
+  const promo = `
   <div class="cut-card card-brand">
     <span class="cut-card-tag">2 · Visitkort</span>
     <div class="cb-inner">
@@ -333,7 +339,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
     </div>
   </div>`;
 
-  const card3 = `
+  const care = `
   <div class="cut-card card-care">
     <span class="cut-card-tag">3 · Pleje</span>
     <h3 class="cc-title">Sådan holder blomsterne længst</h3>
@@ -348,7 +354,7 @@ function renderCutOutCards(ctx, qrDataUrl) {
     <div class="cc-foot">Northblomst · ${esc(footerWeb)}</div>
   </div>`;
 
-  const card4 = `
+  const messageCard = `
   <div class="cut-card card-message-cut">
     <span class="cut-card-tag">4 · Besked</span>
     <div class="cm-title">En hilsen til dig</div>
@@ -357,17 +363,55 @@ function renderCutOutCards(ctx, qrDataUrl) {
     <div class="cm-brand">Northblomst</div>
   </div>`;
 
+  return { delivery, promo, care, message: messageCard };
+}
+
+function renderCardBackCell(label, imageUrl, isCustomPhoto) {
   return `
-  <div class="cards-cut"><span>✂ Klip her · 4 kort (levering · visitkort · pleje · besked)</span></div>
-  <div class="cards-grid">
-    ${card1}
-    ${card2}
-    ${card3}
-    ${card4}
+  <div class="cut-card card-back">
+    <span class="card-back-tag">${esc(label)}</span>
+    <img class="card-back-img${isCustomPhoto ? ' is-photo' : ''}" src="${esc(imageUrl)}" alt="Northblomst" />
+    <div class="card-back-mark">Northblomst</div>
   </div>`;
 }
 
-function renderCompactSheet(ctx, qrDataUrl) {
+function autoPrintScript() {
+  return `<script>
+    window.addEventListener('load', function () {
+      var imgs = document.querySelectorAll('img');
+      var pending = 0;
+      imgs.forEach(function (img) {
+        if (!img.complete) {
+          pending++;
+          img.addEventListener('load', done);
+          img.addEventListener('error', done);
+        }
+      });
+      function done() {
+        pending--;
+        if (pending <= 0) setTimeout(function () { window.print(); }, 250);
+      }
+      if (pending === 0) setTimeout(function () { window.print(); }, 350);
+    });
+  </script>`;
+}
+
+async function buildQrDataUrl(ctx) {
+  const barcode = ctx.trackPodBarcode || ensureOrderHash(ctx.orderName);
+  try {
+    return await QRCode.toDataURL(String(barcode), {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 160,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+  } catch (err) {
+    console.error('TrackPod QR generation failed', err.message);
+    return '';
+  }
+}
+
+function renderCompactSheet(ctx) {
   const {
     lineItems,
     mainItem,
@@ -518,10 +562,8 @@ function renderCompactSheet(ctx, qrDataUrl) {
     <div class="check"><span class="square"></span>Photo taken</div>
   </div>
 
-  ${renderCutOutCards(ctx, qrDataUrl)}
-
   <div class="footer">
-    <div>Northblomst · 1-page · 4 klip-kort · TrackPod QR = ordre-nr</div>
+    <div>Northblomst · produktion · print kort forside/bagside separat</div>
     <div>${esc(orderName)}</div>
   </div>
 </div>`;
@@ -531,18 +573,6 @@ async function renderPackingSlipHtml(payload) {
   const ctx = buildContext(payload);
   const orderName = ctx.orderName;
   const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
-
-  let qrDataUrl = '';
-  try {
-    qrDataUrl = await QRCode.toDataURL(String(barcode), {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      width: 120,
-      color: { dark: '#000000', light: '#ffffff' }
-    });
-  } catch (err) {
-    console.error('TrackPod QR generation failed', err.message);
-  }
 
   return `<!DOCTYPE html>
 <html lang="da">
@@ -554,29 +584,87 @@ async function renderPackingSlipHtml(payload) {
 <body>
   <div class="no-print">
     <button type="button" onclick="window.print()">Print</button>
-    <span class="no-print-hint">1× A4 · 4 klip-kort (levering QR · brand · pleje · besked) · ordre ${esc(barcode)}</span>
+    <span class="no-print-hint">Pakkeseddel (forside) · ordre ${esc(barcode)} · kort printes separat</span>
   </div>
-  ${renderCompactSheet(ctx, qrDataUrl)}
-  <script>
-    window.addEventListener('load', function () {
-      var imgs = document.querySelectorAll('img');
-      var pending = 0;
-      imgs.forEach(function (img) {
-        if (!img.complete) {
-          pending++;
-          img.addEventListener('load', done);
-          img.addEventListener('error', done);
-        }
-      });
-      function done() {
-        pending--;
-        if (pending <= 0) setTimeout(function () { window.print(); }, 250);
-      }
-      if (pending === 0) setTimeout(function () { window.print(); }, 350);
-    });
-  </script>
+  ${renderCompactSheet(ctx)}
+  ${autoPrintScript()}
 </body>
 </html>`;
 }
 
-module.exports = { renderPackingSlipHtml, resolveTrackPodBarcode };
+async function renderCardFrontsHtml(payload) {
+  const ctx = buildContext(payload);
+  const orderName = ctx.orderName;
+  const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
+  const qrDataUrl = await buildQrDataUrl(ctx);
+  const pieces = buildCardFrontPieces(ctx, qrDataUrl);
+
+  return `<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <title>Kort forside ${esc(orderName)}</title>
+  <style>${PACKING_SLIP_CSS}</style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print</button>
+    <span class="no-print-hint">Kort forside · print → vend papiret (lang kant) → print bagside · ordre ${esc(barcode)}</span>
+  </div>
+  <div class="card-sheet">
+    <div class="cards-grid">
+      ${pieces.delivery}
+      ${pieces.promo}
+      ${pieces.care}
+      ${pieces.message}
+    </div>
+  </div>
+  ${autoPrintScript()}
+</body>
+</html>`;
+}
+
+async function renderCardBacksHtml(payload) {
+  const ctx = buildContext(payload);
+  const orderName = ctx.orderName;
+  const barcode = ctx.trackPodBarcode || ensureOrderHash(orderName);
+  const imageUrl = resolveCardBackImageUrl(ctx.mongo);
+  const isCustomPhoto = imageUrl !== LOGO_URL;
+
+  // Long-edge flip mirror: front [A B / C D] → back [B A / D C]
+  const promoBack = renderCardBackCell('2 · Visitkort bagside', imageUrl, isCustomPhoto);
+  const deliveryBack = renderCardBackCell('1 · Levering bagside', imageUrl, isCustomPhoto);
+  const messageBack = renderCardBackCell('4 · Besked bagside', imageUrl, isCustomPhoto);
+  const careBack = renderCardBackCell('3 · Pleje bagside', imageUrl, isCustomPhoto);
+
+  return `<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <title>Kort bagside ${esc(orderName)}</title>
+  <style>${PACKING_SLIP_CSS}</style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print</button>
+    <span class="no-print-hint">Kort bagside (spejlet til lang kant) · efter forside: vend papiret → print · ordre ${esc(barcode)}</span>
+  </div>
+  <div class="card-sheet is-backs">
+    <div class="cards-grid">
+      ${promoBack}
+      ${deliveryBack}
+      ${messageBack}
+      ${careBack}
+    </div>
+  </div>
+  ${autoPrintScript()}
+</body>
+</html>`;
+}
+
+module.exports = {
+  renderPackingSlipHtml,
+  renderCardFrontsHtml,
+  renderCardBacksHtml,
+  resolveTrackPodBarcode
+};

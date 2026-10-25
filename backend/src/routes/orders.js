@@ -18,7 +18,11 @@ const {
 const { generateProductionSheetPdf } = require('../services/productionSheetPdf');
 const { enrichProductLinks, orderNeedsProductLinks } = require('../services/productLinks');
 const { loadOrderPrintPayload, getShopifyAdminOrderUrl } = require('../services/shopifyPackingSlipData');
-const { renderPackingSlipHtml } = require('../services/packingSlipHtml');
+const {
+  renderPackingSlipHtml,
+  renderCardFrontsHtml,
+  renderCardBacksHtml
+} = require('../services/packingSlipHtml');
 const { buildCustomerInvoiceHtml, sendCustomerInvoice, mapBillingFromShopify } = require('../services/customerOrderInvoice');
 const { syncCardTextOnOrder } = require('../utils/cardTextSync');
 const { syncDeliveryAddressOnOrder } = require('../utils/addressSync');
@@ -393,6 +397,38 @@ router.get('/:id/print-packing-slip', async (req, res) => {
   }
 });
 
+// Duplex card fronts (2×2) — print, then flip long-edge for backs
+router.get('/:id/print-card-fronts', async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+
+  try {
+    const payload = await loadOrderPrintPayload(order);
+    const html = await renderCardFrontsHtml(payload);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('print-card-fronts failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke hente kort forside' });
+  }
+});
+
+// Duplex card backs — L/R mirrored for long-edge flip alignment
+router.get('/:id/print-card-backs', async (req, res) => {
+  const { order, error } = await loadOrderForUser(req);
+  if (error) return res.status(error.status).json({ message: error.message });
+
+  try {
+    const payload = await loadOrderPrintPayload(order);
+    const html = await renderCardBacksHtml(payload);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('print-card-backs failed', err.message);
+    res.status(500).json({ message: 'Kunne ikke hente kort bagside' });
+  }
+});
+
 // PDF fallback (same Shopify image data)
 router.get('/:id/print-production-sheet', async (req, res) => {
   const { order, error } = await loadOrderForUser(req);
@@ -513,7 +549,19 @@ router.patch('/:id', async (req, res) => {
   if (order.status === 'cancelled') return res.status(400).json({ message: 'Cannot edit cancelled order' });
 
   const data = req.body || {};
-  const editable = ['recipientName', 'address', 'postcode', 'city', 'phone', 'deliveryDate', 'cardFlag', 'cardText', 'notes', 'productSummary'];
+  const editable = [
+    'recipientName',
+    'address',
+    'postcode',
+    'city',
+    'phone',
+    'deliveryDate',
+    'cardFlag',
+    'cardText',
+    'notes',
+    'productSummary'
+  ];
+  if (req.user?.role === 'admin') editable.push('cardBackImageUrl');
   const changes = [];
   editable.forEach((f) => {
     if (data[f] === undefined) return;
@@ -524,8 +572,9 @@ router.patch('/:id', async (req, res) => {
     }
     const val = f === 'deliveryDate' && data[f] ? new Date(data[f]) : data[f];
     if (f === 'cardFlag') order[f] = !!val;
-    else if (f === 'notes' || f === 'productSummary') order[f] = String(val || '').trim();
-    else order[f] = val;
+    else if (f === 'notes' || f === 'productSummary' || f === 'cardBackImageUrl') {
+      order[f] = String(val || '').trim();
+    } else order[f] = val;
     changes.push(f);
   });
   if (order.recipientName) {

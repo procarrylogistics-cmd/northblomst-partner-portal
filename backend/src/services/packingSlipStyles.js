@@ -126,7 +126,25 @@ module.exports.PACKING_SLIP_CSS = `
     display: flex; justify-content: space-between; color: #777; font-size: 8px;
   }
 
-  /* ——— 4 cut-out cards ——— */
+  /* ——— 4 cut-out cards (shared front/back sheet) ——— */
+  .card-sheet {
+    width: 100%;
+    max-width: 210mm;
+    min-height: 285mm;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .card-sheet .cards-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6mm 6mm;
+    width: 100%;
+    min-height: 270mm;
+    align-items: stretch;
+  }
   .cards-cut {
     margin: 6px 0 3px; border-top: 1.5px dashed #111; text-align: center; height: 9px;
   }
@@ -152,6 +170,12 @@ module.exports.PACKING_SLIP_CSS = `
     overflow: hidden;
     page-break-inside: avoid;
     position: relative;
+  }
+  .card-sheet .cut-card {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    border-radius: 4px;
   }
   .cut-card-tag {
     position: absolute; top: 2px; left: 3px; z-index: 2;
@@ -279,13 +303,84 @@ module.exports.PACKING_SLIP_CSS = `
     letter-spacing: 0.1em; text-transform: uppercase; padding-top: 2px;
   }
 
-  .no-print { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+  /* Card sheet — slightly larger type when cards own the page */
+  .card-sheet .cd-name { font-size: 16px; }
+  .card-sheet .cd-line { font-size: 12px; }
+  .card-sheet .cd-date { font-size: 13px; }
+  .card-sheet .cd-brand { font-size: 11px; }
+  .card-sheet .cd-muted { font-size: 9px; }
+  .card-sheet .cd-order { font-size: 12px; }
+  .card-sheet .cd-qr { width: 56px; height: 56px; }
+  .card-sheet .cd-barcode { font-size: 10px; }
+  .card-sheet .cd-logo { width: 64px; max-height: 18px; }
+  .card-sheet .cb-logo { width: 90px; max-height: 28px; }
+  .card-sheet .cb-script { font-size: 28px; }
+  .card-sheet .cb-sub { font-size: 8px; }
+  .card-sheet .cb-pitch { font-size: 13px; margin: 8px 0 10px; }
+  .card-sheet .cb-promo { padding: 8px 12px; }
+  .card-sheet .cb-promo-label { font-size: 8px; }
+  .card-sheet .cb-promo-code { font-size: 20px; }
+  .card-sheet .cb-promo-hint { font-size: 8px; }
+  .card-sheet .cb-contact { font-size: 10px; }
+  .card-sheet .cc-title { font-size: 16px; margin-bottom: 8px; }
+  .card-sheet .cc-list { font-size: 11px; line-height: 1.45; padding-left: 16px; }
+  .card-sheet .cc-list li { margin-bottom: 4px; }
+  .card-sheet .cc-foot { font-size: 9px; }
+  .card-sheet .cm-title { font-size: 10px; margin-bottom: 8px; }
+  .card-sheet .cm-body { font-size: 15px; line-height: 1.35; }
+  .card-sheet .cm-from { font-size: 12px; }
+  .card-sheet .cm-brand { font-size: 9px; }
+  .card-sheet .cd-body { padding: 16px 10px 6px; }
+  .card-sheet .cd-right { padding: 16px 8px 6px; }
+  .card-sheet .cb-inner { padding: 16px 12px 10px; }
+  .card-sheet .card-care { padding: 16px 12px 10px; }
+  .card-sheet .card-message-cut { padding: 16px 14px 10px; }
+
+  /* Card backs — logo / custom image, mirrored L/R for long-edge flip */
+  .card-back {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(165deg, #ffffff 0%, #f8f5ef 55%, #f0ebe2 100%);
+    padding: 10px;
+    text-align: center;
+  }
+  .card-back-img {
+    width: 78%;
+    max-width: 72mm;
+    max-height: 72mm;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
+  .card-back-img.is-photo {
+    width: 92%;
+    max-width: none;
+    max-height: 85%;
+    height: 85%;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  .card-back-mark {
+    margin-top: 8px;
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #6a5a35;
+  }
+  .card-back-tag {
+    position: absolute; top: 4px; left: 5px;
+    font-size: 7px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+    color: #aaa;
+  }
+
+  .no-print {
+    margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  }
   .no-print button { padding: 8px 14px; font-weight: 700; cursor: pointer; }
-  .no-print-hint { font-size: 12px; color: #555; }
+  .no-print-hint { font-size: 12px; color: #555; max-width: 520px; line-height: 1.35; }
   @page { size: A4 portrait; margin: 6mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page { padding: 0; }
+    .card-sheet { min-height: 0; }
     .no-print { display: none !important; }
     .cut-card { page-break-inside: avoid; }
   }
