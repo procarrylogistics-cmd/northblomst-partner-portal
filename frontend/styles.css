@@ -1000,6 +1000,52 @@ button {
   box-shadow: inset 3px 0 0 var(--nb-leaf);
 }
 
+.order-list-item.service-standard {
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.order-list-item.service-express {
+  box-shadow: inset 3px 0 0 #ea580c;
+}
+
+.order-list-item.service-pickup {
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.order-list-item.service-standard.selected {
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.order-list-item.service-express.selected {
+  background: linear-gradient(135deg, #fff7ed, #fffaf5);
+  border-color: rgba(234, 88, 12, 0.28);
+  box-shadow: inset 3px 0 0 #ea580c;
+}
+
+.order-list-item.service-pickup.selected {
+  background: linear-gradient(135deg, #f0fdf4, #f7fcf8);
+  border-color: rgba(22, 163, 74, 0.28);
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.badge-service-standard {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.badge-service-express {
+  background: #ffedd5;
+  color: #c2410c;
+  font-weight: 800;
+}
+
+.badge-service-pickup {
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 800;
+}
+
 .order-main {
   display: flex;
   justify-content: space-between;
@@ -2252,6 +2298,82 @@ button {
   z-index: 1200;
   background: rgba(20, 36, 31, 0.55);
   padding: 1rem;
+}
+
+.birthday-announce-overlay {
+  z-index: 1300;
+  background: rgba(20, 24, 40, 0.62);
+  padding: 1rem;
+}
+
+.birthday-announce {
+  max-width: 420px;
+  padding: 1.4rem 1.45rem 1.3rem;
+  border: 1px solid #fcd34d;
+  border-left: 6px solid #f59e0b;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 48%);
+  text-align: center;
+}
+
+.birthday-announce-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  margin-bottom: 0.55rem;
+}
+
+.birthday-announce h3 {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #78350f;
+  letter-spacing: -0.02em;
+}
+
+.birthday-announce-lead {
+  margin: 0 0 0.65rem !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #b45309 !important;
+}
+
+.birthday-announce p {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #44403c;
+}
+
+.birthday-stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  font-size: 1.1rem;
+  color: #d97706;
+  letter-spacing: 0.05em;
+}
+
+.birthday-stars-bottom {
+  margin-top: 0.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.birthday-stars span:nth-child(odd) {
+  transform: translateY(-2px);
+  color: #f59e0b;
+}
+
+.birthday-stars span:nth-child(even) {
+  color: #ca8a04;
 }
 
 .system-announce {

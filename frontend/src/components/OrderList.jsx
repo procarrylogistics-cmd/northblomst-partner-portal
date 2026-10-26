@@ -1,5 +1,6 @@
 import React from 'react';
 import { extractFloristNote } from '../utils/floristNote';
+import { resolveDeliveryServiceType, deliveryServiceLabel } from '../utils/deliveryServiceType';
 
 export default function OrderList({
   orders,
@@ -11,15 +12,20 @@ export default function OrderList({
 }) {
   return (
     <div className="order-list">
-      {orders.map((o) => (
+      {orders.map((o) => {
+        const serviceType = resolveDeliveryServiceType(o);
+        return (
         <button
           key={o._id}
-          className={`order-list-item ${selectedId === o._id ? 'selected' : ''}`}
+          className={`order-list-item service-${serviceType} ${selectedId === o._id ? 'selected' : ''}`}
           onClick={() => onSelect(o)}
         >
           <div className="order-main">
             <div className="order-name">{o.orderNumber || o.shopifyOrderName || o.shopifyOrderNumber}</div>
             <div className="order-badges-inline">
+              <span className={`badge-inline badge-service badge-service-${serviceType}`}>
+                {deliveryServiceLabel(serviceType)}
+              </span>
               <span className={`status status-${o.status}`}>
                 {o.status === 'cancelled' ? 'Annulleret' : o.status === 'assigned' ? 'Tildelt' : o.status}
               </span>
@@ -58,7 +64,8 @@ export default function OrderList({
             {o.createdByRole === 'partner' && <span className="meta-created">Partner</span>}
           </div>
         </button>
-      ))}
+        );
+      })}
       {orders.length === 0 && <div className="empty">Ingen ordrer</div>}
     </div>
   );

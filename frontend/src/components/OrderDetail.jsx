@@ -5,6 +5,7 @@ import { resolveProductLink } from '../utils/productLink';
 import { toDateInputValue } from '../utils/dateInput';
 import { extractCardMessage } from '../utils/cardMessage';
 import { extractFloristNote } from '../utils/floristNote';
+import { resolveDeliveryServiceType, deliveryServiceLabel } from '../utils/deliveryServiceType';
 import { printCardText, CARD_VARIANTS } from '../utils/printCardText';
 import { calculateOrderFinance, formatMoney, DEFAULT_PLATFORM_PERCENT } from '../utils/orderFinance';
 
@@ -478,11 +479,15 @@ export default function OrderDetail({ order: orderProp, onUpdated, isAdmin = fal
   const deliveryStr = order.deliveryDate
     ? new Date(order.deliveryDate).toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit' })
     : '';
+  const serviceType = resolveDeliveryServiceType(order);
 
   return (
     <div className="order-detail">
       <h3>{order.orderNumber || order.shopifyOrderName || order.shopifyOrderNumber}</h3>
       <div className="order-badges">
+        <span className={`badge badge-service badge-service-${serviceType}`}>
+          {deliveryServiceLabel(serviceType)}
+        </span>
         {order.createdByRole === 'partner' && <span className="badge badge-created">Oprettet af partner</span>}
         {order.createdByRole === 'admin' && <span className="badge badge-created">Oprettet af admin</span>}
         {(order.updateCount || 0) > 0 && (

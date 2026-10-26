@@ -59,6 +59,14 @@ function mapShopifyOrderToDoc(shopifyOrder) {
   const orderDate = shopifyOrder.created_at ? new Date(shopifyOrder.created_at) : new Date();
   const { deliveryDate: extracted, deliveryOption } = extractDeliveryFromShopifyOrder(shopifyOrder);
   const deliveryDate = extracted || (shopifyOrder.estimated_delivery_at ? new Date(shopifyOrder.estimated_delivery_at) : orderDate);
+  const { resolveDeliveryServiceType } = require('../utils/deliveryServiceType');
+  const shippingMethodTitle =
+    (shopifyOrder.shipping_lines || []).map((l) => l.title || l.code || '').filter(Boolean).join(' · ') ||
+    '';
+  const deliveryServiceType = resolveDeliveryServiceType(
+    { tags: shopifyOrder.tags, shippingMethodTitle },
+    shopifyOrder
+  );
 
   const totalPaid = shopifyOrder.total_price != null ? parseFloat(shopifyOrder.total_price) : null;
   const currencyCode = shopifyOrder.currency || null;
@@ -70,6 +78,9 @@ function mapShopifyOrderToDoc(shopifyOrder) {
     orderDate,
     deliveryDate,
     deliveryOption: deliveryOption || undefined,
+    deliveryServiceType,
+    shippingMethodTitle: shippingMethodTitle || undefined,
+    tags: shopifyOrder.tags,
     products,
     customer,
     shippingAddress,

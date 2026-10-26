@@ -14,6 +14,7 @@ const { matchZoneForPostalCode } = require('../utils/postalZone');
 const { autoAssignPartnerForOrder } = require('../services/partnerAutoAssign');
 const { applyDeliveryAddressToOrder } = require('../utils/deliveryAddressResolver');
 const { extractFloristNote } = require('../utils/floristNote');
+const { resolveDeliveryServiceType } = require('../utils/deliveryServiceType');
 
 const router = express.Router();
 const DEBUG_WEBHOOK_PAYLOAD = process.env.DEBUG_WEBHOOK_PAYLOAD === 'true';
@@ -29,6 +30,13 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
   const floristFromAddons = extractFloristNote({ notes: '', addOns });
   const shopifyNote = payload.note && String(payload.note).trim() ? String(payload.note).trim() : '';
   const floristNotes = floristFromAddons || shopifyNote || '';
+  const shippingMethodTitle =
+    (payload.shipping_lines || []).map((l) => l.title || l.code || '').filter(Boolean).join(' · ') ||
+    '';
+  const deliveryServiceType = resolveDeliveryServiceType(
+    { tags: payload.tags, shippingMethodTitle },
+    payload
+  );
   const ship = payload.shipping_address || {};
   const cust = payload.customer || {};
   const customerName =
@@ -59,6 +67,8 @@ function mapWebhookPayloadToOrder(payload, effectiveShop) {
     orderDate: payload.created_at ? new Date(payload.created_at) : new Date(),
     deliveryDate: extractedDate || (payload.estimated_delivery_at ? new Date(payload.estimated_delivery_at) : new Date(payload.created_at || Date.now())),
     deliveryOption: deliveryOption || undefined,
+    deliveryServiceType,
+    shippingMethodTitle: shippingMethodTitle || undefined,
     status: 'new',
     partner: null,
     createdByRole: 'shopify',

@@ -61,6 +61,8 @@ function buildPayload(order) {
   if (order.notes) noteParts.push(order.notes);
   if (order.cardText) noteParts.push(`Card: ${order.cardText}`);
 
+  const serviceType = String(order.deliveryServiceType || 'standard').toLowerCase();
+
   return {
     portalOrderId: order._id.toString(),
     orderNumber: resolveOrderNumber(order),
@@ -73,7 +75,9 @@ function buildPayload(order) {
     city,
     country,
     deliveryDate,
-    deliveryNote: noteParts.length ? noteParts.join('\n') : null
+    deliveryNote: noteParts.length ? noteParts.join('\n') : null,
+    deliveryServiceType: serviceType,
+    shippingMethodTitle: order.shippingMethodTitle || null
   };
 }
 

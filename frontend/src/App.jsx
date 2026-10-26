@@ -9,6 +9,7 @@ import PartnerAddonPage from './pages/PartnerAddonPage';
 import PartnerReportsPage from './pages/PartnerReportsPage';
 import NotificationBell from './components/NotificationBell';
 import SystemUpdateAnnounce from './components/SystemUpdateAnnounce';
+import BirthdayAnnounce from './components/BirthdayAnnounce';
 
 function ProtectedRoute({ children, role, allowSuspended = false }) {
   const { user, isAuthReady } = useAuth();
@@ -161,6 +162,7 @@ export default function App() {
           />
         </Routes>
       </main>
+      {!isLogin && user && <BirthdayAnnounce />}
       {!isLogin && user && (user.role === 'partner' || user.role === 'admin') && (
         <SystemUpdateAnnounce role={user.role} />
       )}

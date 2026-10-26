@@ -80,6 +80,13 @@ const OrderSchema = new mongoose.Schema(
     orderDate: Date,
     deliveryDate: { type: Date, default: Date.now, index: true },
     deliveryOption: { type: String, enum: ['TODAY', 'TOMORROW', 'DATE'] },
+    /** express | pickup | standard — for colored badges / Track */
+    deliveryServiceType: {
+      type: String,
+      enum: ['express', 'pickup', 'standard'],
+      default: 'standard'
+    },
+    shippingMethodTitle: String,
 
     products: [ProductSchema],
     addOns: [AddOnSchema],
